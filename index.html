@@ -23,6 +23,13 @@
   .animate-fade-in {
     animation: fade-in 0.5s ease-in-out;
   }
+  @keyframes bubble-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .animate-bubble-in {
+    animation: bubble-in 0.4s ease-in-out;
+  }
   @keyframes pulse-slow {
     0%, 100% {
       opacity: 1;
@@ -72,6 +79,15 @@
   }
   .animate-logo-breathe {
     animation: logo-breathe 6s ease-in-out infinite;
+  }
+  @keyframes background-pan {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .animate-background-pan {
+    background-size: 200% 200%;
+    animation: background-pan 30s ease infinite;
   }
 </style>
 </head>

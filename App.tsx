@@ -3,7 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from '@google/genai';
 import { SessionState, TranscriptEntry, ChatSession, Speaker, UserProfile, AVAILABLE_VOICES, AuraMemory, Goal, Mood, MoodEntry, CognitiveDistortion, JournalEntry, JournalInsights } from './types';
 import { decode, decodeAudioData, createBlob } from './utils/audio';
-import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon } from './components/Icons';
+import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon, UserIcon } from './components/Icons';
 import { BreathingExercise } from './components/BreathingExercise';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
@@ -105,8 +105,8 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
             insightsTitle: "Deine Sitzungs-Einblicke",
             distortionDetected: "Denkmuster erkannt",
             distortionInfo: (type: string) => `Aura hat hier ein Denkmuster namens "${type}" erkannt. Dies ist eine häufige Art, wie unser Gehirn Situationen interpretiert. Es zu bemerken ist der erste Schritt zur Veränderung.`,
-            welcome: (name: string) => `Willkommen bei Aura, ${name}`,
-            welcomeSubtitle: "Ihr persönlicher und vertraulicher Raum. Starten Sie eine neue Sitzung, um Ihr Gespräch zu beginnen.",
+            welcome: (name: string) => `Willkommen zurück, ${name}`,
+            welcomeSubtitle: "Aura ist hier, um zuzuhören. Starten Sie eine neue Sitzung, um Ihr Gespräch zu beginnen.",
             auraSpeaking: "Aura spricht",
             listening: "Ich höre zu...",
             userSpeaking: "Sie sprechen...",
@@ -321,8 +321,8 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
             insightsTitle: "Your Session Insights",
             distortionDetected: "Thought Pattern Detected",
             distortionInfo: (type: string) => `Aura has detected a thought pattern here called "${type}". This is a common way our brains interpret situations. Noticing it is the first step toward change.`,
-            welcome: (name: string) => `Welcome to Aura, ${name}`,
-            welcomeSubtitle: "Your personal and confidential space. Start a new session to begin your conversation.",
+            welcome: (name: string) => `Welcome back, ${name}`,
+            welcomeSubtitle: "Aura is here to listen. Start a new session to begin your conversation.",
             auraSpeaking: "Aura is speaking",
             listening: "I'm listening...",
             userSpeaking: "You are speaking...",
@@ -550,6 +550,20 @@ const SessionSummaryCard: React.FC<{ summary: string; T: any }> = ({ summary, T 
         </div>
     </div>
 );
+
+const WelcomeScreen: React.FC<{ profile: UserProfile; T: any; onNewSession: () => void; }> = ({ profile, T, onNewSession }) => {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center text-slate-600 dark:text-slate-400 animate-fade-in">
+      <AuraHumanAvatar className="w-28 h-28 mb-6 animate-logo-breathe" />
+      <h2 className="text-4xl font-bold text-slate-800 dark:text-slate-200">{T.ui.chat.welcome(profile.name)}</h2>
+      <p className="mt-2 max-w-sm">{T.ui.chat.welcomeSubtitle}</p>
+       <button onClick={onNewSession} aria-label={T.ui.chat.startSession} className="mt-10 relative px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-600/50 transition-all shadow-xl group disabled:bg-slate-400 disabled:cursor-not-allowed font-semibold flex items-center gap-2">
+            <PlusIcon className="w-5 h-5"/>
+            <span>{T.ui.chat.startSession}</span>
+      </button>
+    </div>
+  );
+};
 
 
 const App: React.FC = () => {
@@ -1157,7 +1171,7 @@ const App: React.FC = () => {
         const completedGoals = profile.goals.filter(g => g.status === 'completed').sort((a,b) => b.createdAt - a.createdAt);
 
         return (
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
                 <div className="max-w-3xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{T.ui.goalsView.title}</h2>
@@ -1217,7 +1231,7 @@ const App: React.FC = () => {
         const sortedMoods = [...(profile.moodJournal || [])].sort((a,b) => b.createdAt - a.createdAt);
 
         return (
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
                 <div className="max-w-3xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{T.ui.moodView.title}</h2>
@@ -1274,7 +1288,7 @@ const App: React.FC = () => {
         };
 
         return (
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
                 <div className="max-w-3xl mx-auto">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200">{T.ui.journalView.title}</h2>
@@ -1317,7 +1331,7 @@ const App: React.FC = () => {
         const uniqueDistortionTypes = [...new Set(allDistortions.map(d => d.type))];
 
         return (
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
                 <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Mood Chart */}
                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
@@ -1371,6 +1385,16 @@ const App: React.FC = () => {
     
     const shouldShowSummary = (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession;
 
+    const getAppBackgroundClass = () => {
+        if (sessionState === SessionState.IDLE) return 'from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800';
+        if (sessionState === SessionState.LISTENING) return 'from-sky-100 to-blue-200 dark:from-sky-900 dark:to-blue-800';
+        if (sessionState === SessionState.USER_SPEAKING) return 'from-emerald-50 to-green-100 dark:from-emerald-900 dark:to-green-800';
+        if (sessionState === SessionState.SPEAKING) return 'from-cyan-50 to-teal-100 dark:from-cyan-900 dark:to-teal-800';
+        if (sessionState === SessionState.PROCESSING || sessionState === SessionState.CONNECTING) return 'from-purple-50 to-indigo-100 dark:from-purple-900 dark:to-indigo-800';
+        return 'from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800';
+    }
+
+
     const renderContent = () => {
         switch (currentView) {
             case 'chat':
@@ -1393,20 +1417,17 @@ const App: React.FC = () => {
                                             setActiveDistortion={setActiveDistortion}
                                             inputAnalyserNode={inputAnalyserRef.current}
                                             outputAnalyserNode={outputAnalyserRef.current}
+                                            userProfile={profile}
                                             T={T}
                                        />
                                     )}
                                 </>
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center text-slate-600 dark:text-slate-400 -mt-16">
-                                    <AuraHumanAvatar className="w-24 h-24 mb-6" />
-                                    <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-200">{T.ui.chat.welcome(profile.name)}</h2>
-                                    <p className="mt-2 max-w-sm">{T.ui.chat.welcomeSubtitle}</p>
-                                </div>
+                                <WelcomeScreen profile={profile} T={T} onNewSession={() => handleNewSession()} />
                             )}
                         </div>
 
-                        {!shouldShowSummary && (
+                        {!shouldShowSummary && activeSession && (
                              <footer className="p-4 bg-transparent">
                                 <div className="max-w-3xl mx-auto flex flex-col items-center justify-center min-h-[120px]">
                                     <div className="text-center h-8 mb-4">
@@ -1572,7 +1593,7 @@ const App: React.FC = () => {
                  </div>
             </aside>
             
-            <main className="absolute inset-0 md:left-72 flex flex-col bg-gradient-to-br from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800">
+            <main className={`absolute inset-0 md:left-72 flex flex-col bg-gradient-to-br ${getAppBackgroundClass()} transition-all duration-1000 animate-background-pan`}>
                 <header className="p-4 pt-6 flex items-center justify-center text-center relative">
                      <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                         <MenuIcon className="w-6 h-6" />
