@@ -1,0 +1,7 @@
+{
+  "name": "Aura: Your AI Therapist",
+  "description": "A conversational AI therapist app designed to provide a safe and supportive space for users to discuss their thoughts and feelings. It uses real-time audio conversation to simulate a therapeutic session.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
