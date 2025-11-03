@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, AVAILABLE_VOICES, AVAILABLE_LANGUAGES } from '../types';
-import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon } from './Icons';
+import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon, LogOutIcon } from './Icons';
 
 type VoicePreviewState = { id: string; status: 'loading' | 'playing' } | null;
 
@@ -11,10 +11,11 @@ interface ProfileModalProps {
     onProfileChange: (newProfile: UserProfile) => void;
     onPreviewVoice: (voiceId: string) => void;
     voicePreviewState: VoicePreviewState;
+    onLogout: () => void;
     T: any; // Translation object
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, T }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, onLogout, T }) => {
     const [localProfile, setLocalProfile] = useState<UserProfile>(profile);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,13 +153,23 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     </div>
                 </div>
 
-                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
-                        {T.ui.cancel}
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl flex justify-between items-center">
+                     <button 
+                        onClick={onLogout} 
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-400 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                        title={T.ui.profileModal.logout}
+                    >
+                        <LogOutIcon className="w-5 h-5"/>
+                        <span>{T.ui.profileModal.logout}</span>
                     </button>
-                    <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
-                        {T.ui.save}
-                    </button>
+                    <div className="flex gap-3">
+                        <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
+                            {T.ui.cancel}
+                        </button>
+                        <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
+                            {T.ui.save}
+                        </button>
+                    </div>
                 </div>
 
                 <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">

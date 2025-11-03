@@ -11,6 +11,7 @@ import { MoodJournalModal } from './components/MoodJournalModal';
 import { JournalModal } from './components/JournalModal';
 import { Onboarding } from './components/Onboarding';
 import { ChatView } from './components/ChatView';
+import { AuthScreen } from './components/AuthScreen';
 
 
 // Fix: Define types for the LiveSession promise to avoid using 'any' or a non-exported type.
@@ -207,6 +208,21 @@ Bei JEDEM Anzeichen von unmittelbarer Selbstverletzungs- oder Suizidgefahr, rufe
             namePlaceholder: "Wie sollen wir dich nennen?",
             languageLabel: "Sprache",
             voiceLabel: "Auras Stimme",
+            logout: "Abmelden",
+        },
+        auth: {
+            loginTitle: "Willkommen zurück",
+            loginSubtitle: "Melde dich an, um dein Gespräch fortzusetzen.",
+            loginButton: "Anmelden",
+            signUpTitle: "Erstelle dein Konto",
+            signUpSubtitle: "Beginne deine Reise mit Aura.",
+            signUpButton: "Konto erstellen",
+            emailPlaceholder: "E-Mail-Adresse",
+            passwordPlaceholder: "Passwort",
+            haveAccount: "Du hast bereits ein Konto?",
+            noAccount: "Noch kein Konto?",
+            loginLink: "Anmelden",
+            signUpLink: "Registrieren",
         },
         voiceGenderMarker: {
             male: '(m)',
@@ -469,6 +485,21 @@ At ANY sign of immediate self-harm or suicidal intent, you MUST IMMEDIATELY call
             namePlaceholder: "How should we call you?",
             languageLabel: "Language",
             voiceLabel: "Aura's Voice",
+            logout: "Log Out",
+        },
+         auth: {
+            loginTitle: "Welcome Back",
+            loginSubtitle: "Sign in to continue your journey.",
+            loginButton: "Log In",
+            signUpTitle: "Create Your Account",
+            signUpSubtitle: "Start your journey with Aura today.",
+            signUpButton: "Create Account",
+            emailPlaceholder: "Email Address",
+            passwordPlaceholder: "Password",
+            haveAccount: "Already have an account?",
+            noAccount: "Don't have an account?",
+            loginLink: "Log In",
+            signUpLink: "Sign Up",
         },
         voiceGenderMarker: {
             male: '(m)',
@@ -687,6 +718,7 @@ const WelcomeScreen: React.FC<{ profile: UserProfile; T: any; onNewSession: () =
 
 
 const App: React.FC = () => {
+    const [currentUser, setCurrentUser] = useState<{ email: string } | null>(null);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [profile, setProfile] = useState<UserProfile>(defaultProfile);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -738,71 +770,110 @@ const App: React.FC = () => {
     const previewAudioContextRef = useRef<AudioContext | null>(null);
     const voicePreviewCacheRef = useRef<Record<string, string>>({});
     
-    // Derived state for translations
     const T = translations[profile.language as keyof typeof translations] || translations['de-DE'];
 
-    // Load sessions and profile from localStorage on initial render
+    // Load user's data when currentUser changes
     useEffect(() => {
-        try {
-            const savedProfile = localStorage.getItem('aura-user-profile');
-            if(savedProfile) {
-                 const parsedProfile = JSON.parse(savedProfile);
-                 // Ensure memory and goals object exists for backward compatibility
-                 if (!parsedProfile.memory) parsedProfile.memory = defaultMemory;
-                 if (!parsedProfile.goals) parsedProfile.goals = [];
-                 if (!parsedProfile.moodJournal) parsedProfile.moodJournal = [];
-                 if (!parsedProfile.journal) parsedProfile.journal = [];
-                 if (!parsedProfile.language) parsedProfile.language = 'de-DE'; // Backward compatibility for language
-                 if (typeof parsedProfile.avatarUrl === 'undefined') parsedProfile.avatarUrl = null;
-                 setProfile(parsedProfile);
+        if (currentUser) {
+            try {
+                const savedProfile = localStorage.getItem(`aura-profile-${currentUser.email}`);
+                if (savedProfile) {
+                    const parsedProfile = JSON.parse(savedProfile);
+                    // Ensure backward compatibility
+                    if (!parsedProfile.memory) parsedProfile.memory = defaultMemory;
+                    if (!parsedProfile.goals) parsedProfile.goals = [];
+                    if (!parsedProfile.moodJournal) parsedProfile.moodJournal = [];
+                    if (!parsedProfile.journal) parsedProfile.journal = [];
+                    if (!parsedProfile.language) parsedProfile.language = 'de-DE';
+                    if (typeof parsedProfile.avatarUrl === 'undefined') parsedProfile.avatarUrl = null;
+                    
+                    setProfile(parsedProfile);
+                    setShowOnboarding(!parsedProfile.onboardingCompleted);
 
-                 if (!parsedProfile.onboardingCompleted) {
+                } else {
+                    // New user, start with a fresh profile
+                    setProfile({ ...defaultProfile, name: currentUser.email.split('@')[0] });
                     setShowOnboarding(true);
-                 }
-            } else {
-                setShowOnboarding(true); // First time user
-            }
-
-            const savedSessions = localStorage.getItem('aura-sessions');
-            if (savedSessions) {
-                const parsedSessions: ChatSession[] = JSON.parse(savedSessions);
-                setSessions(parsedSessions);
-                if (parsedSessions.length > 0) {
-                    const latestSession = parsedSessions.sort((a, b) => b.startTime - a.startTime)[0];
-                    setActiveSessionId(latestSession.id);
                 }
+
+                const savedSessions = localStorage.getItem(`aura-sessions-${currentUser.email}`);
+                if (savedSessions) {
+                    const parsedSessions: ChatSession[] = JSON.parse(savedSessions);
+                    setSessions(parsedSessions);
+                     if (parsedSessions.length > 0) {
+                        const latestSession = parsedSessions.sort((a, b) => b.startTime - a.startTime)[0];
+                        setActiveSessionId(latestSession.id);
+                    } else {
+                        setActiveSessionId(null);
+                    }
+                } else {
+                    setSessions([]);
+                    setActiveSessionId(null);
+                }
+            } catch (e) {
+                console.error("Failed to load user data from localStorage", e);
+                setShowOnboarding(true);
             }
-        } catch (e) {
-            console.error("Failed to load data from localStorage", e);
-            setShowOnboarding(true); // Show onboarding if there's an error loading profile
         }
-    }, []);
+    }, [currentUser]);
 
-    // Save sessions to localStorage, excluding large audio data
+    // Save sessions to localStorage for the current user
     useEffect(() => {
-        try {
-            const sessionsToSave = sessions.map(session => {
-                const { summaryAudioBase64, ...rest } = session;
-                return rest;
-            });
-            localStorage.setItem('aura-sessions', JSON.stringify(sessionsToSave));
-        } catch (e) {
-            console.error("Failed to save sessions to localStorage", e);
+        if (currentUser) {
+            try {
+                const sessionsToSave = sessions.map(session => {
+                    const { summaryAudioBase64, ...rest } = session;
+                    return rest;
+                });
+                localStorage.setItem(`aura-sessions-${currentUser.email}`, JSON.stringify(sessionsToSave));
+            } catch (e) {
+                console.error("Failed to save sessions to localStorage", e);
+            }
         }
-    }, [sessions]);
+    }, [sessions, currentUser]);
 
-    // Save profile to localStorage
+    // Save profile to localStorage for the current user
     useEffect(() => {
-        try {
-            localStorage.setItem('aura-user-profile', JSON.stringify(profile));
-        } catch (e) {
-            console.error("Failed to save profile to localStorage", e);
+        if (currentUser) {
+            try {
+                localStorage.setItem(`aura-profile-${currentUser.email}`, JSON.stringify(profile));
+            } catch (e) {
+                console.error("Failed to save profile to localStorage", e);
+            }
         }
-    }, [profile]);
+    }, [profile, currentUser]);
     
     useEffect(() => {
         sessionStateRef.current = sessionState;
     }, [sessionState]);
+
+    const handleAuth = (email: string, isSignUp: boolean) => {
+        const userExists = !!localStorage.getItem(`aura-profile-${email}`);
+        
+        if (isSignUp) {
+            if (userExists) {
+                alert("Ein Benutzer mit dieser E-Mail existiert bereits. Bitte melde dich an.");
+                return;
+            }
+            // Create new user
+            setCurrentUser({ email });
+        } else {
+            if (!userExists) {
+                alert("Benutzer nicht gefunden. Bitte registriere dich zuerst.");
+                return;
+            }
+            // Log in existing user
+            setCurrentUser({ email });
+        }
+    };
+
+    const handleLogout = () => {
+        stopSession(false, false);
+        setCurrentUser(null);
+        setProfile(defaultProfile);
+        setSessions([]);
+        setActiveSessionId(null);
+    };
 
     const updateTranscript = (speaker: Speaker, text: string) => {
         if (!text.trim()) return;
@@ -2051,6 +2122,12 @@ const App: React.FC = () => {
         }
     }
     
+    if (!currentUser) {
+        // Use a default or German translations for the auth screen if profile isn't loaded
+        const authT = translations['de-DE'];
+        return <AuthScreen onAuth={handleAuth} T={authT} />;
+    }
+
     if (showOnboarding) {
         return <Onboarding 
                     defaultProfile={profile} 
@@ -2070,6 +2147,7 @@ const App: React.FC = () => {
                 onProfileChange={setProfile}
                 onPreviewVoice={handlePreviewVoice}
                 voicePreviewState={voicePreviewState}
+                onLogout={handleLogout}
                 T={T}
              />
              <GoalsModal
