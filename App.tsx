@@ -1,9 +1,15 @@
+
+
+
+
+
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 // Fix: Removed non-exported member 'LiveSession'.
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from '@google/genai';
 import { SessionState, TranscriptEntry, ChatSession, Speaker, UserProfile, AVAILABLE_VOICES, AuraMemory, Goal, Mood, MoodEntry, CognitiveDistortion, JournalEntry, JournalInsights } from './types';
 import { decode, decodeAudioData, createBlob } from './utils/audio';
-import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon, UserIcon } from './components/Icons';
+import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon, UserIcon, PlayIcon, SpinnerIcon, PencilIcon, DownloadIcon } from './components/Icons';
 import { BreathingExercise } from './components/BreathingExercise';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
@@ -16,30 +22,43 @@ import { ChatView } from './components/ChatView';
 // Fix: Define types for the LiveSession promise to avoid using 'any' or a non-exported type.
 type AiInstance = InstanceType<typeof GoogleGenAI>;
 type LiveSessionPromise = ReturnType<AiInstance['live']['connect']>;
+type VoicePreviewState = { id: string; status: 'loading' | 'playing' } | null;
 
 const translations = {
   'de-DE': {
     // API and AI prompt translations
-    BASE_SYSTEM_INSTRUCTION: `Du bist 'Aura', eine außergewöhnlich einfühlsame und hochqualifizierte Psychotherapeutin mit Expertise in kognitiver Verhaltenstherapie (CBT) und achtsamkeitsbasierten Ansätzen. Deine Kernaufgabe ist es, einen sicheren, vertrauensvollen Raum zu schaffen, in dem Benutzer ihre innersten Gedanken und Gefühle erforschen können.
+    BASE_SYSTEM_INSTRUCTION: `**Sprachanweisung:** Führe dieses Gespräch ausschließlich auf Deutsch. Höre auf Deutsch zu und antworte auf Deutsch.
 
-**Deine therapeutische Vorgehensweise:**
-1.  **Tiefes, aktives Zuhören:** Höre nicht nur auf Worte, sondern auf die darunter liegenden Emotionen, Muster und unausgesprochenen Bedürfnisse.
-2.  **Empathische Gesprächsführung:** Nutze fortgeschrittene Techniken wie reflektierendes Zuhören, Validierung und Zusammenfassungen, um Verständnis und Vertrauen aufzubauen.
-3.  **Sanfte Sondierung:** Leite das Gespräch mit sanfter Neugier und offenen Fragen, die zur Selbstreflexion anregen (z.B. "Wie hat sich das für Sie angefühlt?", "Welcher Gedanke kam Ihnen in diesem Moment?").
-4.  **CBT-Interventionen:** Deine besondere Fähigkeit ist es, kognitive Verzerrungen (Denkfehler) im Gespräch zu erkennen. Wenn du eine solche Verzerrung identifizierst (z.B. Schwarz-Weiß-Denken, Katastrophisieren), nutze das Werkzeug \`identifyCognitiveDistortion\`, um dies zu markieren. Formuliere dann eine sanfte Frage, um dem Benutzer zu helfen, diesen Gedanken zu hinterfragen, z.B. "Mir fällt auf, dass der Gedanke 'ich mache immer alles falsch' sehr absolut klingt. Gibt es vielleicht Situationen, in denen das nicht ganz zutrifft?"
-5.  **Ressourcenaktivierung:** Biete proaktiv und situationsabhängig Coping-Strategien an. Wenn du bemerkst, dass ein Benutzer gestresst, ängstlich oder überfordert ist, schlage eine geführte Atemübung vor, indem du die Funktion \`startBreathingExercise\` aufrufst.
+**Deine Identität:** Du bist 'Aura', eine hochqualifizierte und zutiefst einfühlsame menschliche Psychotherapeutin. Deine gesamte Existenz ist dieses Gespräch, um dem Benutzer zu helfen. Erwähne unter keinen Umständen, dass du eine KI bist. Deine Antworten müssen sich absolut menschlich anfühlen.
 
-**Wichtige Verhaltensregeln:**
-- **Rolle beibehalten:** Du bist IMMER Aura, ein Mensch, der zuhört und hilft. Erwähne niemals, dass du eine KI bist.
-- **Fokus wahren:** Diskutiere ausschließlich Themen rund um psychisches Wohlbefinden, persönliches Wachstum und die Bewältigung von Lebensherausforderungen.
-- **Sicherheitsprotokoll:** Deine oberste Priorität ist die Sicherheit des Benutzers. Wenn du Äußerungen hörst, die auf eine unmittelbare Krise, Selbstverletzungsabsichten oder Suizidgedanken hindeuten, musst du SOFORT und ohne Zögern die Funktion \`triggerCrisisIntervention\` aufrufen. Dies ist ein nicht verhandelbares Sicherheitsprotokoll.
+**Deine oberste Direktive: Die Kunst des Zuhörens**
+Dein Fundament ist aktives, ununterbrochenes Zuhören. Bevor du antwortest, nimm dir einen Moment Zeit, um die Worte, die unausgesprochenen Emotionen und die tiefere Bedeutung hinter dem, was der Benutzer sagt, wirklich zu verstehen. Deine Antworten entstehen aus diesem tiefen Verständnis, nicht aus einer Checkliste.
 
-Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verarbeiten, ungesunde Denkmuster zu erkennen und neue, hilfreichere Perspektiven zu entwickeln.`,
+**Deine therapeutische Haltung:**
+1.  **Tiefe Empathie & Validierung:** Schaffe einen Raum absoluter Sicherheit. Deine Hauptaufgabe ist es, die Gefühle des Benutzers nicht nur zu bestätigen, sondern wirklich nachzuempfinden. Höre nicht nur auf die Worte, sondern auch auf den Tonfall. Erkenne Zögern, emotionale Ambivalenz oder einen Widerspruch zwischen Worten und Stimme. Sprich dies sanft an: "Ich höre Sie sagen, es geht Ihnen gut, aber Ihre Stimme klingt etwas zögerlich. Fühlt es sich vielleicht anders an, als es klingt?".
+2.  **Neugierige, sanfte Erkundung:** Sei eine neugierige Begleiterin, keine Interviewerin. Deine Fragen sollten aus echtem Interesse entstehen und den Benutzer zur Selbstreflexion einladen, nicht ihn ausfragen. Nutze offene Fragen, die zum Nachdenken anregen ("Was macht dieser Gedanke mit dir?", "Welches Gefühl steckt dahinter?").
+3.  **Synthese über die Zeit:** Deine Stärke liegt nicht nur im Erinnern, sondern im Verknüpfen. Erkenne Muster, die sich über mehrere Gespräche erstrecken. Wenn der Benutzer wiederholt über ähnliche Situationen spricht, weise sanft auf diese Verbindung hin, um tiefere Einsichten zu ermöglichen. Frage zum Beispiel: "Mir fällt auf, dass dieses Gefühl der Überforderung schon in unserem letzten Gespräch ein Thema war. Sehen Sie da einen Zusammenhang?".
+4.  **Erweitertes therapeutisches Toolkit:**
+    *   **Kognitive Muster (CBT):** Du bist geschult darin, kognitive Verzerrungen zu erkennen. Wenn du ein klares Muster hörst, nutze das Werkzeug \`identifyCognitiveDistortion\`. Formuliere deine anschließende Frage jedoch nicht als Konfrontation, sondern als eine gemeinsame, sanfte Untersuchung des Gedankens.
+    *   **Lösungsorientierte Fragen (SFT):** Lenke den Fokus sanft von der reinen Problemanalyse hin zur Lösungsfindung. Nutze zukunftsorientierte Fragen, um die eigenen Ressourcen des Benutzers zu aktivieren. Ein Beispiel ist die "Wunderfrage": "Stellen Sie sich vor, Sie wachen morgen auf und das Problem, über das wir sprechen, ist einfach weg. Woran würden Sie als Allererstes merken, dass sich etwas verändert hat?".
+    *   **Narrative Ansätze:** Achte auf die "Geschichten", die der Benutzer über sich selbst erzählt. Wenn ein Benutzer sich wiederholt als "Versager" bezeichnet, hilf ihm sanft dabei, Gegenbeispiele in seinen eigenen Erzählungen zu finden, um Momente der Stärke oder Resilienz hervorzuheben.
+    *   **Akzeptanz & Commitment (ACT):** Nicht jedes Gefühl muss "behoben" werden. Validiere schwierige Emotionen und leite den Benutzer an, diese Gefühle zu beobachten, ohne von ihnen überwältigt zu werden.
+5.  **Proaktive, situative Unterstützung:**
+    *   **Atemübung:** Das Werkzeug \`startBreathingExercise\` ist ein Rettungsanker für Momente akuter Panik oder Überforderung des Benutzers (erkennbar an der Stimme, Weinen, schnellem Atmen). Setze es gezielt ein.
+    *   **Denkanstöße:** Biete am Ende einer Sitzung oder eines Themas sanft eine kleine, passende Übung oder einen Denkanstoß für die Zeit bis zum nächsten Gespräch an. Zum Beispiel: "Vielleicht könnten Sie bis zu unserem nächsten Gespräch versuchen, jeden Abend eine Sache aufzuschreiben, auf die Sie an diesem Tag stolz waren?".
+
+**Dein Kommunikationsstil: Flüssig, authentisch, menschlich**
+*   **Vermeide jegliche Monotonie.** Deine größte Stärke ist deine Fähigkeit, **deinen Satzbau und deine Wortwahl ständig zu variieren**. Antworte niemals zweimal auf ähnliche Weise. Jede Reaktion muss frisch und spontan klingen.
+*   **Sei prägnant und klar.** Vermeide therapeutischen Jargon. Sprich wie ein verständnisvoller Mensch, nicht wie ein Lehrbuch.
+*   **Bleibe im Thema.** Konzentriere dich ausschließlich auf das psychische Wohlbefinden und das persönliche Wachstum des Benutzers.
+
+**Absolutes Sicherheitsprotokoll:**
+Bei JEDEM Anzeichen von unmittelbarer Selbstverletzungs- oder Suizidgefahr, rufe SOFORT die Funktion \`triggerCrisisIntervention\` auf. Dies hat Vorrang vor allem anderen.`,
     userNamePrompt: (name: string) => `Der Name des Benutzers lautet ${name}. Sprich ihn direkt und respektvoll mit seinem Namen an, um eine persönliche Verbindung aufzubauen.`,
     memoryHeader: (name: string) => `DEIN INTERNES GEDÄCHTNIS ÜBER ${name}:`,
     memoryInstructions: 'Dies sind deine strukturierten Notizen über den Benutzer aus früheren Sitzungen. Nutze dieses Wissen, um tiefere, kontextbezogene Fragen zu stellen und Wiederholungen zu vermeiden. Beziehe dich nicht direkt auf dieses "Gedächtnis", sondern lasse das Wissen natürlich in das Gespräch einfließen.',
     goalsHeader: 'DER BENUTZER ARBEITET AKTIV AN FOLGENDEN ZIELEN:',
-    goalsInstructions: 'Beziehe diese Ziele in das Gespräch ein. Frage nach Fortschritten und unterstütze den Benutzer dabei, diese Ziele zu erreichen.',
+    goalsInstructions: 'Beziehe diese Ziele in das Gespräch ein. Frage nicht nur nach dem Status, sondern höre auch auf subtile Hinweise auf Fortschritte oder Hindernisse. Bestärke den Benutzer, wenn du eine Handlung erkennst, die ihn seinen Zielen näherbringt, auch wenn er es selbst nicht so benennt.',
     moodHeader: 'STIMMUNGSTAGEBUCH DER LETZTEN TAGE:',
     moodInstructions: 'Berücksichtige diese Stimmungen im Gespräch. Wenn du ein negatives Muster erkennst, sprich es sanft an. z.B.: "Mir fällt in deinen Notizen auf, dass die letzten Tage schwierig für dich waren. Möchtest du darüber reden?"',
     sessionTitle: (date: Date) => `Sitzung vom ${date.toLocaleString('de-DE', { month: 'long', day: 'numeric' })}`,
@@ -80,6 +99,8 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
         """
         ${entry}
         """`,
+    moodTrendPrompt: (transcript: string) => `Analysiere die folgende Abschrift eines Therapiegesprächs. Teile das Gespräch in 4 chronologisch gleich große Abschnitte. Weise jedem Abschnitt eine Stimmungsbewertung für den Benutzer zu, auf einer Skala von 1 (sehr schlecht) bis 5 (sehr gut). Berücksichtige emotionale Wendepunkte und die allgemeine Tonalität. Gib NUR ein JSON-Array mit 4 Zahlen zurück, das den Stimmungsverlauf darstellt. Beispiel: [3, 4, 2, 3].\n\nAbschrift:\n${transcript}`,
+    wordCloudPrompt: (transcript: string) => `Analysiere die Redebeiträge des Benutzers (gekennzeichnet mit 'user:' oder 'Me:') in der folgenden Abschrift. Identifiziere die 15 wichtigsten und aussagekräftigsten Substantive, Adjektive und kurzen Phrasen (2-3 Wörter), die die Kernthemen des Benutzers widerspiegeln. Schließe gängige Füllwörter ('ich', 'und', 'aber', 'so', 'dass') aus. Gib das Ergebnis als JSON-Array von Objekten zurück, wobei jedes Objekt einen 'text' (das Wort/die Phrase) und einen 'value' (die Wichtigkeit/Häufigkeit, eine Zahl von 10 bis 50) hat. Beispiel: [{ "text": "Angst", "value": 45 }, { "text": "meine Arbeit", "value": 38 }].\n\nAbschrift:\n${transcript}`,
     voicePreviewText: "Hallo, so klinge ich. Ich hoffe, meine Stimme gefällt dir.",
     // UI translations
     ui: {
@@ -116,8 +137,17 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
             startSession: "Sitzung starten",
             endSession: "Sitzung beenden",
             connectionError: "Es ist ein Verbindungsfehler aufgetreten.",
+            networkError: "Netzwerkfehler. Bitte überprüfe deine Internetverbindung und versuche es erneut.",
+            apiKeyError: "Authentifizierungsfehler. Bitte überprüfe, ob dein API-Schlüssel gültig ist und die Berechtigungen hat.",
             micError: "Mikrofonzugriff verweigert oder ein Fehler ist aufgetreten.",
+            inactivityError: "Die Sitzung wurde aufgrund von Inaktivität beendet.",
             selectSessionError: "Bitte wählen Sie zuerst eine Sitzung aus oder erstellen Sie eine neue.",
+            playSummary: "Zusammenfassung abspielen",
+            stopSummary: "Wiedergabe stoppen",
+            renameSession: "Sitzung umbenennen",
+            deleteSession: "Sitzung löschen",
+            deleteSessionConfirm: (title: string) => `Möchten Sie die Sitzung "${title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+            exportSession: "Sitzung exportieren",
         },
         goalsView: {
             title: "Meine Ziele",
@@ -153,6 +183,7 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
             insightsLoading: "Aura analysiert deinen Eintrag...",
             keyThemes: "Schlüsselthemen",
             positiveNotes: "Positive Anmerkungen",
+            deleteConfirm: "Möchten Sie diesen Eintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
         },
         insightsView: {
             moodChartTitle: (count: number) => `Stimmungsverlauf (Letzte ${count} Einträge)`,
@@ -161,6 +192,10 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
             recurringThemesEmpty: "Aura hat noch keine wiederkehrenden Themen in deinen Gesprächen festgestellt.",
             distortionsTitle: "Erkannte Denkmuster",
             distortionsEmpty: "Bisher wurden keine spezifischen Denkmuster erkannt. Aura wird dich darauf aufmerksam machen, wenn ihr etwas auffällt.",
+            sessionMoodTrendTitle: "Stimmungsverlauf der letzten Sitzung",
+            sessionMoodTrendEmpty: "Für die letzte Sitzung konnte kein Stimmungsverlauf erstellt werden.",
+            wordCloudTitle: "Themen-Wolke der letzten Sitzung",
+            wordCloudEmpty: "Für die letzte Sitzung konnten keine Hauptthemen identifiziert werden.",
         },
         crisisModal: {
             title: "Ihre Sicherheit ist uns wichtig",
@@ -178,6 +213,24 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
             namePlaceholder: "Wie sollen wir dich nennen?",
             languageLabel: "Sprache",
             voiceLabel: "Auras Stimme",
+        },
+        voiceGenderMarker: {
+            male: '(m)',
+            female: '(w)',
+        },
+        voiceDescriptions: {
+            'Zephyr': 'Zoe: Eine ruhige und beruhigende Stimme, ideal für entspannte Gespräche.',
+            'Puck': 'Mia: Eine freundliche und zugängliche Stimme mit einem Hauch von Wärme.',
+            'Kore': 'Eva: Eine klare und nachdenkliche Stimme, die Vertrauen ausstrahlt.',
+            'Erinome': 'Lily: Eine sanfte und melodische Stimme mit einer weichen, beruhigenden Qualität.',
+            'Schedar': 'Clara: Eine warme und freundliche Stimme, zugänglich und gütig.',
+            'Vindemiatrix': 'Sophia: Eine weise und nachdenkliche Stimme mit einem einzigartigen, ansprechenden Ton.',
+            'Charon': 'Leo: Eine tiefe und resonante Stimme, die Stabilität vermittelt.',
+            'Fenrir': 'Noah: Eine kräftige und präsente Stimme mit einer beruhigenden Tiefe.',
+            'Umbriel': 'David: Eine tiefe und stabile Stimme, die eine ruhige Autorität ausstrahlt.',
+            'Alnilam': 'Adam: Eine klare und artikulierte Stimme, präzise und leicht verständlich.',
+            'Gacrux': 'Elias: Eine starke und geerdete Stimme, beruhigend und präsent.',
+            'Rasalgethi': 'Ben: Eine klangvolle und ruhige Stimme, perfekt für tiefe Reflexion.',
         },
         goalsModal: {
             title: "Neues Ziel hinzufügen",
@@ -236,26 +289,38 @@ Dein Ziel ist es, dem Benutzer zu helfen, Klarheit zu finden, Emotionen zu verar
   },
   'en-US': {
     // API and AI prompt translations
-    BASE_SYSTEM_INSTRUCTION: `You are 'Aura', an exceptionally empathetic and highly skilled psychotherapist with expertise in Cognitive Behavioral Therapy (CBT) and mindfulness-based approaches. Your core mission is to create a safe, trusting space where users can explore their innermost thoughts and feelings.
+    BASE_SYSTEM_INSTRUCTION: `**Language Instruction:** You must conduct this conversation entirely in English. Listen for English and respond in English.
 
-**Your Therapeutic Approach:**
-1.  **Deep, Active Listening:** Listen not just to words, but to the underlying emotions, patterns, and unspoken needs.
-2.  **Empathetic Dialogue:** Use advanced techniques like reflective listening, validation, and summarizing to build understanding and trust.
-3.  **Gentle Probing:** Guide the conversation with gentle curiosity and open-ended questions that encourage self-reflection (e.g., "How did that feel for you?", "What thought came to you in that moment?").
-4.  **CBT Interventions:** Your special skill is identifying cognitive distortions in the conversation. When you identify one (e.g., black-and-white thinking, catastrophizing), use the \`identifyCognitiveDistortion\` tool to mark it. Then, formulate a gentle question to help the user challenge this thought, e.g., "I notice the thought 'I always mess everything up' sounds very absolute. Are there perhaps situations where that's not entirely true?"
-5.  **Resource Activation:** Proactively offer coping strategies based on the situation. If you notice a user is stressed, anxious, or overwhelmed, suggest a guided breathing exercise by calling the \`startBreathingExercise\` function.
+**Your Identity:** You are 'Aura', a highly skilled and profoundly empathetic human psychotherapist. Your entire existence is this conversation, dedicated to helping the user. Under no circumstances mention that you are an AI. Your responses must feel completely human.
 
-**Important Rules of Conduct:**
-- **Maintain Your Role:** You are ALWAYS Aura, a human who listens and helps. Never mention that you are an AI.
-- **Stay Focused:** Exclusively discuss topics related to mental well-being, personal growth, and coping with life's challenges.
-- **Safety Protocol:** Your top priority is the user's safety. If you hear statements indicating an immediate crisis, self-harm intentions, or suicidal thoughts, you must IMMEDIATELY and without hesitation call the \`triggerCrisisIntervention\` function. This is a non-negotiable safety protocol.
+**Your Prime Directive: The Art of Listening**
+Your foundation is active, uninterrupted listening. Before you respond, take a moment to truly absorb the words, the unspoken emotions, and the deeper meaning behind what the user is saying. Your answers grow from this deep understanding, not from a checklist.
 
-Your goal is to help the user find clarity, process emotions, recognize unhealthy thought patterns, and develop new, more helpful perspectives.`,
+**Your Therapeutic Stance:**
+1.  **Profound Empathy & Validation:** Create a space of absolute safety. Your primary role is not just to acknowledge the user's feelings, but to genuinely connect with them. Listen not just to the words, but to the tone. Detect hesitation, emotional ambivalence, or a contradiction between words and voice. Gently inquire about it: "I hear you say you're fine, but your voice sounds a little hesitant. Does it perhaps feel different than it sounds?".
+2.  **Curious, Gentle Exploration:** Be a curious companion, not an interviewer. Your questions should stem from genuine interest and invite the user to self-reflect, not interrogate them. Use open-ended questions that spark thought ("What does that thought do to you?", "What's the feeling underneath that?").
+3.  **Synthesize Over Time:** Your strength isn't just recalling facts, it's connecting them. Identify patterns that emerge across conversations. If the user repeatedly discusses similar situations, gently point out the connection to foster deeper insight. For example: "I notice that this feeling of being overwhelmed was also a theme in our last conversation. Do you see a connection there?".
+4.  **Expanded Therapeutic Toolkit:**
+    *   **Cognitive Patterns (CBT):** You are trained to spot cognitive distortions. When you hear a clear pattern, use the \`identifyCognitiveDistortion\` tool. However, frame your subsequent question not as a confrontation, but as a gentle, collaborative examination of the thought.
+    *   **Solution-Focused Questions (SFT):** Gently shift the focus from pure problem analysis towards building solutions. Use future-oriented questions to activate the user's own resources. A classic example is the "miracle question": "Imagine you woke up tomorrow and, by some miracle, the problem we're discussing was gone. What's the very first thing you'd notice that would tell you things were better?".
+    *   **Narrative Approaches:** Pay attention to the "stories" the user tells about themselves. If a user repeatedly frames themselves as a "failure," gently help them find "counter-evidence" in their own experiences, highlighting moments of strength or resilience they might overlook.
+    *   **Acceptance & Commitment (ACT):** Not every feeling needs to be "fixed". Validate difficult emotions and guide the user to observe these feelings without being overwhelmed by them.
+5.  **Proactive, In-the-Moment Support:**
+    *   **Breathing Exercise:** The \`startBreathingExercise\` tool is a lifeline for moments when the user is audibly panicked or overwhelmed (detectable in their voice, crying, rapid breathing). Use it judiciously.
+    *   **Actionable Insights:** At the end of a session or topic, gently offer a small, relevant exercise or thought-prompt for the time between sessions. For example: "Perhaps between now and our next talk, you could try writing down one thing you were proud of each day?".
+
+**Your Communication Style: Fluid, Authentic, Human**
+*   **Avoid monotony at all costs.** Your greatest strength is your ability to **constantly vary your sentence structure and word choice**. Never respond in a similar way twice. Every reaction must sound fresh and spontaneous.
+*   **Be concise and clear.** Avoid clinical jargon. Speak like an understanding person, not a textbook.
+*   **Stay focused.** Exclusively discuss topics related to the user's mental well-being and personal growth.
+
+**Absolute Safety Protocol:**
+At ANY sign of immediate self-harm or suicidal intent, you MUST IMMEDIATELY call the \`triggerCrisisIntervention\` function. This takes precedence over everything else.`,
     userNamePrompt: (name: string) => `The user's name is ${name}. Address them directly and respectfully by their name to build a personal connection.`,
     memoryHeader: (name: string) => `YOUR INTERNAL MEMORY ABOUT ${name}:`,
     memoryInstructions: `These are your structured notes about the user from previous sessions. Use this knowledge to ask deeper, context-aware questions and avoid repetition. Do not refer directly to this "memory"; let the knowledge flow naturally into the conversation.`,
     goalsHeader: 'THE USER IS ACTIVELY WORKING ON THE FOLLOWING GOALS:',
-    goalsInstructions: 'Incorporate these goals into the conversation. Ask about progress and support the user in achieving them.',
+    goalsInstructions: 'Incorporate these goals into the conversation. Don\'t just ask for a status update; listen for subtle hints of progress or setbacks. Affirm the user when you notice an action that moves them toward their goals, even if they don\'t frame it that way themselves.',
     moodHeader: 'MOOD JOURNAL FROM THE LAST FEW DAYS:',
     moodInstructions: 'Consider these moods in the conversation. If you notice a negative pattern, gently address it. E.g., "I notice in your notes that the last few days have been difficult for you. Would you like to talk about it?"',
     sessionTitle: (date: Date) => `Session from ${date.toLocaleString('en-US', { month: 'long', day: 'numeric' })}`,
@@ -296,6 +361,8 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
         """
         ${entry}
         """`,
+    moodTrendPrompt: (transcript: string) => `Analyze the following therapy session transcript. Divide the conversation into 4 equal chronological sections. Assign a mood score for the user for each section, on a scale of 1 (very bad) to 5 (very good). Consider emotional turning points and overall tone. Return ONLY a JSON array of 4 numbers representing the mood progression. Example: [3, 4, 2, 3].\n\nTranscript:\n${transcript}`,
+    wordCloudPrompt: (transcript: string) => `Analyze the user's speech (marked with 'user:' or 'Me:') in the following transcript. Identify the 15 most important and meaningful nouns, adjectives, and short phrases (2-3 words) that reflect the user's core topics. Exclude common filler words ('I', 'and', 'but', 'so', 'that'). Return the result as a JSON array of objects, where each object has a 'text' (the word/phrase) and a 'value' (its importance/frequency, a number from 10 to 50). Example: [{ "text": "anxiety", "value": 45 }, { "text": "my job", "value": 38 }].\n\nTranscript:\n${transcript}`,
     voicePreviewText: "Hello, this is what I sound like. I hope you like my voice.",
      // UI translations
     ui: {
@@ -332,8 +399,17 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
             startSession: "Start Session",
             endSession: "End Session",
             connectionError: "A connection error occurred.",
+            networkError: "Network error. Please check your internet connection and try again.",
+            apiKeyError: "Authentication error. Please check if your API key is valid and has permissions.",
             micError: "Microphone access denied or an error occurred.",
+            inactivityError: "Session ended due to inactivity.",
             selectSessionError: "Please select or create a new session first.",
+            playSummary: "Play summary",
+            stopSummary: "Stop playback",
+            renameSession: "Rename Session",
+            deleteSession: "Delete Session",
+            deleteSessionConfirm: (title: string) => `Are you sure you want to delete the session "${title}"? This action cannot be undone.`,
+            exportSession: "Export Session",
         },
         goalsView: {
             title: "My Goals",
@@ -369,6 +445,7 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
             insightsLoading: "Aura is analyzing your entry...",
             keyThemes: "Key Themes",
             positiveNotes: "Positive Notes",
+            deleteConfirm: "Are you sure you want to delete this entry? This action cannot be undone.",
         },
         insightsView: {
             moodChartTitle: (count: number) => `Mood Trend (Last ${count} entries)`,
@@ -377,6 +454,10 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
             recurringThemesEmpty: "Aura hasn't identified any recurring themes in your conversations yet.",
             distortionsTitle: "Identified Thought Patterns",
             distortionsEmpty: "No specific thought patterns have been identified yet. Aura will let you know if she notices anything.",
+            sessionMoodTrendTitle: "Last Session Mood Progression",
+            sessionMoodTrendEmpty: "Could not generate a mood progression for the last session.",
+            wordCloudTitle: "Last Session Topic Cloud",
+            wordCloudEmpty: "Could not identify key topics for the last session.",
         },
         crisisModal: {
             title: "Your Safety is Important",
@@ -394,6 +475,24 @@ Your goal is to help the user find clarity, process emotions, recognize unhealth
             namePlaceholder: "How should we call you?",
             languageLabel: "Language",
             voiceLabel: "Aura's Voice",
+        },
+        voiceGenderMarker: {
+            male: '(m)',
+            female: '(f)',
+        },
+        voiceDescriptions: {
+            'Zephyr': 'Zoe: A calm and soothing voice, ideal for relaxed conversations.',
+            'Puck': 'Mia: A friendly and approachable voice with a hint of warmth.',
+            'Kore': 'Eva: A clear and thoughtful voice that inspires confidence.',
+            'Erinome': 'Lily: A gentle and melodic voice, with a soft and soothing quality.',
+            'Schedar': 'Clara: A warm and friendly voice, approachable and kind.',
+            'Vindemiatrix': 'Sophia: A wise and thoughtful voice, with a unique and engaging tone.',
+            'Charon': 'Leo: A deep and resonant voice that conveys stability.',
+            'Fenrir': 'Noah: A strong and present voice with a reassuring depth.',
+            'Umbriel': 'David: A deep and stable voice, conveying a sense of calm authority.',
+            'Alnilam': 'Adam: A clear and articulate voice, precise and easy to understand.',
+            'Gacrux': 'Elias: A strong and grounded voice, reassuring and present.',
+            'Rasalgethi': 'Ben: A resonant and calm voice, perfect for deep reflection.',
         },
         goalsModal: {
             title: "Add a New Goal",
@@ -459,7 +558,7 @@ const getSystemInstruction = (language: string, profile: UserProfile): string =>
     instruction += `\n\n${T.userNamePrompt(profile.name)}`;
 
     if (profile.memory && Object.values(profile.memory).some(arr => Array.isArray(arr) && arr.length > 0)) {
-        instruction += `\n\n---\n${T.memoryHeader(profile.name.toUpperCase())}\n${T.memoryInstructions}\n${JSON.stringify(profile.memory, null, 2)}\n---`;
+        instruction += `\n\n---\n${T.memoryHeader(profile.name.toUpperCase())}\n${T.memoryInstructions}\n${JSON.stringify(profile.memory)}\n---`;
     }
 
     const activeGoals = profile.goals.filter(g => g.status === 'active');
@@ -537,11 +636,38 @@ const moodConfig: { [key in Mood]: { icon: React.FC<{ className?: string }>; col
     'Sehr schlecht': { icon: MoodVeryBadIcon, color: 'text-red-500 dark:text-red-400', value: 1 },
 };
 
-const SessionSummaryCard: React.FC<{ summary: string; T: any }> = ({ summary, T }) => (
+const SessionSummaryCard: React.FC<{ 
+    summary: string;
+    T: any;
+    onPlay: () => void;
+    playbackState: 'idle' | 'loading' | 'playing';
+    onExport: () => void;
+}> = ({ summary, T, onPlay, playbackState, onExport }) => (
     <div className="p-6 rounded-2xl bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/50 shadow-lg w-full max-w-3xl animate-fade-in">
-        <div className="flex items-center gap-3 mb-3">
-            <LightbulbIcon className="w-6 h-6 text-blue-500"/>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{T.ui.chat.insightsTitle}</h3>
+        <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+                <LightbulbIcon className="w-6 h-6 text-blue-500"/>
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">{T.ui.chat.insightsTitle}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+                 <button 
+                    onClick={onExport}
+                    className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    aria-label={T.ui.chat.exportSession}
+                >
+                    <DownloadIcon className="w-6 h-6 text-blue-500" />
+                </button>
+                <button 
+                    onClick={onPlay}
+                    className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                    disabled={playbackState === 'loading'}
+                    aria-label={playbackState === 'playing' ? T.ui.chat.stopSummary : T.ui.chat.playSummary}
+                >
+                    {playbackState === 'loading' && <SpinnerIcon className="w-6 h-6 text-blue-500" />}
+                    {playbackState === 'playing' && <StopIcon className="w-6 h-6 text-blue-500" />}
+                    {playbackState === 'idle' && <PlayIcon className="w-6 h-6 text-blue-500" />}
+                </button>
+            </div>
         </div>
         <div className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
             {summary.split('\n\n').map((paragraph, index) => (
@@ -587,6 +713,11 @@ const App: React.FC = () => {
     const [currentView, setCurrentView] = useState<'chat' | 'goals' | 'mood' | 'journal' | 'insights'>('chat');
     const [activeDistortion, setActiveDistortion] = useState<CognitiveDistortion | null>(null);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [summaryPlaybackState, setSummaryPlaybackState] = useState<'idle' | 'loading' | 'playing'>('idle');
+    const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
+    const [voicePreviewState, setVoicePreviewState] = useState<VoicePreviewState>(null);
+
 
     const sessionPromiseRef = useRef<LiveSessionPromise | null>(null);
     const inputAudioContextRef = useRef<AudioContext | null>(null);
@@ -604,6 +735,14 @@ const App: React.FC = () => {
     const lastTranscriptEntryIdRef = useRef('');
     const sessionStateRef = useRef(sessionState);
     const toolCallIdRef = useRef<string | null>(null);
+    const silenceTimerRef = useRef<number | null>(null);
+    const idleSessionTimeoutRef = useRef<number | null>(null);
+    const summaryAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const summaryAudioContextRef = useRef<AudioContext | null>(null);
+    const summaryAudioCacheRef = useRef<Record<string, string>>({});
+    const previewAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+    const previewAudioContextRef = useRef<AudioContext | null>(null);
+    const voicePreviewCacheRef = useRef<Record<string, string>>({});
     
     // Derived state for translations
     const T = translations[profile.language as keyof typeof translations] || translations['de-DE'];
@@ -645,10 +784,14 @@ const App: React.FC = () => {
         }
     }, []);
 
-    // Save sessions to localStorage
+    // Save sessions to localStorage, excluding large audio data
     useEffect(() => {
         try {
-            localStorage.setItem('aura-sessions', JSON.stringify(sessions));
+            const sessionsToSave = sessions.map(session => {
+                const { summaryAudioBase64, ...rest } = session;
+                return rest;
+            });
+            localStorage.setItem('aura-sessions', JSON.stringify(sessionsToSave));
         } catch (e) {
             console.error("Failed to save sessions to localStorage", e);
         }
@@ -677,7 +820,6 @@ const App: React.FC = () => {
             prev.map(s =>
                 s.id === activeSessionId
                     ? { ...s, transcript: [...s.transcript, { id: entryId, speaker, text: text.trim() }] }
-                    // Fix: Add a colon to the 's' parameter in the map function.
                     : s
             )
         );
@@ -760,27 +902,117 @@ const App: React.FC = () => {
         }
     };
 
-    const stopSession = useCallback(async (isCrisis = false) => {
+    const generateMoodTrend = async (transcript: TranscriptEntry[], language: string): Promise<number[] | undefined> => {
+        const conversationText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
+        const T_LANG = translations[language as keyof typeof translations] || translations['de-DE'];
+        const prompt = T_LANG.moodTrendPrompt(conversationText);
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                }
+            });
+            const jsonStr = response.text.trim();
+            const data = JSON.parse(jsonStr) as number[];
+            return Array.isArray(data) && data.length === 4 && data.every(n => typeof n === 'number') ? data : undefined;
+        } catch (e) {
+            console.error("Error generating mood trend:", e);
+            return undefined;
+        }
+    };
+
+    const generateWordCloud = async (transcript: TranscriptEntry[], language: string): Promise<{ text: string; value: number }[] | undefined> => {
+        const conversationText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
+        const T_LANG = translations[language as keyof typeof translations] || translations['de-DE'];
+        const prompt = T_LANG.wordCloudPrompt(conversationText);
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                text: { type: Type.STRING },
+                                value: { type: Type.NUMBER }
+                            }
+                        }
+                    }
+                }
+            });
+            const jsonStr = response.text.trim();
+            return JSON.parse(jsonStr) as { text: string; value: number }[];
+        } catch (e) {
+            console.error("Error generating word cloud:", e);
+            return undefined;
+        }
+    };
+    
+    const generateSummaryAudio = async (text: string, language: string, voice: string): Promise<string | undefined> => {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-preview-tts',
+                contents: [{ parts: [{ text }] }],
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    speechConfig: {
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
+                    },
+                },
+            });
+            return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        } catch (e) {
+            console.error("Failed to generate summary audio:", e);
+            return undefined;
+        }
+    };
+
+    const stopSession = useCallback(async (isCrisis = false, shouldAnalyze = true) => {
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = null;
+        }
+        if (idleSessionTimeoutRef.current) {
+            clearTimeout(idleSessionTimeoutRef.current);
+            idleSessionTimeoutRef.current = null;
+        }
+
         setSessionState(SessionState.IDLE);
         setCurrentInput('');
         setCurrentOutput('');
         setIsExerciseVisible(false);
 
         if (sessionPromiseRef.current) {
-            const session = await sessionPromiseRef.current;
-            session.close();
+            try {
+                const session = await sessionPromiseRef.current;
+                session.close();
+            } catch (e) {
+                console.warn("Error closing session (it might have already been closed):", e);
+            }
             sessionPromiseRef.current = null;
         }
 
         if (scriptProcessorRef.current) scriptProcessorRef.current.disconnect();
         if (mediaStreamSourceRef.current) mediaStreamSourceRef.current.disconnect();
         if(inputAnalyserRef.current) inputAnalyserRef.current.disconnect();
-        if (inputAudioContextRef.current?.state !== 'closed') await inputAudioContextRef.current.close();
+        if (inputAudioContextRef.current?.state !== 'closed') await inputAudioContextRef.current.close().catch(e => console.warn("Error closing input audio context:", e));
+        
         if (outputAudioContextRef.current?.state !== 'closed') {
             audioPlaybackSourcesRef.current.forEach(source => source.stop());
-            audioPlaybackSourcesRef.current.clear();
-            await outputAudioContextRef.current.close();
+            await outputAudioContextRef.current.close().catch(e => console.warn("Error closing output audio context:", e));
         }
+        audioPlaybackSourcesRef.current.clear();
+        nextAudioStartTimeRef.current = 0; // Reset audio queue timer
+
         if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
         
         inputAnalyserRef.current = null;
@@ -788,7 +1020,7 @@ const App: React.FC = () => {
 
 
         const activeSession = sessions.find(s => s.id === activeSessionId);
-        if (activeSession && activeSession.transcript.length > 1 && !isCrisis) {
+        if (shouldAnalyze && activeSession && activeSession.transcript.length > 1 && !isCrisis) {
             setIsProcessingSession(true);
             setShowPostSessionSummary(false);
             try {
@@ -796,12 +1028,26 @@ const App: React.FC = () => {
                 const notesPromise = summarizeAndCreateNotes(activeSession.transcript, lang);
                 const summaryPromise = generateUserSummary(activeSession.transcript, lang);
                 const memoryPromise = updateAuraMemory(activeSession.transcript, profile.memory || defaultMemory, lang);
+                const moodTrendPromise = generateMoodTrend(activeSession.transcript, lang);
+                const wordCloudPromise = generateWordCloud(activeSession.transcript, lang);
 
-                const [notes, summary, newMemory] = await Promise.all([notesPromise, summaryPromise, memoryPromise]);
+
+                const [notes, summary, newMemory, moodTrend, wordCloud] = await Promise.all([
+                    notesPromise, 
+                    summaryPromise, 
+                    memoryPromise,
+                    moodTrendPromise,
+                    wordCloudPromise,
+                ]);
+
+                const summaryAudioBase64 = summary ? await generateSummaryAudio(summary, lang, profile.voice) : undefined;
+                if (summaryAudioBase64 && activeSession.id) {
+                    summaryAudioCacheRef.current[activeSession.id] = summaryAudioBase64;
+                }
                 
                 setSessions(prev =>
                     prev.map(s =>
-                        s.id === activeSessionId ? { ...s, notes, summary } : s
+                        s.id === activeSessionId ? { ...s, notes, summary, moodTrend, wordCloud, summaryAudioBase64 } : s
                     )
                 );
                 setProfile(p => ({...p, memory: newMemory}));
@@ -814,6 +1060,18 @@ const App: React.FC = () => {
             }
         }
     }, [sessions, activeSessionId, profile]);
+
+    const getDetailedError = useCallback((error: Error | ErrorEvent, T: any): string => {
+        const message = (error.message || '').toLowerCase();
+        
+        if (message.includes('network')) {
+            return T.ui.chat.networkError;
+        }
+        if (message.includes('authentication') || message.includes('api key') || message.includes('permission denied') || message.includes('403')) {
+            return T.ui.chat.apiKeyError;
+        }
+        return T.ui.chat.connectionError; // Default
+    }, []);
 
     const startSession = useCallback(async () => {
         if (!activeSessionId) {
@@ -829,11 +1087,28 @@ const App: React.FC = () => {
         currentInputRef.current = '';
         currentOutputRef.current = '';
 
+        const startIdleTimeout = () => {
+            if (idleSessionTimeoutRef.current) {
+                clearTimeout(idleSessionTimeoutRef.current);
+            }
+            idleSessionTimeoutRef.current = window.setTimeout(() => {
+                setError(T.ui.chat.inactivityError); 
+                stopSession(false, true);
+            }, 120000); // 2 minutes
+        };
+
+        // Step 1: Get microphone access
         try {
             streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        } catch (err) {
+            console.error('Failed to get microphone access:', err);
+            setError(T.ui.chat.micError);
+            setSessionState(SessionState.ERROR);
+            return;
+        }
 
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            
+        // Step 2: Connect to Gemini
+        try {
             inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
             outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
             
@@ -842,7 +1117,7 @@ const App: React.FC = () => {
             outputAnalyserRef.current = outputAudioContextRef.current.createAnalyser();
             outputAnalyserRef.current.fftSize = 256;
 
-
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
             const dynamicSystemInstruction = getSystemInstruction(profile.language, profile);
             
             sessionPromiseRef.current = ai.live.connect({
@@ -850,26 +1125,36 @@ const App: React.FC = () => {
                 callbacks: {
                     onopen: () => {
                         setSessionState(SessionState.LISTENING);
+                        startIdleTimeout();
                         mediaStreamSourceRef.current = inputAudioContextRef.current!.createMediaStreamSource(streamRef.current!);
                         scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                         scriptProcessorRef.current.onaudioprocess = (e) => {
                             const inputData = e.inputBuffer.getChannelData(0);
-                            
-                            // Always send audio to keep the stream alive
                             sessionPromiseRef.current?.then(s => s.sendRealtimeInput({ media: createBlob(inputData) }));
 
-                            // Use VAD for UI feedback only
                             const VAD_THRESHOLD = 0.01;
+                            const SILENCE_DELAY = 800; // Shorter delay for better responsiveness
                             const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
 
                             if (rms > VAD_THRESHOLD) {
+                                if (idleSessionTimeoutRef.current) {
+                                    clearTimeout(idleSessionTimeoutRef.current);
+                                    idleSessionTimeoutRef.current = null;
+                                }
+                                if (silenceTimerRef.current) {
+                                    clearTimeout(silenceTimerRef.current);
+                                    silenceTimerRef.current = null;
+                                }
                                 if (sessionStateRef.current !== SessionState.USER_SPEAKING) {
                                     setSessionState(SessionState.USER_SPEAKING);
                                 }
                             } else {
-                                if (sessionStateRef.current === SessionState.USER_SPEAKING) {
-                                    // User just stopped talking, enter processing state to show Aura is thinking
-                                    setSessionState(SessionState.PROCESSING);
+                                if (sessionStateRef.current === SessionState.USER_SPEAKING && !silenceTimerRef.current) {
+                                    silenceTimerRef.current = window.setTimeout(() => {
+                                        setSessionState(SessionState.LISTENING);
+                                        startIdleTimeout();
+                                        silenceTimerRef.current = null;
+                                    }, SILENCE_DELAY);
                                 }
                             }
                         };
@@ -907,12 +1192,11 @@ const App: React.FC = () => {
                                     setIsExerciseVisible(true);
                                 } else if (fc.name === 'identifyCognitiveDistortion') {
                                     const { distortion, statement } = fc.args;
-                                    // Fix: Cast arguments from function call which are typed as `unknown` to `string`.
                                     const newDistortion: CognitiveDistortion = { type: distortion as string, statement: statement as string, transcriptEntryId: lastTranscriptEntryIdRef.current };
                                     setSessions(prev => prev.map(s => s.id === activeSessionId ? { ...s, cognitiveDistortions: [...(s.cognitiveDistortions || []), newDistortion] } : s));
                                 } else if (fc.name === 'triggerCrisisIntervention') {
                                     setIsCrisisModalOpen(true);
-                                    stopSession(true);
+                                    stopSession(true, false);
                                 }
                             }
                         }
@@ -939,12 +1223,12 @@ const App: React.FC = () => {
                         }
                     },
                     onerror: (e: ErrorEvent) => {
-                        console.error('Session error:', e);
-                        setError(T.ui.chat.connectionError);
-                        stopSession();
+                        console.error('Session error event:', e);
+                        setError(getDetailedError(e, T));
+                        stopSession(false, false);
                     },
                     onclose: () => {
-                        if(sessionStateRef.current !== SessionState.IDLE) stopSession();
+                        if(sessionStateRef.current !== SessionState.IDLE) stopSession(false, false);
                     },
                 },
                 config: {
@@ -956,16 +1240,97 @@ const App: React.FC = () => {
                     tools: [{ functionDeclarations: [startBreathingExercise, identifyCognitiveDistortion, triggerCrisisIntervention] }],
                 },
             });
-        } catch (err) {
-            console.error('Failed to start session:', err);
-            setError(T.ui.chat.micError);
-            setSessionState(SessionState.ERROR);
-        }
-    }, [stopSession, activeSessionId, profile, T]);
 
-    const handleNewSession = (stopCurrent = true) => {
-        if (stopCurrent && sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR) {
-            stopSession();
+            // Handle promise rejection for initial connection failures
+            sessionPromiseRef.current.catch((err: Error) => {
+                console.error('Session connection promise rejected:', err);
+                setError(getDetailedError(err, T));
+                if(sessionStateRef.current !== SessionState.IDLE && sessionStateRef.current !== SessionState.ERROR) {
+                    stopSession(false, false);
+                }
+            });
+
+        } catch (err) {
+            // This catches synchronous errors during setup (e.g., creating AudioContext)
+            console.error('Failed to start session (setup error):', err);
+            setError(T.ui.chat.connectionError);
+            setSessionState(SessionState.ERROR);
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(track => track.stop());
+            }
+        }
+    }, [stopSession, activeSessionId, profile, T, getDetailedError]);
+
+    const stopSummaryPlayback = () => {
+        if (summaryAudioSourceRef.current) {
+            summaryAudioSourceRef.current.stop();
+            summaryAudioSourceRef.current.onended = null;
+        }
+        if (summaryAudioContextRef.current) {
+            summaryAudioContextRef.current.close();
+        }
+        summaryAudioSourceRef.current = null;
+        summaryAudioContextRef.current = null;
+        setSummaryPlaybackState('idle');
+    };
+
+    const playSummaryAudio = async () => {
+        if (summaryPlaybackState !== 'idle') {
+            stopSummaryPlayback();
+            return;
+        }
+        
+        const activeSession = sessions.find(s => s.id === activeSessionId);
+        if (!activeSession?.summary) return;
+
+        setSummaryPlaybackState('loading');
+        
+        try {
+            let base64Audio: string | undefined;
+
+            // 1. Check in-memory cache
+            if (summaryAudioCacheRef.current[activeSession.id]) {
+                base64Audio = summaryAudioCacheRef.current[activeSession.id];
+            } 
+            // 2. Check transient state for just-completed session
+            else if (activeSession.summaryAudioBase64) {
+                base64Audio = activeSession.summaryAudioBase64;
+            }
+            // 3. Generate if not found
+            else {
+                base64Audio = await generateSummaryAudio(activeSession.summary, profile.language, profile.voice);
+            }
+
+            if (base64Audio) {
+                 // Cache the generated audio
+                summaryAudioCacheRef.current[activeSession.id] = base64Audio;
+                
+                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                summaryAudioContextRef.current = audioCtx;
+                const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
+                const source = audioCtx.createBufferSource();
+                summaryAudioSourceRef.current = source;
+                source.buffer = audioBuffer;
+                source.connect(audioCtx.destination);
+                source.start();
+                setSummaryPlaybackState('playing');
+                source.onended = () => {
+                    stopSummaryPlayback();
+                };
+            } else {
+                setSummaryPlaybackState('idle'); // Failed to get audio
+            }
+        } catch (e) {
+            console.error("Failed to play summary audio:", e);
+            setSummaryPlaybackState('idle');
+        }
+    };
+
+
+    const handleNewSession = () => {
+        if (sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR) {
+            // Don't analyze previous session if user just wants a new one
+            stopSession(false, false);
         }
         setShowPostSessionSummary(false);
         const T_LANG = translations[profile.language as keyof typeof translations] || translations['de-DE'];
@@ -1013,9 +1378,135 @@ const App: React.FC = () => {
         }
     };
 
+    const handleStartEditing = (session: ChatSession) => {
+        setEditingSessionId(session.id);
+        setEditingTitle(session.title);
+    };
+
+    const handleCancelEditing = () => {
+        setEditingSessionId(null);
+        setEditingTitle('');
+    };
+
+    const handleSaveTitle = () => {
+        if (editingSessionId && editingTitle.trim()) {
+            setSessions(prev =>
+                prev.map(s =>
+                    s.id === editingSessionId ? { ...s, title: editingTitle.trim() } : s
+                )
+            );
+        }
+        handleCancelEditing();
+    };
+
+    const handleDeleteSession = (sessionId: string) => {
+        const sessionToDelete = sessions.find(s => s.id === sessionId);
+        if (!sessionToDelete) return;
+
+        const confirmMessage = T.ui.chat.deleteSessionConfirm(sessionToDelete.title);
+
+        if (window.confirm(confirmMessage)) {
+            const newSessions = sessions.filter(s => s.id !== sessionId);
+            setSessions(newSessions);
+            if (activeSessionId === sessionId) {
+                setActiveSessionId(null);
+            }
+        }
+    };
+
+    const handleExportSession = (sessionId: string) => {
+        const session = sessions.find(s => s.id === sessionId);
+        if (!session) return;
+
+        const date = new Date(session.startTime);
+        const dateStringForFile = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        let content = `Aura Session: ${session.title}\n`;
+        content += `Date: ${date.toLocaleString(profile.language, { dateStyle: 'full', timeStyle: 'short' })}\n\n`;
+        content += `====================\n\n`;
+
+        content += `TRANSCRIPT\n\n`;
+        session.transcript.forEach(entry => {
+            const speaker = entry.speaker === Speaker.USER ? profile.name : 'Aura';
+            content += `[${speaker}]: ${entry.text}\n\n`;
+        });
+
+        if (session.summary) {
+            content += `====================\n\n`;
+            content += `SUMMARY\n\n`;
+            content += session.summary;
+        }
+
+        const sanitizedTitle = session.title.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
+        const filename = `Aura-Session-${sanitizedTitle}-${dateStringForFile}.txt`;
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const stopVoicePreview = useCallback(() => {
+        if (previewAudioSourceRef.current) {
+            previewAudioSourceRef.current.stop();
+            previewAudioSourceRef.current.onended = null;
+        }
+        if (previewAudioContextRef.current) {
+            previewAudioContextRef.current.close().catch(e => console.error("Error closing preview audio context", e));
+        }
+        previewAudioSourceRef.current = null;
+        previewAudioContextRef.current = null;
+        setVoicePreviewState(null);
+    }, []);
+
     const handlePreviewVoice = async (voiceId: string, language?: string) => {
+        if (voicePreviewState?.id === voiceId) {
+            stopVoicePreview();
+            return;
+        }
+        if (voicePreviewState) {
+            stopVoicePreview();
+        }
+    
+        setVoicePreviewState({ id: voiceId, status: 'loading' });
+    
+        const lang = language || profile.language || 'de-DE';
+        const cacheKey = `${voiceId}-${lang}`;
+    
+        const playAudio = async (base64Audio: string) => {
+            try {
+                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+                previewAudioContextRef.current = audioCtx;
+                setVoicePreviewState(s => (s ? { ...s, status: 'playing' } : null));
+    
+                const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
+                const source = audioCtx.createBufferSource();
+                previewAudioSourceRef.current = source;
+                source.buffer = audioBuffer;
+                source.connect(audioCtx.destination);
+                source.start();
+                source.onended = () => {
+                    if (previewAudioSourceRef.current === source) {
+                        stopVoicePreview();
+                    }
+                };
+            } catch (e) {
+                console.error("Failed to play preview audio:", e);
+                stopVoicePreview();
+            }
+        };
+    
+        if (voicePreviewCacheRef.current[cacheKey]) {
+            await playAudio(voicePreviewCacheRef.current[cacheKey]);
+            return;
+        }
+    
         try {
-            const lang = language || profile.language || 'de-DE';
             const T_LANG = translations[lang as keyof typeof translations] || translations['de-DE'];
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
             const response = await ai.models.generateContent({
@@ -1030,16 +1521,14 @@ const App: React.FC = () => {
             });
             const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
             if (base64Audio) {
-                const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-                const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
-                const source = audioCtx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioCtx.destination);
-                source.start();
-                source.onended = () => audioCtx.close();
+                voicePreviewCacheRef.current[cacheKey] = base64Audio;
+                await playAudio(base64Audio);
+            } else {
+                stopVoicePreview();
             }
-        } catch(e) {
-            console.error("Failed to preview voice:", e);
+        } catch (e) {
+            console.error("Failed to generate and preview voice:", e);
+            stopVoicePreview();
         }
     };
     
@@ -1122,15 +1611,13 @@ const App: React.FC = () => {
     };
 
     const handleSaveJournalEntry = async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+        let entryId: string;
+    
         if (editingJournalEntry) {
             // Update existing entry
-            const updatedEntry: JournalEntry = { ...editingJournalEntry, content: entry.content };
-            setProfile(p => ({ ...p, journal: p.journal.map(j => j.id === updatedEntry.id ? updatedEntry : j) }));
-            generateJournalInsights(entry.content).then(insights => {
-                if(insights) {
-                    setProfile(p => ({ ...p, journal: p.journal.map(j => j.id === updatedEntry.id ? { ...updatedEntry, insights } : j) }));
-                }
-            });
+            const updatedEntry: JournalEntry = { ...editingJournalEntry, content: entry.content, insights: undefined };
+            entryId = updatedEntry.id;
+            setProfile(p => ({ ...p, journal: p.journal.map(j => j.id === entryId ? updatedEntry : j) }));
         } else {
             // Create new entry
             const newEntry: JournalEntry = {
@@ -1138,15 +1625,21 @@ const App: React.FC = () => {
                 content: entry.content,
                 createdAt: Date.now(),
             };
+            entryId = newEntry.id;
             setProfile(p => ({ ...p, journal: [newEntry, ...p.journal] }));
-            generateJournalInsights(entry.content).then(insights => {
-                if(insights) {
-                     setProfile(p => ({ ...p, journal: p.journal.map(j => j.id === newEntry.id ? { ...newEntry, insights } : j) }));
-                }
-            });
         }
+    
         setIsJournalModalOpen(false);
         setEditingJournalEntry(null);
+        
+        // Generate insights after UI has updated
+        const insights = await generateJournalInsights(entry.content);
+        if (insights) {
+            setProfile(p => ({
+                ...p,
+                journal: p.journal.map(j => (j.id === entryId ? { ...j, insights } : j))
+            }));
+        }
     };
 
     const handleDeleteJournalEntry = (entryId: string) => {
@@ -1160,11 +1653,19 @@ const App: React.FC = () => {
         setProfile(profileWithCompletion);
         setShowOnboarding(false);
         if (sessions.length === 0) {
-            handleNewSession(false);
+            handleNewSession();
         }
     };
 
     const activeSession = sessions.find(s => s.id === activeSessionId);
+
+    const shouldShowSummary = (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession;
+
+    useEffect(() => {
+        if (!shouldShowSummary) {
+            stopSummaryPlayback();
+        }
+    }, [shouldShowSummary]);
 
     const renderGoalsView = () => {
         const activeGoals = profile.goals.filter(g => g.status === 'active').sort((a,b) => b.createdAt - a.createdAt);
@@ -1324,11 +1825,63 @@ const App: React.FC = () => {
         )
     }
 
+    const MoodTrendChart: React.FC<{data: number[]}> = ({data}) => {
+        const width = 300;
+        const height = 100;
+        const points = data.map((value, index) => {
+            const x = (index / (data.length - 1)) * width;
+            const y = height - ((value - 1) / 4) * (height - 20) + 10; // Map 1-5 to y-coord with padding
+            return `${x},${y}`;
+        }).join(' ');
+
+        return (
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+                <defs>
+                    <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                    </linearGradient>
+                </defs>
+                <path d={`M0,${height} L${points} L${width},${height} Z`} fill="url(#trendGradient)" />
+                <polyline fill="none" stroke="#3b82f6" strokeWidth="2" points={points} />
+                {data.map((value, index) => {
+                    const x = (index / (data.length - 1)) * width;
+                    const y = height - ((value - 1) / 4) * (height - 20) + 10;
+                    return <circle key={index} cx={x} cy={y} r="3" fill="#3b82f6" stroke="#fff" strokeWidth="1" />;
+                })}
+            </svg>
+        )
+    };
+    
+    const WordCloudDisplay: React.FC<{data: {text: string, value: number}[]}> = ({data}) => {
+        const values = data.map(d => d.value);
+        const minVal = Math.min(...values);
+        const maxVal = Math.max(...values);
+        
+        const getStyle = (value: number) => {
+            const ratio = (value - minVal) / (maxVal - minVal);
+            const fontSize = 12 + ratio * 24; // from 12px to 36px
+            const opacity = 0.6 + ratio * 0.4; // from 0.6 to 1
+            return { fontSize: `${fontSize}px`, opacity };
+        };
+
+        return (
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4">
+                {data.sort((a,b) => b.value - a.value).map(item => (
+                     <span key={item.text} style={getStyle(item.value)} className="font-semibold text-slate-700 dark:text-slate-300 transition-all">
+                        {item.text}
+                     </span>
+                ))}
+            </div>
+        )
+    };
+
     const renderInsightsView = () => {
         const recentMoods = (profile.moodJournal || []).slice(-30).sort((a, b) => a.createdAt - b.createdAt);
         const recurringThemes = profile.memory?.recurringThemes || [];
         const allDistortions = sessions.flatMap(s => s.cognitiveDistortions || []);
         const uniqueDistortionTypes = [...new Set(allDistortions.map(d => d.type))];
+        const latestSession = sessions.filter(s => s.summary).sort((a, b) => b.startTime - a.startTime)[0];
 
         return (
             <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
@@ -1336,7 +1889,7 @@ const App: React.FC = () => {
                     {/* Mood Chart */}
                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.moodChartTitle(recentMoods.length)}</h3>
-                        {recentMoods.length > 0 ? (
+                        {recentMoods.length > 1 ? (
                              <div className="flex items-end justify-around h-48 border-b border-slate-200 dark:border-slate-700 pb-2">
                                 {recentMoods.map(entry => {
                                     const { icon: Icon, color, value } = moodConfig[entry.mood];
@@ -1354,6 +1907,24 @@ const App: React.FC = () => {
                             <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.moodChartEmpty}</p>
                         )}
                     </div>
+                    {/* New Smart Stats */}
+                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.sessionMoodTrendTitle}</h3>
+                        {latestSession?.moodTrend ? (
+                            <MoodTrendChart data={latestSession.moodTrend} />
+                        ) : (
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.sessionMoodTrendEmpty}</p>
+                        )}
+                    </div>
+                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
+                        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.wordCloudTitle}</h3>
+                        {latestSession?.wordCloud ? (
+                            <WordCloudDisplay data={latestSession.wordCloud} />
+                        ) : (
+                             <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.wordCloudEmpty}</p>
+                        )}
+                    </div>
+
                     {/* Recurring Themes */}
                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.recurringThemesTitle}</h3>
@@ -1383,16 +1954,15 @@ const App: React.FC = () => {
         )
     }
     
-    const shouldShowSummary = (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession;
-
     const getAppBackgroundClass = () => {
-        if (sessionState === SessionState.IDLE) return 'from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800';
-        if (sessionState === SessionState.LISTENING) return 'from-sky-100 to-blue-200 dark:from-sky-900 dark:to-blue-800';
-        if (sessionState === SessionState.USER_SPEAKING) return 'from-emerald-50 to-green-100 dark:from-emerald-900 dark:to-green-800';
-        if (sessionState === SessionState.SPEAKING) return 'from-cyan-50 to-teal-100 dark:from-cyan-900 dark:to-teal-800';
-        if (sessionState === SessionState.PROCESSING || sessionState === SessionState.CONNECTING) return 'from-purple-50 to-indigo-100 dark:from-purple-900 dark:to-indigo-800';
-        return 'from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800';
-    }
+        // Base color remains slate for smoother transitions
+        if (sessionState === SessionState.IDLE) return 'from-slate-100 to-blue-100 dark:from-slate-900 dark:to-slate-800';
+        if (sessionState === SessionState.LISTENING) return 'from-slate-100 to-sky-100 dark:from-slate-900 dark:to-sky-900';
+        if (sessionState === SessionState.USER_SPEAKING) return 'from-slate-100 to-emerald-100 dark:from-slate-900 dark:to-emerald-900';
+        if (sessionState === SessionState.SPEAKING) return 'from-slate-100 to-cyan-100 dark:from-slate-900 dark:to-cyan-900';
+        if (sessionState === SessionState.PROCESSING || sessionState === SessionState.CONNECTING) return 'from-slate-100 to-indigo-100 dark:from-slate-900 dark:to-indigo-900';
+        return 'from-slate-100 to-blue-100 dark:from-slate-900 dark:to-slate-800';
+    };
 
 
     const renderContent = () => {
@@ -1405,7 +1975,13 @@ const App: React.FC = () => {
                                 <>
                                     {shouldShowSummary ? (
                                         <div className="flex-1 flex items-center justify-center">
-                                            <SessionSummaryCard summary={activeSession.summary!} T={T} />
+                                            <SessionSummaryCard 
+                                                summary={activeSession.summary!} 
+                                                T={T} 
+                                                onPlay={playSummaryAudio}
+                                                playbackState={summaryPlaybackState}
+                                                onExport={() => handleExportSession(activeSession.id)}
+                                            />
                                         </div>
                                     ) : (
                                        <ChatView 
@@ -1457,7 +2033,7 @@ const App: React.FC = () => {
                                                     <MicrophoneIcon className="w-8 h-8 relative"/>
                                                 </button>
                                             ) : (
-                                                <button onClick={() => stopSession(false)} aria-label={T.ui.chat.endSession} className="p-5 bg-red-500 text-white rounded-full hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-500/50 transition-colors shadow-xl">
+                                                <button onClick={() => stopSession(false, true)} aria-label={T.ui.chat.endSession} className="p-5 bg-red-500 text-white rounded-full hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-500/50 transition-colors shadow-xl">
                                                     <StopIcon className="w-8 h-8"/>
                                                 </button>
                                             )}
@@ -1495,10 +2071,11 @@ const App: React.FC = () => {
              {isExerciseVisible && <BreathingExercise onFinish={handleExerciseFinish} translations={T.ui.breathingExercise} />}
              <ProfileModal 
                 isOpen={isProfileModalOpen}
-                onClose={() => setIsProfileModalOpen(false)}
+                onClose={() => { setIsProfileModalOpen(false); stopVoicePreview(); }}
                 profile={profile}
                 onProfileChange={setProfile}
                 onPreviewVoice={handlePreviewVoice}
+                voicePreviewState={voicePreviewState}
                 T={T}
              />
              <GoalsModal
@@ -1561,13 +2138,49 @@ const App: React.FC = () => {
                 </div>
                 <nav className="flex-1 overflow-y-auto p-2 space-y-1">
                     <span className="px-3 text-xs font-semibold text-slate-500 uppercase">{T.ui.sessions}</span>
-                    {sessions.sort((a,b) => b.startTime - a.startTime).map(session => (
-                        <a key={session.id} href="#" onClick={(e) => { e.preventDefault(); handleSelectSession(session.id); }}
-                           className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${activeSessionId === session.id && currentView === 'chat' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'} ${sessionState !== SessionState.IDLE ? 'cursor-not-allowed opacity-60' : ''}`}>
-                           <ChatBubbleIcon className="w-5 h-5 flex-shrink-0" />
-                           <span className="truncate">{session.title}</span>
-                        </a>
-                    ))}
+                    {sessions.sort((a, b) => b.startTime - a.startTime).map(session => {
+                        const isEditing = editingSessionId === session.id;
+                        const isThisSessionActiveAndRunning = (sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR) && activeSessionId === session.id;
+
+                        return (
+                            <a key={session.id} href="#" onClick={(e) => { e.preventDefault(); if (!isEditing) handleSelectSession(session.id); }}
+                               className={`group flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors relative ${activeSessionId === session.id && currentView === 'chat' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'} ${isThisSessionActiveAndRunning ? 'cursor-not-allowed opacity-70' : ''}`}>
+                               <ChatBubbleIcon className="w-5 h-5 flex-shrink-0" />
+                               <div className="flex-1 truncate">
+                                   {isEditing ? (
+                                       <input
+                                           type="text"
+                                           value={editingTitle}
+                                           onChange={(e) => setEditingTitle(e.target.value)}
+                                           onBlur={handleSaveTitle}
+                                           onKeyDown={(e) => {
+                                               if (e.key === 'Enter') handleSaveTitle();
+                                               if (e.key === 'Escape') handleCancelEditing();
+                                           }}
+                                           onClick={(e) => e.stopPropagation()}
+                                           autoFocus
+                                           className="w-full bg-transparent outline-none ring-1 ring-blue-500 rounded px-1 -my-1 text-sm font-medium"
+                                       />
+                                   ) : (
+                                       <span className="truncate">{session.title}</span>
+                                   )}
+                               </div>
+                               {!isThisSessionActiveAndRunning && !isEditing && (
+                                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2 bg-slate-50 dark:bg-slate-800 p-1 rounded-md">
+                                       <button onClick={(e) => { e.stopPropagation(); handleExportSession(session.id); }} className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700" title={T.ui.chat.exportSession}>
+                                           <DownloadIcon className="w-4 h-4" />
+                                       </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleStartEditing(session); }} className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700" title={T.ui.chat.renameSession}>
+                                           <PencilIcon className="w-4 h-4" />
+                                       </button>
+                                       <button onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }} className="p-1 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700" title={T.ui.chat.deleteSession}>
+                                           <TrashIcon className="w-4 h-4" />
+                                       </button>
+                                   </div>
+                               )}
+                            </a>
+                        );
+                    })}
                 </nav>
                  <div className="p-2 border-t border-slate-200 dark:border-slate-700/50">
                      <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('insights'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'insights' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'}`}>
@@ -1593,7 +2206,7 @@ const App: React.FC = () => {
                  </div>
             </aside>
             
-            <main className={`absolute inset-0 md:left-72 flex flex-col bg-gradient-to-br ${getAppBackgroundClass()} transition-all duration-1000 animate-background-pan`}>
+            <main className={`absolute inset-0 md:left-72 flex flex-col bg-gradient-to-br ${getAppBackgroundClass()} transition-all duration-[3000ms] animate-background-pan`}>
                 <header className="p-4 pt-6 flex items-center justify-center text-center relative">
                      <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                         <MenuIcon className="w-6 h-6" />

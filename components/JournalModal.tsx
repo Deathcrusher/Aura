@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { JournalEntry } from '../types';
 import { XIcon, LightbulbIcon, TrashIcon } from './Icons';
@@ -28,7 +29,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ isOpen, onClose, onS
     };
 
     const handleDelete = () => {
-        if(entry && window.confirm('Are you sure you want to delete this entry?')) {
+        if(entry && window.confirm(T.ui.journalModal.deleteConfirm)) {
             onDelete(entry.id);
         }
     };

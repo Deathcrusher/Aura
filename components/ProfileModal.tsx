@@ -1,6 +1,10 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, AVAILABLE_VOICES, AVAILABLE_LANGUAGES } from '../types';
-import { XIcon, PlayIcon, UserIcon, CameraIcon } from './Icons';
+import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon } from './Icons';
+
+type VoicePreviewState = { id: string; status: 'loading' | 'playing' } | null;
 
 interface ProfileModalProps {
     isOpen: boolean;
@@ -8,10 +12,11 @@ interface ProfileModalProps {
     profile: UserProfile;
     onProfileChange: (newProfile: UserProfile) => void;
     onPreviewVoice: (voiceId: string) => void;
+    voicePreviewState: VoicePreviewState;
     T: any; // Translation object
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, T }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, T }) => {
     const [localProfile, setLocalProfile] = useState<UserProfile>(profile);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -45,7 +50,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.profileModal.subtitle}</p>
                 </div>
                 
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                     <div className="flex flex-col items-center">
                         <div className="relative">
                             {localProfile.avatarUrl ? (
@@ -107,24 +112,44 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     <div>
                         <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{T.ui.profileModal.voiceLabel}</h3>
                         <div className="space-y-2">
-                            {AVAILABLE_VOICES.map(voice => (
-                                <div key={voice.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${localProfile.voice === voice.id ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
-                                    <label className="flex items-center cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="voice"
-                                            value={voice.id}
-                                            checked={localProfile.voice === voice.id}
-                                            onChange={() => setLocalProfile(p => ({ ...p, voice: voice.id }))}
-                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        />
-                                        <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name}</span>
-                                    </label>
-                                    <button onClick={() => onPreviewVoice(voice.id)} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600">
-                                        <PlayIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/>
-                                    </button>
+                            {AVAILABLE_VOICES.map(voice => {
+                                const isSelected = localProfile.voice === voice.id;
+                                const isPreviewingThis = voicePreviewState?.id === voice.id;
+                                const status = isPreviewingThis ? voicePreviewState?.status : null;
+                                const genderMarker = T.ui.voiceGenderMarker[voice.gender];
+
+                                return (
+                                <div key={voice.id} className={`p-3 rounded-lg border transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
+                                    <div className="flex items-center justify-between">
+                                        <label className="flex items-center cursor-pointer flex-1 mr-2">
+                                            <input
+                                                type="radio"
+                                                name="voice"
+                                                value={voice.id}
+                                                checked={isSelected}
+                                                onChange={() => setLocalProfile(p => ({ ...p, voice: voice.id }))}
+                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                            />
+                                            <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name} {genderMarker}</span>
+                                        </label>
+                                        <button 
+                                            onClick={() => onPreviewVoice(voice.id)} 
+                                            disabled={!!voicePreviewState && !isPreviewingThis}
+                                            className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center w-7 h-7"
+                                            aria-label={`Preview voice ${voice.name}`}
+                                            >
+                                            {status === 'loading' && <SpinnerIcon className="w-4 h-4 text-slate-600 dark:text-slate-300" />}
+                                            {status === 'playing' && <StopIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/>}
+                                            {!isPreviewingThis && <PlayIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/>}
+                                        </button>
+                                    </div>
+                                    {T.ui.voiceDescriptions?.[voice.id] && (
+                                        <p className="pl-8 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            {T.ui.voiceDescriptions[voice.id]}
+                                        </p>
+                                    )}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
                 </div>

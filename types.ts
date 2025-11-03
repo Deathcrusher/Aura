@@ -32,8 +32,11 @@ export interface ChatSession {
   transcript: TranscriptEntry[];
   notes?: string; // AI-generated summary of the session for its own memory
   summary?: string; // AI-generated summary for the user
+  summaryAudioBase64?: string; // Pre-generated base64 audio for the summary
   startTime: number; // Store as timestamp for easier serialization
   cognitiveDistortions?: CognitiveDistortion[]; // Store identified thought patterns
+  moodTrend?: number[]; // e.g. [3, 4, 2, 3] representing mood on a scale of 1-5 over the session
+  wordCloud?: { text: string; value: number }[]; // For visualizing recurring words
 }
 
 // Represents the AI's structured long-term memory about the user.
@@ -66,7 +69,7 @@ export interface JournalInsights {
 }
 
 export interface JournalEntry {
-    id: string;
+    id:string;
     content: string;
     createdAt: number; // timestamp
     insights?: JournalInsights;
@@ -85,13 +88,26 @@ export interface UserProfile {
     onboardingCompleted: boolean;
 }
 
+export interface VoiceOption {
+    id: string; // The ID used by the API, e.g., 'Zephyr'
+    name: string; // The user-friendly name, e.g., 'Zoe'
+    gender: 'female' | 'male';
+}
+
 // List of available voices for Aura
-export const AVAILABLE_VOICES = [
-    { id: 'Zephyr', name: 'Zephyr (Standard)' },
-    { id: 'Puck', name: 'Puck' },
-    { id: 'Kore', name: 'Kore' },
-    { id: 'Charon', name: 'Charon' },
-    { id: 'Fenrir', name: 'Fenrir' },
+export const AVAILABLE_VOICES: VoiceOption[] = [
+    { id: 'Zephyr', name: 'Zoe', gender: 'female' },
+    { id: 'Puck', name: 'Mia', gender: 'female' },
+    { id: 'Kore', name: 'Eva', gender: 'female' },
+    { id: 'Erinome', name: 'Lily', gender: 'female' },
+    { id: 'Schedar', name: 'Clara', gender: 'female' },
+    { id: 'Vindemiatrix', name: 'Sophia', gender: 'female' },
+    { id: 'Charon', name: 'Leo', gender: 'male' },
+    { id: 'Fenrir', name: 'Noah', gender: 'male' },
+    { id: 'Umbriel', name: 'David', gender: 'male' },
+    { id: 'Alnilam', name: 'Adam', gender: 'male' },
+    { id: 'Gacrux', name: 'Elias', gender: 'male' },
+    { id: 'Rasalgethi', name: 'Ben', gender: 'male' },
 ];
 
 export const AVAILABLE_LANGUAGES = [

@@ -81,15 +81,18 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                             <div>
                                 <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{T.ui.onboarding.voiceLabel}</h3>
                                 <div className="space-y-2">
-                                    {AVAILABLE_VOICES.map(voice => (
-                                        <div key={voice.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${profile.voice === voice.id ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50/50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
-                                            <label className="flex items-center cursor-pointer">
-                                                <input type="radio" name="voice" value={voice.id} checked={profile.voice === voice.id} onChange={() => setProfile(p => ({ ...p, voice: voice.id }))} className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500" />
-                                                <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name}</span>
-                                            </label>
-                                            <button onClick={() => onPreviewVoice(voice.id, profile.language)} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"><PlayIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/></button>
-                                        </div>
-                                    ))}
+                                    {AVAILABLE_VOICES.map(voice => {
+                                        const genderMarker = T.ui.voiceGenderMarker[voice.gender];
+                                        return (
+                                            <div key={voice.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${profile.voice === voice.id ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50/50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
+                                                <label className="flex items-center cursor-pointer">
+                                                    <input type="radio" name="voice" value={voice.id} checked={profile.voice === voice.id} onChange={() => setProfile(p => ({ ...p, voice: voice.id }))} className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500" />
+                                                    <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name} {genderMarker}</span>
+                                                </label>
+                                                <button onClick={() => onPreviewVoice(voice.id, profile.language)} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"><PlayIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/></button>
+                                            </div>
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -129,7 +132,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
 
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800 z-50 flex flex-col items-center justify-center p-4 animate-fade-in">
-            <div className="w-full max-w-2xl text-center flex-1 flex flex-col justify-center">
+            <div className="w-full max-w-2xl text-center flex-1 flex flex-col justify-center overflow-y-auto pt-8">
                 {renderStepContent()}
             </div>
             
