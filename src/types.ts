@@ -14,6 +14,16 @@ export enum Speaker {
   AURA = 'aura',
 }
 
+export enum SubscriptionPlan {
+    FREE = 'free',
+    PREMIUM = 'premium',
+}
+
+export interface Subscription {
+    plan: SubscriptionPlan;
+    expiryDate?: number; // timestamp, for premium
+}
+
 export interface TranscriptEntry {
   id: string; // Unique ID for each entry
   speaker: Speaker;
@@ -86,6 +96,7 @@ export interface UserProfile {
     moodJournal: MoodEntry[];
     journal: JournalEntry[];
     onboardingCompleted: boolean;
+    subscription: Subscription;
 }
 
 export interface VoiceOption {

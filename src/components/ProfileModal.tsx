@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { UserProfile, AVAILABLE_VOICES, AVAILABLE_LANGUAGES } from '../types';
-import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon, LogOutIcon } from './Icons';
+import { UserProfile, AVAILABLE_VOICES, AVAILABLE_LANGUAGES, SubscriptionPlan } from '../types';
+import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon, LogOutIcon, SparklesIcon } from './Icons';
 
 type VoicePreviewState = { id: string; status: 'loading' | 'playing' } | null;
 
@@ -12,10 +12,11 @@ interface ProfileModalProps {
     onPreviewVoice: (voiceId: string) => void;
     voicePreviewState: VoicePreviewState;
     onLogout: () => void;
+    onOpenSubscriptionModal: () => void;
     T: any; // Translation object
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, onLogout, T }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, onLogout, onOpenSubscriptionModal, T }) => {
     const [localProfile, setLocalProfile] = useState<UserProfile>(profile);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,6 +41,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
             reader.readAsDataURL(file);
         }
     };
+    
+    const handleManageSubscription = () => {
+        onClose(); // Close this modal first
+        onOpenSubscriptionModal();
+    };
+
+    const isPremium = profile.subscription.plan === SubscriptionPlan.PREMIUM;
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center animate-fade-in" onClick={onClose}>
@@ -79,6 +87,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             />
                         </div>
                     </div>
+
+                     <div className="p-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-center">
+                        <h3 className="text-sm font-medium text-slate-600 dark:text-slate-400">{T.ui.subscription.currentPlan}</h3>
+                        <p className={`font-bold text-lg ${isPremium ? 'text-yellow-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                           {isPremium ? 'Aura Premium' : 'Aura Free'}
+                        </p>
+                        <button onClick={handleManageSubscription} className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                            {isPremium ? T.ui.subscription.manage : T.ui.subscription.upgrade}
+                        </button>
+                    </div>
+
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             {T.ui.profileModal.nameLabel}

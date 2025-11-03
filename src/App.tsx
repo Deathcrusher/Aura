@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 // Fix: Removed non-exported member 'LiveSession'.
 import { GoogleGenAI, LiveServerMessage, Modality, FunctionDeclaration, Type } from '@google/genai';
-import { SessionState, TranscriptEntry, ChatSession, Speaker, UserProfile, AVAILABLE_VOICES, AuraMemory, Goal, Mood, MoodEntry, CognitiveDistortion, JournalEntry, JournalInsights } from './types';
+import { SessionState, TranscriptEntry, ChatSession, Speaker, UserProfile, AVAILABLE_VOICES, AuraMemory, Goal, Mood, MoodEntry, CognitiveDistortion, JournalEntry, JournalInsights, SubscriptionPlan } from './types';
 import { decode, decodeAudioData, createBlob } from './utils/audio';
-import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon, UserIcon, PlayIcon, SpinnerIcon, PencilIcon, DownloadIcon } from './components/Icons';
+import { MicrophoneIcon, StopIcon, AuraHumanAvatar, PlusIcon, ChatBubbleIcon, MenuIcon, XIcon, LightbulbIcon, SettingsIcon, GoalsIcon, TrashIcon, CheckCircleIcon, HeartIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon, ChartBarIcon, AlertTriangleIcon, BookOpenIcon, UserIcon, PlayIcon, SpinnerIcon, PencilIcon, DownloadIcon, SparklesIcon } from './components/Icons';
 import { BreathingExercise } from './components/BreathingExercise';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
@@ -12,6 +12,8 @@ import { JournalModal } from './components/JournalModal';
 import { Onboarding } from './components/Onboarding';
 import { ChatView } from './components/ChatView';
 import { AuthScreen } from './components/AuthScreen';
+import { SubscriptionModal } from './components/SubscriptionModal';
+import { PremiumLockOverlay } from './components/PremiumLockOverlay';
 
 
 // Fix: Define types for the LiveSession promise to avoid using 'any' or a non-exported type.
@@ -108,6 +110,7 @@ Bei JEDEM Anzeichen von unmittelbarer Selbstverletzungs- oder Suizidgefahr, rufe
             journal: "Tagebuch",
             myGoals: "Meine Ziele",
             settings: "Einstellungen",
+            upgrade: "Auf Premium upgraden",
         },
         header: {
             chat: "Ihr Raum zum Reden",
@@ -117,6 +120,8 @@ Bei JEDEM Anzeichen von unmittelbarer Selbstverletzungs- oder Suizidgefahr, rufe
             insights: "Ihre Fortschritte und Muster",
         },
         chat: {
+            freeSessionLimitToast: "Dies ist deine kostenlose Probesitzung. Sie ist auf 5 Minuten begrenzt.",
+            freeSessionEnded: "Das Zeitlimit für deine kostenlose Sitzung ist abgelaufen. Upgrade auf Premium, um unbegrenzte Sitzungen zu führen.",
             processing: "Analysiere die Sitzung und aktualisiere Auras Gedächtnis...",
             insightsTitle: "Deine Sitzungs-Einblicke",
             distortionDetected: "Denkmuster erkannt",
@@ -223,6 +228,32 @@ Bei JEDEM Anzeichen von unmittelbarer Selbstverletzungs- oder Suizidgefahr, rufe
             noAccount: "Noch kein Konto?",
             loginLink: "Anmelden",
             signUpLink: "Registrieren",
+        },
+        subscription: {
+            title: "Wähle deinen Plan",
+            subtitle: "Schalte dein volles Potenzial mit Aura Premium frei.",
+            price: "€9.99/Monat",
+            checkout: "Sicherer Checkout",
+            freeTrialEndedTitle: "Deine kostenlose Sitzung ist beendet",
+            freeTrialEndedSubtitle: "Upgrade auf Premium, um unbegrenzte Sitzungen und alle Einblicke freizuschalten.",
+            currentPlan: "Dein aktueller Plan:",
+            planExpires: "Dein Plan ist gültig bis:",
+            manage: "Abo verwalten",
+            upgrade: "Upgraden",
+            upgradeNow: "Jetzt upgraden",
+            upgradeButton: "Upgrade auf Premium",
+            premiumFeature: "Premium-Funktion",
+            unlockInsights: "Schalte diese und weitere Einblicke mit Premium frei.",
+            free: "Kostenlos",
+            premium: "Premium",
+            featureBasic: "KI-gestützte Gesprächssitzungen",
+            featureJournal: "Stimmungs- & Text-Tagebuch",
+            featureGoals: "Ziele setzen & verfolgen",
+            featureMood: "Grundlegende Stimmungsanalyse",
+            featureThemes: "Erkennung wiederkehrender Themen",
+            featurePatterns: "Analyse von Denkmustern",
+            featureTrends: "Stimmungstrends in Sitzungen",
+            featureCloud: "Sitzungs-Themen-Wolke",
         },
         voiceGenderMarker: {
             male: '(m)',
@@ -385,6 +416,7 @@ At ANY sign of immediate self-harm or suicidal intent, you MUST IMMEDIATELY call
             journal: "Journal",
             myGoals: "My Goals",
             settings: "Settings",
+            upgrade: "Upgrade to Premium",
         },
         header: {
             chat: "Your Space to Talk",
@@ -394,6 +426,8 @@ At ANY sign of immediate self-harm or suicidal intent, you MUST IMMEDIATELY call
             insights: "Your Progress and Patterns",
         },
         chat: {
+            freeSessionLimitToast: "This is your free trial session. It is limited to 5 minutes.",
+            freeSessionEnded: "Your free session time limit has expired. Upgrade to Premium for unlimited sessions.",
             processing: "Analyzing session and updating Aura's memory...",
             insightsTitle: "Your Session Insights",
             distortionDetected: "Thought Pattern Detected",
@@ -500,6 +534,32 @@ At ANY sign of immediate self-harm or suicidal intent, you MUST IMMEDIATELY call
             noAccount: "Don't have an account?",
             loginLink: "Log In",
             signUpLink: "Sign Up",
+        },
+        subscription: {
+            title: "Choose Your Plan",
+            subtitle: "Unlock your full potential with Aura Premium.",
+            price: "$9.99/Month",
+            checkout: "Secure Checkout",
+            freeTrialEndedTitle: "Your Free Session Has Ended",
+            freeTrialEndedSubtitle: "Upgrade to Premium to unlock unlimited sessions and all insights.",
+            currentPlan: "Your Current Plan:",
+            planExpires: "Your plan is valid until:",
+            manage: "Manage Subscription",
+            upgrade: "Upgrade",
+            upgradeNow: "Upgrade Now",
+            upgradeButton: "Upgrade to Premium",
+            premiumFeature: "Premium Feature",
+            unlockInsights: "Unlock this and other insights with Premium.",
+            free: "Free",
+            premium: "Premium",
+            featureBasic: "AI-powered conversational sessions",
+            featureJournal: "Mood & Written Journal",
+            featureGoals: "Goal setting & tracking",
+            featureMood: "Basic mood analysis",
+            featureThemes: "Recurring theme detection",
+            featurePatterns: "Cognitive pattern analysis",
+            featureTrends: "In-session mood trends",
+            featureCloud: "Session topic cloud",
         },
         voiceGenderMarker: {
             male: '(m)',
@@ -651,6 +711,7 @@ const defaultProfile: UserProfile = {
     moodJournal: [],
     journal: [],
     onboardingCompleted: false,
+    subscription: { plan: SubscriptionPlan.FREE },
 };
 
 const moodConfig: { [key in Mood]: { icon: React.FC<{ className?: string }>; color: string; value: number } } = {
@@ -734,6 +795,7 @@ const App: React.FC = () => {
     const [isGoalsModalOpen, setIsGoalsModalOpen] = useState(false);
     const [isMoodModalOpen, setIsMoodModalOpen] = useState(false);
     const [isJournalModalOpen, setIsJournalModalOpen] = useState(false);
+    const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
     const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
     const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
     const [currentView, setCurrentView] = useState<'chat' | 'goals' | 'mood' | 'journal' | 'insights'>('chat');
@@ -743,6 +805,7 @@ const App: React.FC = () => {
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [editingTitle, setEditingTitle] = useState('');
     const [voicePreviewState, setVoicePreviewState] = useState<VoicePreviewState>(null);
+    const [showTimeLimitToast, setShowTimeLimitToast] = useState(false);
 
 
     const sessionPromiseRef = useRef<LiveSessionPromise | null>(null);
@@ -763,6 +826,7 @@ const App: React.FC = () => {
     const toolCallIdRef = useRef<string | null>(null);
     const silenceTimerRef = useRef<number | null>(null);
     const idleSessionTimeoutRef = useRef<number | null>(null);
+    const freeSessionTimerRef = useRef<number | null>(null);
     const summaryAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
     const summaryAudioContextRef = useRef<AudioContext | null>(null);
     const summaryAudioCacheRef = useRef<Record<string, string>>({});
@@ -786,6 +850,7 @@ const App: React.FC = () => {
                     if (!parsedProfile.journal) parsedProfile.journal = [];
                     if (!parsedProfile.language) parsedProfile.language = 'de-DE';
                     if (typeof parsedProfile.avatarUrl === 'undefined') parsedProfile.avatarUrl = null;
+                    if (!parsedProfile.subscription) parsedProfile.subscription = { plan: SubscriptionPlan.FREE };
                     
                     setProfile(parsedProfile);
                     setShowOnboarding(!parsedProfile.onboardingCompleted);
@@ -873,6 +938,17 @@ const App: React.FC = () => {
         setProfile(defaultProfile);
         setSessions([]);
         setActiveSessionId(null);
+    };
+
+    const handleUpgradeSubscription = () => {
+        setProfile(p => ({
+            ...p,
+            subscription: {
+                plan: SubscriptionPlan.PREMIUM,
+                expiryDate: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days from now
+            }
+        }));
+        setIsSubscriptionModalOpen(false);
     };
 
     const updateTranscript = (speaker: Speaker, text: string) => {
@@ -968,6 +1044,7 @@ const App: React.FC = () => {
     };
 
     const generateMoodTrend = async (transcript: TranscriptEntry[], language: string): Promise<number[] | undefined> => {
+        if (profile.subscription.plan === SubscriptionPlan.FREE) return undefined;
         const conversationText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
         const T_LANG = translations[language as keyof typeof translations] || translations['de-DE'];
         const prompt = T_LANG.moodTrendPrompt(conversationText);
@@ -991,6 +1068,7 @@ const App: React.FC = () => {
     };
 
     const generateWordCloud = async (transcript: TranscriptEntry[], language: string): Promise<{ text: string; value: number }[] | undefined> => {
+        if (profile.subscription.plan === SubscriptionPlan.FREE) return undefined;
         const conversationText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
         const T_LANG = translations[language as keyof typeof translations] || translations['de-DE'];
         const prompt = T_LANG.wordCloudPrompt(conversationText);
@@ -1042,14 +1120,14 @@ const App: React.FC = () => {
     };
 
     const stopSession = useCallback(async (isCrisis = false, shouldAnalyze = true) => {
-        if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
-        }
-        if (idleSessionTimeoutRef.current) {
-            clearTimeout(idleSessionTimeoutRef.current);
-            idleSessionTimeoutRef.current = null;
-        }
+        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        if (idleSessionTimeoutRef.current) clearTimeout(idleSessionTimeoutRef.current);
+        if (freeSessionTimerRef.current) clearTimeout(freeSessionTimerRef.current);
+        silenceTimerRef.current = null;
+        idleSessionTimeoutRef.current = null;
+        freeSessionTimerRef.current = null;
+        setShowTimeLimitToast(false);
+
 
         setSessionState(SessionState.IDLE);
         setCurrentInput('');
@@ -1153,9 +1231,7 @@ const App: React.FC = () => {
         currentOutputRef.current = '';
 
         const startIdleTimeout = () => {
-            if (idleSessionTimeoutRef.current) {
-                clearTimeout(idleSessionTimeoutRef.current);
-            }
+            if (idleSessionTimeoutRef.current) clearTimeout(idleSessionTimeoutRef.current);
             idleSessionTimeoutRef.current = window.setTimeout(() => {
                 setError(T.ui.chat.inactivityError); 
                 stopSession(false, true);
@@ -1191,6 +1267,17 @@ const App: React.FC = () => {
                     onopen: () => {
                         setSessionState(SessionState.LISTENING);
                         startIdleTimeout();
+                        
+                        // Handle Free Trial Time Limit
+                        if (profile.subscription.plan === SubscriptionPlan.FREE) {
+                            setShowTimeLimitToast(true);
+                            freeSessionTimerRef.current = window.setTimeout(() => {
+                                setError(T.ui.chat.freeSessionEnded);
+                                stopSession(false, false);
+                                setIsSubscriptionModalOpen(true);
+                            }, 300000); // 5 minutes
+                        }
+
                         mediaStreamSourceRef.current = inputAudioContextRef.current!.createMediaStreamSource(streamRef.current!);
                         scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
                         scriptProcessorRef.current.onaudioprocess = (e) => {
@@ -1198,18 +1285,14 @@ const App: React.FC = () => {
                             sessionPromiseRef.current?.then(s => s.sendRealtimeInput({ media: createBlob(inputData) }));
 
                             const VAD_THRESHOLD = 0.01;
-                            const SILENCE_DELAY = 800; // Shorter delay for better responsiveness
+                            const SILENCE_DELAY = 800;
                             const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
 
                             if (rms > VAD_THRESHOLD) {
-                                if (idleSessionTimeoutRef.current) {
-                                    clearTimeout(idleSessionTimeoutRef.current);
-                                    idleSessionTimeoutRef.current = null;
-                                }
-                                if (silenceTimerRef.current) {
-                                    clearTimeout(silenceTimerRef.current);
-                                    silenceTimerRef.current = null;
-                                }
+                                if (idleSessionTimeoutRef.current) clearTimeout(idleSessionTimeoutRef.current);
+                                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                                idleSessionTimeoutRef.current = null;
+                                silenceTimerRef.current = null;
                                 if (sessionStateRef.current !== SessionState.USER_SPEAKING) {
                                     setSessionState(SessionState.USER_SPEAKING);
                                 }
@@ -1393,6 +1476,11 @@ const App: React.FC = () => {
 
 
     const handleNewSession = () => {
+        if (profile.subscription.plan === SubscriptionPlan.FREE && sessions.length >= 1) {
+            setIsSubscriptionModalOpen(true);
+            return;
+        }
+
         if (sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR) {
             // Don't analyze previous session if user just wants a new one
             stopSession(false, false);
@@ -1947,6 +2035,7 @@ const App: React.FC = () => {
         const allDistortions = sessions.flatMap(s => s.cognitiveDistortions || []);
         const uniqueDistortionTypes = [...new Set(allDistortions.map(d => d.type))];
         const latestSession = sessions.filter(s => s.summary).sort((a, b) => b.startTime - a.startTime)[0];
+        const isPremium = profile.subscription.plan === SubscriptionPlan.PREMIUM;
 
         return (
             <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
@@ -1972,26 +2061,29 @@ const App: React.FC = () => {
                             <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.moodChartEmpty}</p>
                         )}
                     </div>
-                    {/* New Smart Stats */}
-                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
+                    {/* Session Mood Trend */}
+                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2 relative">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.sessionMoodTrendTitle}</h3>
                         {latestSession?.moodTrend ? (
                             <MoodTrendChart data={latestSession.moodTrend} />
                         ) : (
                             <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.sessionMoodTrendEmpty}</p>
                         )}
+                        {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionModalOpen(true)} T={T} />}
                     </div>
-                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
+                     {/* Topic Cloud */}
+                     <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2 relative">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.wordCloudTitle}</h3>
                         {latestSession?.wordCloud ? (
                             <WordCloudDisplay data={latestSession.wordCloud} />
                         ) : (
                              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.wordCloudEmpty}</p>
                         )}
+                        {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionModalOpen(true)} T={T} />}
                     </div>
 
                     {/* Recurring Themes */}
-                    <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm">
+                    <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm relative">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.recurringThemesTitle}</h3>
                         {recurringThemes.length > 0 ? (
                             <ul className="list-disc list-inside space-y-2">
@@ -2000,9 +2092,10 @@ const App: React.FC = () => {
                         ) : (
                              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.recurringThemesEmpty}</p>
                         )}
+                         {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionModalOpen(true)} T={T} />}
                     </div>
                      {/* Cognitive Distortions */}
-                    <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm">
+                    <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm relative">
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.distortionsTitle}</h3>
                         {uniqueDistortionTypes.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
@@ -2013,6 +2106,7 @@ const App: React.FC = () => {
                         ) : (
                             <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.distortionsEmpty}</p>
                         )}
+                        {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionModalOpen(true)} T={T} />}
                     </div>
                 </div>
             </div>
@@ -2035,6 +2129,11 @@ const App: React.FC = () => {
             case 'chat':
                 return (
                     <>
+                        {showTimeLimitToast && (
+                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-md p-2 mt-2 bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-300 dark:border-yellow-700 rounded-full text-center shadow-lg animate-fade-in">
+                                <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200">{T.ui.chat.freeSessionLimitToast}</p>
+                            </div>
+                        )}
                         <div className="flex-1 flex flex-col p-4 overflow-hidden">
                             {activeSession ? (
                                 <>
@@ -2137,6 +2236,8 @@ const App: React.FC = () => {
                 />
     }
 
+    const isPremium = profile.subscription.plan === SubscriptionPlan.PREMIUM;
+
     return (
         <div className="relative h-screen font-sans bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 overflow-hidden">
              {isExerciseVisible && <BreathingExercise onFinish={handleExerciseFinish} translations={T.ui.breathingExercise} />}
@@ -2148,6 +2249,7 @@ const App: React.FC = () => {
                 onPreviewVoice={handlePreviewVoice}
                 voicePreviewState={voicePreviewState}
                 onLogout={handleLogout}
+                onOpenSubscriptionModal={() => setIsSubscriptionModalOpen(true)}
                 T={T}
              />
              <GoalsModal
@@ -2169,6 +2271,13 @@ const App: React.FC = () => {
                 onSave={handleSaveJournalEntry}
                 onDelete={handleDeleteJournalEntry}
                 entry={editingJournalEntry}
+                T={T}
+            />
+            <SubscriptionModal
+                isOpen={isSubscriptionModalOpen}
+                onClose={() => setIsSubscriptionModalOpen(false)}
+                onUpgrade={handleUpgradeSubscription}
+                subscription={profile.subscription}
                 T={T}
             />
             {isCrisisModalOpen && (
@@ -2254,10 +2363,23 @@ const App: React.FC = () => {
                         );
                     })}
                 </nav>
+                
+                {!isPremium && (
+                    <div className="p-4">
+                        <button onClick={() => setIsSubscriptionModalOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-md font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg hover:opacity-90 transition-opacity shadow-lg">
+                            <SparklesIcon className="w-5 h-5" />
+                            <span>{T.ui.sidebar.upgrade}</span>
+                        </button>
+                    </div>
+                )}
+                
                  <div className="p-2 border-t border-slate-200 dark:border-slate-700/50">
-                     <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('insights'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'insights' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'}`}>
-                         <ChartBarIcon className="w-5 h-5 flex-shrink-0"/>
-                         <span>{T.ui.sidebar.insights}</span>
+                     <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('insights'); setIsSidebarOpen(false); }} className={`flex items-center justify-between gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'insights' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'}`}>
+                        <div className="flex items-center gap-3">
+                            <ChartBarIcon className="w-5 h-5 flex-shrink-0"/>
+                            <span>{T.ui.sidebar.insights}</span>
+                        </div>
+                        {!isPremium && <SparklesIcon className="w-4 h-4 text-yellow-500"/>}
                      </a>
                      <a href="#" onClick={(e) => { e.preventDefault(); setCurrentView('mood'); setIsSidebarOpen(false); }} className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium transition-colors ${currentView === 'mood' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'hover:bg-slate-200/70 dark:hover:bg-slate-700/50'}`}>
                          <HeartIcon className="w-5 h-5 flex-shrink-0"/>
