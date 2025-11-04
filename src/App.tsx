@@ -12,6 +12,8 @@ import {
   TranscriptEntry,
   CognitiveDistortion,
   SubscriptionPlan,
+  JournalEntry,
+  Mood,
 } from './types';
 import {
   getUserProfile,
@@ -23,6 +25,10 @@ import {
   deleteChatSession,
   getAuraMemory,
   updateChatSession,
+  addGoal,
+  addMoodEntry,
+  addJournalEntry,
+  deleteJournalEntry,
 } from './lib/database';
 import { translations } from './lib/translations';
 import {
@@ -39,6 +45,11 @@ import {
   SunIcon,
   MoonIcon,
 } from './components/Icons';
+import { ProfileModal } from './components/ProfileModal';
+import { GoalsModal } from './components/GoalsModal';
+import { MoodJournalModal } from './components/MoodJournalModal';
+import { JournalModal } from './components/JournalModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
 import {
   SpeechRecognitionService,
   TextToSpeechService,
@@ -109,6 +120,14 @@ function App() {
   const micStreamRef = useRef<MediaStream | null>(null);
   const voiceRecorderRef = useRef<VoiceRecorder | null>(null);
   const [isRecordingFallback, setIsRecordingFallback] = useState(false);
+  // Modals & UI states
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isGoalsOpen, setIsGoalsOpen] = useState(false);
+  const [isMoodOpen, setIsMoodOpen] = useState(false);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
+  const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
+  const [voicePreviewState, setVoicePreviewState] = useState<{ id: string; status: 'loading' | 'playing' } | null>(null);
 
   const T = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
 
@@ -301,13 +320,28 @@ function App() {
         console.warn('TTS not supported in this browser');
         return;
       }
+      // Toggle stop if currently previewing
+      if (voicePreviewState?.id === voiceId) {
+        ttsServiceRef.current.stop();
+        setVoicePreviewState(null);
+        return;
+      }
+
       const sample = language.startsWith('de')
         ? 'Hallo! So klingt diese Stimme. Gefällt dir diese Stimmlage?'
         : 'Hello! This is a voice preview. Do you like this tone?';
+      setVoicePreviewState({ id: voiceId, status: 'loading' });
+      setVoicePreviewState({ id: voiceId, status: 'playing' });
       await ttsServiceRef.current.speak(sample, language, voiceId);
     } catch (error) {
       console.error('Voice preview failed:', error);
+    } finally {
+      setVoicePreviewState(null);
     }
+  };
+
+  const handlePreviewVoiceFromProfile = async (voiceId: string) => {
+    await handlePreviewVoice(voiceId, userProfile.language || 'de-DE');
   };
 
   const generateAndStoreSummary = async (sessionId: string, lang: string) => {
@@ -388,6 +422,89 @@ function App() {
       }
     } catch (error) {
       console.error('Error deleting session:', error);
+    }
+  };
+
+  const handleProfileChange = async (newProfile: UserProfile) => {
+    if (!user) return;
+    try {
+      await updateUserProfile(user.id, newProfile);
+      setUserProfile(newProfile);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+  };
+
+  const handleSaveGoal = async (description: string) => {
+    if (!user) return;
+    try {
+      await addGoal(user.id, { description, status: 'active', createdAt: Date.now() });
+      setUserProfile(prev => ({
+        ...prev,
+        goals: [...(prev.goals || []), { id: crypto.randomUUID(), description, status: 'active', createdAt: Date.now() }],
+      }));
+    } catch (error) {
+      console.error('Error saving goal:', error);
+    }
+  };
+
+  const handleSaveMood = async (mood: Mood, note?: string) => {
+    if (!user) return;
+    try {
+      const createdAt = Date.now();
+      await addMoodEntry(user.id, { mood, note, createdAt });
+      setUserProfile(prev => ({
+        ...prev,
+        moodJournal: [{ id: crypto.randomUUID(), mood, note, createdAt }, ...(prev.moodJournal || [])],
+      }));
+    } catch (error) {
+      console.error('Error saving mood entry:', error);
+    }
+  };
+
+  const handleSaveJournal = async (entry: Omit<JournalEntry, 'id' | 'createdAt'>) => {
+    if (!user) return;
+    try {
+      const createdAt = Date.now();
+      const id = await addJournalEntry(user.id, { ...entry, createdAt });
+      setUserProfile(prev => ({
+        ...prev,
+        journal: [{ id, content: entry.content, createdAt }, ...(prev.journal || [])],
+      }));
+      setEditingJournalEntry(null);
+      setIsJournalOpen(false);
+    } catch (error) {
+      console.error('Error saving journal entry:', error);
+    }
+  };
+
+  const handleDeleteJournal = async (entryId: string) => {
+    if (!user) return;
+    try {
+      await deleteJournalEntry(entryId);
+      setUserProfile(prev => ({
+        ...prev,
+        journal: (prev.journal || []).filter(e => e.id !== entryId),
+      }));
+      setEditingJournalEntry(null);
+      setIsJournalOpen(false);
+    } catch (error) {
+      console.error('Error deleting journal entry:', error);
+    }
+  };
+
+  const handleUpgradeToPremium = async () => {
+    if (!user) return;
+    try {
+      const next = {
+        ...userProfile,
+        subscription: { plan: SubscriptionPlan.PREMIUM, expiryDate: Date.now() + 30 * 24 * 60 * 60 * 1000 },
+      } as UserProfile;
+      await updateUserProfile(user.id, next);
+      setUserProfile(next);
+      setIsSubscriptionOpen(false);
+    } catch (error) {
+      console.error('Error upgrading subscription:', error);
     }
   };
 
@@ -702,19 +819,19 @@ function App() {
 
             <div className="p-4 border-t border-slate-200 dark:border-slate-700">
               <div className="space-y-2">
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <button onClick={() => setIsGoalsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
                   <GoalsIcon className="w-5 h-5" />
                   <span>{T.ui.sidebar.goals}</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <button onClick={() => setIsMoodOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
                   <HeartIcon className="w-5 h-5" />
                   <span>{T.ui.sidebar.mood}</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <button onClick={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
                   <JournalIcon className="w-5 h-5" />
                   <span>{T.ui.sidebar.journal}</span>
                 </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <button onClick={() => setIsProfileOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
                   <UserIcon className="w-5 h-5" />
                   <span>{T.ui.sidebar.profile}</span>
                 </button>
@@ -837,6 +954,54 @@ function App() {
           )}
         </div>
       </div>
+      {/* Modals */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        profile={userProfile}
+        onProfileChange={handleProfileChange}
+        onPreviewVoice={handlePreviewVoiceFromProfile}
+        voicePreviewState={voicePreviewState}
+        onLogout={() => { setIsProfileOpen(false); signOut(); }}
+        onOpenSubscriptionModal={() => { setIsProfileOpen(false); setIsSubscriptionOpen(true); }}
+        T={T}
+      />
+      <GoalsModal
+        isOpen={isGoalsOpen}
+        onClose={() => setIsGoalsOpen(false)}
+        onSave={handleSaveGoal}
+        onSuggestSmartGoal={async (desc: string) => {
+          try {
+            if (!genAIRef.current) return desc;
+            const prompt = T.ui.goalsModal?.smartGoalPrompt?.(desc) || `Formuliere aus folgendem Ziel ein konkretes SMART-Ziel: ${desc}`;
+            const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-pro' });
+            const res = await model.generateContent([{ text: prompt }]);
+            return res.response.text().trim() || desc;
+          } catch { return desc; }
+        }}
+        T={T}
+      />
+      <MoodJournalModal
+        isOpen={isMoodOpen}
+        onClose={() => setIsMoodOpen(false)}
+        onSave={handleSaveMood}
+        T={T}
+      />
+      <JournalModal
+        isOpen={isJournalOpen}
+        onClose={() => setIsJournalOpen(false)}
+        onSave={handleSaveJournal}
+        onDelete={handleDeleteJournal}
+        entry={editingJournalEntry}
+        T={T}
+      />
+      <SubscriptionModal
+        isOpen={isSubscriptionOpen}
+        onClose={() => setIsSubscriptionOpen(false)}
+        onUpgrade={handleUpgradeToPremium}
+        subscription={userProfile.subscription}
+        T={T}
+      />
     </ErrorBoundary>
   );
 }
