@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
@@ -13,12 +13,93 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const DEMO_ACCOUNTS_KEY = 'aura-demo-auth-accounts'
+const DEMO_ACTIVE_USER_KEY = 'aura-demo-auth-active-user'
+
+type DemoAccount = {
+  id: string
+  email: string
+  password: string
+  name: string
+}
+
+const readLocalStorage = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw) as T
+  } catch (error) {
+    console.warn('[Aura] Konnte lokale Demo-Daten nicht lesen:', error)
+    return fallback
+  }
+}
+
+const writeLocalStorage = (key: string, value: unknown) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.warn('[Aura] Konnte lokale Demo-Daten nicht speichern:', error)
+  }
+}
+
+const removeLocalStorage = (key: string) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(key)
+  } catch (error) {
+    console.warn('[Aura] Konnte lokale Demo-Daten nicht entfernen:', error)
+  }
+}
+
+const toSupabaseUser = (account: DemoAccount): User => ({
+  id: account.id,
+  email: account.email,
+  aud: 'authenticated',
+  role: 'authenticated',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  confirmed_at: new Date().toISOString(),
+  email_confirmed_at: new Date().toISOString(),
+  phone_confirmed_at: null,
+  last_sign_in_at: new Date().toISOString(),
+  app_metadata: { provider: 'demo' },
+  user_metadata: { full_name: account.name },
+  identities: [],
+  factors: [],
+} as unknown as User)
+
+const generateDemoId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `demo-user-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const isDemoMode = !isSupabaseConfigured || !supabase
 
   useEffect(() => {
+    if (isDemoMode) {
+      const activeAccount = readLocalStorage<DemoAccount | null>(DEMO_ACTIVE_USER_KEY, null)
+      setUser(activeAccount ? toSupabaseUser(activeAccount) : null)
+      setSession(null)
+      setLoading(false)
+      return
+    }
+
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
+
     // Initiale Session laden
     async function loadSession() {
       try {
@@ -44,9 +125,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [isDemoMode])
+
+  const loadAccounts = () => readLocalStorage<DemoAccount[]>(DEMO_ACCOUNTS_KEY, [])
+  const saveAccounts = (accounts: DemoAccount[]) => writeLocalStorage(DEMO_ACCOUNTS_KEY, accounts)
+  const setActiveAccount = (account: DemoAccount | null) => {
+    if (account) {
+      writeLocalStorage(DEMO_ACTIVE_USER_KEY, account)
+    } else {
+      removeLocalStorage(DEMO_ACTIVE_USER_KEY)
+    }
+  }
 
   const signUp = async (email: string, password: string, name: string) => {
+    if (isDemoMode || !supabase) {
+      try {
+        const accounts = loadAccounts()
+        const exists = accounts.some(account => account.email.toLowerCase() === email.toLowerCase())
+        if (exists) {
+          return { error: new Error('Diese E-Mail-Adresse ist in der Demo bereits registriert.') }
+        }
+
+        const account: DemoAccount = {
+          id: generateDemoId(),
+          email,
+          password,
+          name,
+        }
+
+        const updatedAccounts = [...accounts, account]
+        saveAccounts(updatedAccounts)
+        setActiveAccount(account)
+        setUser(toSupabaseUser(account))
+        setSession(null)
+        setLoading(false)
+        return { error: null }
+      } catch (error) {
+        return { error: error as Error }
+      }
+    }
+
     try {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -88,6 +206,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
+    if (isDemoMode || !supabase) {
+      try {
+        const accounts = loadAccounts()
+        const account = accounts.find(
+          acc => acc.email.toLowerCase() === email.toLowerCase() && acc.password === password,
+        )
+
+        if (!account) {
+          return { error: new Error('Ungültige Demo-Zugangsdaten.') }
+        }
+
+        setActiveAccount(account)
+        setUser(toSupabaseUser(account))
+        setSession(null)
+        setLoading(false)
+        return { error: null }
+      } catch (error) {
+        return { error: error as Error }
+      }
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -100,6 +239,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    if (isDemoMode || !supabase) {
+      setActiveAccount(null)
+      setUser(null)
+      setSession(null)
+      return
+    }
+
     await supabase.auth.signOut()
   }
 

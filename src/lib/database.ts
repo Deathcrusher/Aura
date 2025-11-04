@@ -1,8 +1,125 @@
-import { supabase } from './supabase'
-import { UserProfile, AuraMemory, Goal, MoodEntry, JournalEntry, ChatSession, TranscriptEntry, CognitiveDistortion } from '../types'
+import { supabase, isSupabaseConfigured } from './supabase'
+import {
+  UserProfile,
+  AuraMemory,
+  Goal,
+  MoodEntry,
+  JournalEntry,
+  ChatSession,
+  TranscriptEntry,
+  CognitiveDistortion,
+  SubscriptionPlan,
+} from '../types'
+
+const hasSupabase = Boolean(isSupabaseConfigured && supabase)
+
+const DEMO_STORAGE_KEY = 'aura-demo-database-v1'
+
+const createDefaultMemory = (): AuraMemory => ({
+  keyRelationships: [],
+  majorLifeEvents: [],
+  recurringThemes: [],
+  userGoals: [],
+})
+
+const createDefaultProfile = (): UserProfile => ({
+  name: 'User',
+  voice: 'Zephyr',
+  language: 'de-DE',
+  avatarUrl: null,
+  memory: createDefaultMemory(),
+  goals: [],
+  moodJournal: [],
+  journal: [],
+  onboardingCompleted: false,
+  subscription: {
+    plan: SubscriptionPlan.FREE,
+  },
+})
+
+const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value))
+
+interface DemoChatSession extends ChatSession {
+  userId: string
+}
+
+interface DemoDatabase {
+  profiles: Record<string, UserProfile>
+  sessions: Record<string, DemoChatSession>
+  userSessions: Record<string, string[]>
+}
+
+const loadDemoDatabase = (): DemoDatabase => {
+  if (typeof window === 'undefined') {
+    return { profiles: {}, sessions: {}, userSessions: {} }
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DEMO_STORAGE_KEY)
+    if (!raw) {
+      return { profiles: {}, sessions: {}, userSessions: {} }
+    }
+
+    const parsed = JSON.parse(raw) as Partial<DemoDatabase>
+    return {
+      profiles: parsed.profiles ?? {},
+      sessions: parsed.sessions ?? {},
+      userSessions: parsed.userSessions ?? {},
+    }
+  } catch (error) {
+    console.warn('[Aura] Konnte Demo-Daten nicht laden:', error)
+    return { profiles: {}, sessions: {}, userSessions: {} }
+  }
+}
+
+const saveDemoDatabase = (db: DemoDatabase) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(db))
+  } catch (error) {
+    console.warn('[Aura] Konnte Demo-Daten nicht speichern:', error)
+  }
+}
+
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `demo-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+const ensureDemoProfile = (db: DemoDatabase, userId: string): UserProfile => {
+  const existing = db.profiles[userId]
+  if (existing) {
+    return existing
+  }
+  const profile = createDefaultProfile()
+  db.profiles[userId] = profile
+  return profile
+}
+
+const getDemoSessionRecord = (db: DemoDatabase, sessionId: string): DemoChatSession | undefined => {
+  return db.sessions[sessionId]
+}
+
+const upsertDemoSessionRecord = (
+  db: DemoDatabase,
+  session: DemoChatSession,
+): DemoChatSession => {
+  db.sessions[session.id] = session
+  const order = db.userSessions[session.userId] ?? []
+  db.userSessions[session.userId] = [session.id, ...order.filter(id => id !== session.id)]
+  return session
+}
 
 // Profile Operations
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    return profile ? clone(profile) : null
+  }
+
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -31,12 +148,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
         plan: profile.subscription_plan || 'free',
         expiryDate: profile.subscription_expiry_date,
       },
-      memory: memory || {
-        keyRelationships: [],
-        majorLifeEvents: [],
-        recurringThemes: [],
-        userGoals: [],
-      },
+      memory: memory || createDefaultMemory(),
       goals: goals || [],
       moodJournal: moodJournal || [],
       journal: journal || [],
@@ -48,6 +160,24 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const existing = ensureDemoProfile(db, userId)
+    const updatedProfile: UserProfile = {
+      ...existing,
+      ...updates,
+      memory: updates.memory ? clone(updates.memory) : existing.memory ?? createDefaultMemory(),
+      goals: updates.goals ?? existing.goals ?? [],
+      moodJournal: updates.moodJournal ?? existing.moodJournal ?? [],
+      journal: updates.journal ?? existing.journal ?? [],
+      subscription: updates.subscription ?? existing.subscription ?? { plan: SubscriptionPlan.FREE },
+    }
+
+    db.profiles[userId] = updatedProfile
+    saveDemoDatabase(db)
+    return
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({
@@ -66,6 +196,13 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 
 // Aura Memory Operations
 export async function getAuraMemory(userId: string): Promise<AuraMemory | null> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    if (!profile) return null
+    return clone(profile.memory ?? createDefaultMemory())
+  }
+
   const { data, error } = await supabase
     .from('aura_memory')
     .select('*')
@@ -84,6 +221,15 @@ export async function getAuraMemory(userId: string): Promise<AuraMemory | null> 
 }
 
 export async function updateAuraMemory(userId: string, memory: AuraMemory): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = ensureDemoProfile(db, userId)
+    profile.memory = clone(memory)
+    db.profiles[userId] = profile
+    saveDemoDatabase(db)
+    return
+  }
+
   const { error } = await supabase
     .from('aura_memory')
     .upsert({
@@ -100,6 +246,12 @@ export async function updateAuraMemory(userId: string, memory: AuraMemory): Prom
 
 // Goals Operations
 export async function getGoals(userId: string): Promise<Goal[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    return profile ? clone(profile.goals ?? []) : []
+  }
+
   const { data, error } = await supabase
     .from('goals')
     .select('*')
@@ -117,6 +269,16 @@ export async function getGoals(userId: string): Promise<Goal[]> {
 }
 
 export async function addGoal(userId: string, goal: Omit<Goal, 'id'>): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = ensureDemoProfile(db, userId)
+    const newGoal: Goal = { id: generateId(), ...goal }
+    profile.goals = [...(profile.goals ?? []), newGoal]
+    db.profiles[userId] = profile
+    saveDemoDatabase(db)
+    return
+  }
+
   const { error } = await supabase
     .from('goals')
     .insert({
@@ -130,9 +292,30 @@ export async function addGoal(userId: string, goal: Omit<Goal, 'id'>): Promise<v
 }
 
 export async function updateGoal(goalId: string, status: 'active' | 'completed'): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    let updated = false
+
+    for (const profile of Object.values(db.profiles)) {
+      const goals = profile.goals ?? []
+      const index = goals.findIndex(goal => goal.id === goalId)
+      if (index !== -1) {
+        goals[index] = { ...goals[index], status }
+        profile.goals = goals
+        updated = true
+        break
+      }
+    }
+
+    if (updated) {
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('goals')
-    .update({ 
+    .update({
       status,
       completed_at: status === 'completed' ? Date.now() : null
     })
@@ -142,6 +325,26 @@ export async function updateGoal(goalId: string, status: 'active' | 'completed')
 }
 
 export async function deleteGoal(goalId: string): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    let removed = false
+
+    for (const profile of Object.values(db.profiles)) {
+      const goals = profile.goals ?? []
+      const nextGoals = goals.filter(goal => goal.id !== goalId)
+      if (nextGoals.length !== goals.length) {
+        profile.goals = nextGoals
+        removed = true
+        break
+      }
+    }
+
+    if (removed) {
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('goals')
     .delete()
@@ -152,6 +355,12 @@ export async function deleteGoal(goalId: string): Promise<void> {
 
 // Mood Entries Operations
 export async function getMoodEntries(userId: string): Promise<MoodEntry[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    return profile ? clone(profile.moodJournal ?? []) : []
+  }
+
   const { data, error } = await supabase
     .from('mood_entries')
     .select('*')
@@ -169,6 +378,16 @@ export async function getMoodEntries(userId: string): Promise<MoodEntry[]> {
 }
 
 export async function addMoodEntry(userId: string, entry: Omit<MoodEntry, 'id'>): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = ensureDemoProfile(db, userId)
+    const newEntry: MoodEntry = { id: generateId(), ...entry }
+    profile.moodJournal = [newEntry, ...(profile.moodJournal ?? [])]
+    db.profiles[userId] = profile
+    saveDemoDatabase(db)
+    return
+  }
+
   const { error } = await supabase
     .from('mood_entries')
     .insert({
@@ -183,6 +402,12 @@ export async function addMoodEntry(userId: string, entry: Omit<MoodEntry, 'id'>)
 
 // Journal Entries Operations
 export async function getJournalEntries(userId: string): Promise<JournalEntry[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    return profile ? clone(profile.journal ?? []) : []
+  }
+
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
@@ -203,6 +428,16 @@ export async function getJournalEntries(userId: string): Promise<JournalEntry[]>
 }
 
 export async function addJournalEntry(userId: string, entry: Omit<JournalEntry, 'id'>): Promise<string> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const profile = ensureDemoProfile(db, userId)
+    const newEntry: JournalEntry = { id: generateId(), ...entry }
+    profile.journal = [newEntry, ...(profile.journal ?? [])]
+    db.profiles[userId] = profile
+    saveDemoDatabase(db)
+    return newEntry.id
+  }
+
   const { data, error } = await supabase
     .from('journal_entries')
     .insert({
@@ -218,6 +453,31 @@ export async function addJournalEntry(userId: string, entry: Omit<JournalEntry, 
 }
 
 export async function updateJournalEntry(entryId: string, content: string, insights?: { keyThemes: string[], positiveNotes: string[] }): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    let updated = false
+
+    for (const profile of Object.values(db.profiles)) {
+      const entries = profile.journal ?? []
+      const index = entries.findIndex(entry => entry.id === entryId)
+      if (index !== -1) {
+        entries[index] = {
+          ...entries[index],
+          content,
+          insights,
+        }
+        profile.journal = entries
+        updated = true
+        break
+      }
+    }
+
+    if (updated) {
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('journal_entries')
     .update({
@@ -231,6 +491,26 @@ export async function updateJournalEntry(entryId: string, content: string, insig
 }
 
 export async function deleteJournalEntry(entryId: string): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    let removed = false
+
+    for (const profile of Object.values(db.profiles)) {
+      const entries = profile.journal ?? []
+      const nextEntries = entries.filter(entry => entry.id !== entryId)
+      if (nextEntries.length !== entries.length) {
+        profile.journal = nextEntries
+        removed = true
+        break
+      }
+    }
+
+    if (removed) {
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('journal_entries')
     .delete()
@@ -241,6 +521,27 @@ export async function deleteJournalEntry(entryId: string): Promise<void> {
 
 // Chat Sessions Operations
 export async function getChatSessions(userId: string): Promise<ChatSession[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const sessionIds = db.userSessions[userId] ?? []
+
+    return sessionIds
+      .map(id => db.sessions[id])
+      .filter((session): session is DemoChatSession => Boolean(session))
+      .map(session => ({
+        id: session.id,
+        title: session.title,
+        transcript: clone(session.transcript ?? []),
+        notes: session.notes,
+        summary: session.summary,
+        summaryAudioBase64: session.summaryAudioBase64,
+        startTime: session.startTime,
+        cognitiveDistortions: clone(session.cognitiveDistortions ?? []),
+        moodTrend: session.moodTrend,
+        wordCloud: session.wordCloud,
+      }))
+  }
+
   const { data: sessions, error } = await supabase
     .from('chat_sessions')
     .select('*')
@@ -277,6 +578,22 @@ export async function getChatSessions(userId: string): Promise<ChatSession[]> {
 }
 
 export async function createChatSession(userId: string, session: Omit<ChatSession, 'id'>): Promise<string> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const sessionId = generateId()
+    const newSession: DemoChatSession = {
+      ...session,
+      id: sessionId,
+      userId,
+      transcript: clone(session.transcript ?? []),
+      cognitiveDistortions: clone(session.cognitiveDistortions ?? []),
+    }
+
+    upsertDemoSessionRecord(db, newSession)
+    saveDemoDatabase(db)
+    return sessionId
+  }
+
   const { data, error } = await supabase
     .from('chat_sessions')
     .insert({
@@ -298,6 +615,25 @@ export async function createChatSession(userId: string, session: Omit<ChatSessio
 }
 
 export async function updateChatSession(sessionId: string, updates: Partial<ChatSession>): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = getDemoSessionRecord(db, sessionId)
+    if (record) {
+      const updated: DemoChatSession = {
+        ...record,
+        ...updates,
+        transcript: updates.transcript ? clone(updates.transcript) : record.transcript,
+        cognitiveDistortions: updates.cognitiveDistortions
+          ? clone(updates.cognitiveDistortions)
+          : record.cognitiveDistortions,
+      }
+
+      upsertDemoSessionRecord(db, updated)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('chat_sessions')
     .update({
@@ -314,6 +650,18 @@ export async function updateChatSession(sessionId: string, updates: Partial<Chat
 }
 
 export async function deleteChatSession(sessionId: string): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = db.sessions[sessionId]
+    if (record) {
+      delete db.sessions[sessionId]
+      const order = db.userSessions[record.userId] ?? []
+      db.userSessions[record.userId] = order.filter(id => id !== sessionId)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   // Lösche zuerst abhängige Daten
   await Promise.all([
     supabase.from('transcript_entries').delete().eq('session_id', sessionId),
@@ -330,6 +678,12 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 
 // Transcript Entries Operations
 export async function getTranscriptEntries(sessionId: string): Promise<TranscriptEntry[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const session = db.sessions[sessionId]
+    return session ? clone(session.transcript ?? []) : []
+  }
+
   const { data, error } = await supabase
     .from('transcript_entries')
     .select('*')
@@ -346,6 +700,17 @@ export async function getTranscriptEntries(sessionId: string): Promise<Transcrip
 }
 
 export async function addTranscriptEntries(sessionId: string, entries: TranscriptEntry[]): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = getDemoSessionRecord(db, sessionId)
+    if (record) {
+      record.transcript = [...(record.transcript ?? []), ...clone(entries)]
+      upsertDemoSessionRecord(db, record)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const insertData = entries.map((entry, index) => ({
     session_id: sessionId,
     id: entry.id,
@@ -363,6 +728,20 @@ export async function addTranscriptEntries(sessionId: string, entries: Transcrip
 }
 
 export async function addTranscriptEntry(sessionId: string, entry: TranscriptEntry, sequenceNumber: number): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = getDemoSessionRecord(db, sessionId)
+    if (record) {
+      const transcript = [...(record.transcript ?? [])]
+      const index = Math.min(sequenceNumber, transcript.length)
+      transcript.splice(index, 0, clone(entry))
+      record.transcript = transcript
+      upsertDemoSessionRecord(db, record)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('transcript_entries')
     .insert({
@@ -379,6 +758,17 @@ export async function addTranscriptEntry(sessionId: string, entry: TranscriptEnt
 
 // Helper function to add a transcript entry with automatic sequence numbering
 export async function addTranscriptEntryAuto(sessionId: string, entry: TranscriptEntry): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = getDemoSessionRecord(db, sessionId)
+    if (record) {
+      record.transcript = [...(record.transcript ?? []), clone(entry)]
+      upsertDemoSessionRecord(db, record)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   // Get current max sequence number
   const { data, error: countError } = await supabase
     .from('transcript_entries')
@@ -398,6 +788,12 @@ export async function addTranscriptEntryAuto(sessionId: string, entry: Transcrip
 
 // Cognitive Distortions Operations
 export async function getCognitiveDistortions(sessionId: string): Promise<CognitiveDistortion[]> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const session = db.sessions[sessionId]
+    return session ? clone(session.cognitiveDistortions ?? []) : []
+  }
+
   const { data, error } = await supabase
     .from('cognitive_distortions')
     .select('*')
@@ -414,6 +810,17 @@ export async function getCognitiveDistortions(sessionId: string): Promise<Cognit
 }
 
 export async function addCognitiveDistortion(sessionId: string, distortion: CognitiveDistortion): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const record = getDemoSessionRecord(db, sessionId)
+    if (record) {
+      record.cognitiveDistortions = [...(record.cognitiveDistortions ?? []), clone(distortion)]
+      upsertDemoSessionRecord(db, record)
+      saveDemoDatabase(db)
+    }
+    return
+  }
+
   const { error } = await supabase
     .from('cognitive_distortions')
     .insert({
