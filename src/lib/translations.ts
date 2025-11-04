@@ -66,6 +66,11 @@ export const deDE = {
       profile: 'Profil',
       logout: 'Abmelden',
     },
+    theme: {
+      toggle: 'Darstellung wechseln',
+      light: 'Heller Modus',
+      dark: 'Dunkler Modus',
+    },
     controls: {
       startSession: 'Sitzung starten',
       stopSession: 'Sitzung beenden',
@@ -148,6 +153,11 @@ export const enUS = {
       journal: 'Journal',
       profile: 'Profile',
       logout: 'Log Out',
+    },
+    theme: {
+      toggle: 'Toggle appearance',
+      light: 'Light mode',
+      dark: 'Dark mode',
     },
     controls: {
       startSession: 'Start Session',

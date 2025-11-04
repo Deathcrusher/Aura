@@ -6,6 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AURA - AI Therapy Bot</title>
   <meta name="description" content="AURA - Your AI-powered companion for mental wellbeing and therapy sessions" />
+  <script>
+    try {
+      const storedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const theme = storedTheme || (prefersDark ? 'dark' : 'light');
+      const root = document.documentElement;
+      if (theme === 'dark') {
+        root.classList.add('dark');
+      }
+      root.style.colorScheme = theme;
+    } catch (error) {
+      console.warn('Unable to apply stored theme preference before hydration:', error);
+    }
+  </script>
 </head>
 
 <body>
