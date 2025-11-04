@@ -69,6 +69,8 @@ export class SpeechRecognitionService {
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = false;
       this.recognition.interimResults = false;
+      // Limit alternatives for quicker, more reliable results
+      try { this.recognition.maxAlternatives = 1; } catch {}
       this.recognition.lang = 'de-DE';
 
       this.recognition.onresult = (event: any) => {
@@ -85,9 +87,22 @@ export class SpeechRecognitionService {
         }
       };
 
+      // Some browsers need an explicit stop on speech end to flush final result
+      this.recognition.onspeechend = () => {
+        try { this.recognition.stop(); } catch {}
+      };
+
+      this.recognition.onstart = () => {
+        this.isListening = true;
+      };
+
       this.recognition.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
         this.isListening = false;
+        // Ensure UI can recover/cleanup on error
+        if (this.onEndCallback) {
+          try { this.onEndCallback(); } catch {}
+        }
       };
     }
   }
