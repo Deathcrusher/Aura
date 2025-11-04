@@ -1,191 +1,160 @@
-# 🤖 AURA - AI Therapy Bot
+# Aura - AI-Therapie System mit Supabase
 
-**AURA** ist eine fortschrittliche KI-gestützte Therapie-Plattform, die mit **Supabase** für echte Benutzer und persistente Datenspeicherung entwickelt wurde.
+Aura ist eine KI-gestützte Therapie-Anwendung, die empathische Gespräche mit einem AI-Therapeuten ermöglicht. Die Anwendung nutzt Supabase für Backend-Services und Google Gemini für die KI-Konversation.
 
-## ✨ Features
+## ✨ Funktionen
 
-- 🔐 **Benutzerauthentifizierung** - Registrierung, Login, sichere Sessions
-- 🗣️ **AI-Gespräche** - Integriert mit Google Gemini für empathische Therapiegespräche
-- 💾 **Datenpersistenz** - Alle Gespräche, Ziele und Stimmungen werden sicher in der Cloud gespeichert
-- 🏥 **Therapie-Features:**
-  - Chat-Sitzungen mit Verlauf
-  - Stimmungsverfolgung (Mood Journal)
-  - Ziele setzen und verfolgen
-  - Tagebuch-Einträge
-  - Kognitive Verzerrungserkennung
-- 🌍 **Mehrsprachig** - Deutsch und Englisch
-- 🎨 **Moderne UI** - Responsives Design mit Tailwind CSS
-- 🔒 **Datenschutz** - Row Level Security (RLS) für Benutzerdaten
+- 🔐 **Authentifizierung**: Sicheres Login/Registrierung via Supabase Auth
+- 💬 **AI-Gespräche**: Text-basierte Therapiesitzungen mit Google Gemini
+- 📊 **Sitzungsverlauf**: Speicherung und Anzeige vergangener Gespräche
+- 👤 **Benutzerprofile**: Personalisierte Profile mit Präferenzen
+- 🎯 **Ziele-Tracking**: Setzen und Verfolgen persönlicher Ziele
+- 📝 **Tagebuch**: Persönliche Journaleinträge
+- 💭 **Stimmungstracking**: Erfassung der täglichen Stimmung
+- 🧠 **Kognitive Verzerrungen**: Erkennung von Denkmustern
+- 🌍 **Mehrsprachig**: Deutsch und Englisch unterstützt
 
-## 🚀 Live Demo
+## 🛠 Technologie-Stack
 
-**Deployed Version:** [https://76me7dtqnb9q.space.minimax.io](https://76me7dtqnb9q.space.minimax.io)
+- **Frontend**: React 18.3 + TypeScript + Vite 6.0
+- **Styling**: Tailwind CSS 3.4
+- **Backend**: Supabase (PostgreSQL + Auth)
+- **AI**: Google Gemini API
+- **Paketmanager**: pnpm
 
-## 🛠️ Setup & Installation
+## 📋 Voraussetzungen
 
-### 1. Repository klonen
+- Node.js 18+ und pnpm
+- Supabase-Projekt (bereits konfiguriert)
+- Google Gemini API-Schlüssel (optional für vollständige AI-Funktionalität)
+
+## 🚀 Installation
+
+1. **Abhängigkeiten installieren:**
 ```bash
-git clone https://github.com/Deathcrusher/AURA.git
-cd AURA
-```
-
-### 2. Dependencies installieren
-```bash
-npm install
-# oder
 pnpm install
 ```
 
-### 3. Umgebungsvariablen einrichten
+2. **Gemini API-Schlüssel hinzufügen:**
 
-Erstelle eine `.env` Datei im Root-Verzeichnis:
-
+Öffnen Sie die `.env`-Datei und fügen Sie Ihren Google Gemini API-Schlüssel hinzu:
 ```env
-# Supabase Configuration
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Google Gemini AI (Optional - für vollständige AI-Funktionalität)
-VITE_GEMINI_API_KEY=your_gemini_api_key
+VITE_API_KEY=your_api_key_here
 ```
 
-#### Supabase Setup:
-1. Gehe zu [supabase.com](https://supabase.com)
-2. Erstelle ein neues Projekt
-3. Kopiere die URL und den anon key aus den Projekteinstellungen
-4. Führe die SQL-Scripte aus dem `supabase/` Ordner aus, um die Datenbank zu erstellen
+> **Hinweis**: Die Supabase-Credentials sind bereits konfiguriert. Ohne API-Schlüssel funktioniert die Anwendung mit Fallback-Antworten.
 
-#### Google Gemini API (Optional):
-1. Gehe zu [Google AI Studio](https://aistudio.google.com)
-2. Erstelle einen API-Schlüssel
-3. Füge ihn als `VITE_GEMINI_API_KEY` hinzu
-
-### 4. Datenbank Setup
-
-Führe die folgenden SQL-Scripte in deiner Supabase-Konsole aus:
-
-```sql
--- Führe alle .sql Dateien aus dem supabase/tables/ Ordner aus
--- Dann die Migrationen aus supabase/migrations/
-```
-
-Die wichtigsten Tabellen:
-- `profiles` - Benutzerprofile
-- `chat_sessions` - Therapiesitzungen
-- `transcript_entries` - Gesprächsverlauf
-- `aura_memory` - AI-Gedächtnis für jeden Benutzer
-- `goals` - Benutzerziele
-- `mood_entries` - Stimmungseinträge
-- `journal_entries` - Tagebucheinträge
-- `cognitive_distortions` - Erkannte Denkmuster
-
-### 5. Entwicklungsserver starten
+3. **Entwicklungsserver starten:**
 ```bash
-npm run dev
-# oder
 pnpm dev
 ```
 
-Die App läuft auf `http://localhost:5173`
+Die Anwendung läuft auf `http://localhost:5173`
 
-### 6. Produktions-Build
+## 📦 Projekt-Struktur
+
+```
+aura-supabase/
+├── src/
+│   ├── components/         # React-Komponenten
+│   │   ├── AuthScreen.tsx  # Login/Registrierung
+│   │   ├── Onboarding.tsx  # Ersteinrichtung
+│   │   ├── ChatView.tsx    # Chat-Interface
+│   │   ├── Icons.tsx       # SVG-Icons
+│   │   └── ErrorBoundary.tsx
+│   ├── contexts/           # React Context
+│   │   └── AuthContext.tsx # Authentifizierungs-State
+│   ├── lib/                # Utilities
+│   │   ├── supabase.ts     # Supabase Client
+│   │   ├── database.ts     # Datenbank-Operationen
+│   │   └── translations.ts # Übersetzungen (DE/EN)
+│   ├── utils/
+│   │   └── audio.ts        # Audio-Utilities
+│   ├── types.ts            # TypeScript-Typen
+│   ├── App.tsx             # Hauptkomponente
+│   └── main.tsx            # Einstiegspunkt
+├── .env                    # Environment-Variablen
+└── package.json
+```
+
+## 🗄️ Datenbank-Schema
+
+Das Projekt verwendet folgende Supabase-Tabellen:
+
+- **profiles**: Benutzerprofile mit Einstellungen
+- **chat_sessions**: Therapie-Sitzungen
+- **transcript_entries**: Einzelne Nachrichten
+- **aura_memory**: Langzeit-Erinnerungen der AI
+- **goals**: Benutzerziele
+- **mood_entries**: Stimmungseinträge
+- **journal_entries**: Tagebucheinträge
+- **cognitive_distortions**: Erkannte Denkmuster
+
+Alle Tabellen haben Row Level Security (RLS) Policies für sichere Multi-User-Nutzung.
+
+## 🔑 API-Schlüssel erhalten
+
+### Google Gemini API-Schlüssel
+
+1. Besuchen Sie [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Erstellen Sie einen neuen API-Schlüssel
+3. Fügen Sie ihn in die `.env`-Datei ein
+
+## 🎨 Verwendung
+
+1. **Registrierung**: Erstellen Sie ein Konto mit E-Mail und Passwort
+2. **Onboarding**: Geben Sie Ihren Namen an und wählen Sie Sprache/Stimme
+3. **Gespräch starten**: Klicken Sie auf "Neues Gespräch" und beginnen Sie zu chatten
+4. **Verlauf anzeigen**: Alle Sitzungen werden in der Sidebar angezeigt
+5. **Profil anpassen**: Nutzen Sie die Sidebar-Menüs für weitere Funktionen
+
+## 🔒 Sicherheit
+
+- Authentifizierung über Supabase Auth
+- Row Level Security auf allen Tabellen
+- Sichere API-Key-Verwaltung via Environment-Variablen
+- HTTPS für alle Produktions-Deployments
+
+## 🚢 Deployment
+
 ```bash
-npm run build
-# oder
+# Build für Produktion
 pnpm build
+
+# Vorschau des Production-Builds
+pnpm preview
 ```
 
-## 📁 Projektstruktur
+Deploy den `dist`-Ordner auf Ihre bevorzugte Hosting-Plattform (Vercel, Netlify, etc.)
 
-```
-src/
-├── components/          # React-Komponenten
-│   ├── AuthScreen.tsx   # Login/Registrierung
-│   ├── ErrorBoundary.tsx
-│   ├── Icons.tsx        # SVG-Icons
-│   └── ...
-├── contexts/           # React Contexts
-│   └── AuthContext.tsx # Authentifizierung
-├── lib/                # Utilities
-│   ├── supabase.ts     # Supabase-Client
-│   ├── database.ts     # Datenbank-Operationen
-│   └── translations.ts # Übersetzungen
-├── types.ts            # TypeScript-Definitionen
-├── App.tsx             # Hauptkomponente
-└── main.tsx            # Einstiegspunkt
+## 🧪 Entwicklung
 
-supabase/
-├── tables/             # SQL-Tabellendefinitionen
-├── migrations/         # Datenbank-Migrationen
-└── functions/          # Edge Functions (optional)
-```
+- **TypeScript**: Strenge Type-Checking für Stabilität
+- **ESLint**: Code-Qualitätsstandards
+- **Hot Module Replacement**: Schnelle Entwicklung mit Vite
 
-## 🔧 Technologie-Stack
+## 📝 Lizenz
 
-- **Frontend:** React 18 + TypeScript + Vite
-- **Styling:** Tailwind CSS + Radix UI
-- **Backend:** Supabase (PostgreSQL, Auth, Real-time)
-- **AI:** Google Gemini Pro
-- **State Management:** React Context + Hooks
-- **Deployment:** MiniMax Platform
+Dieses Projekt ist für persönliche Verwendung und Entwicklungszwecke.
 
-## 🌟 Key Features im Detail
+## 🤝 Mitwirken
 
-### Benutzerauthentifizierung
-- Sichere Registrierung und Login
-- Automatische Profilererstellung
-- Session-Management
+Das ist ein internes Projekt. Bei Fragen wenden Sie sich an den Projektadministrator.
 
-### AI-Therapiegespräche
-- Contextually aware conversations mit Gemini AI
-- Speicherung des Gesprächsverlaufs
-- Automatische Sequenzierung der Nachrichten
+## 💡 Hinweise
 
-### Datenpersistenz
-- Alle Benutzerdaten werden sicher in Supabase gespeichert
-- Row Level Security (RLS) für Datenschutz
-- Real-time Synchronisation
+- Die Anwendung benötigt eine aktive Internetverbindung für Supabase und Gemini API
+- Ohne API-Schlüssel funktioniert die App mit einfachen Fallback-Antworten
+- Voice-Input-Funktionalität ist für zukünftige Entwicklung vorbereitet
 
-### Responsive Design
-- Mobile-first Ansatz
-- Dark/Light Mode Unterstützung
-- Moderne, therapeutische UI
+## 🐛 Bekannte Einschränkungen
 
-## 🔐 Sicherheit
-
-- **Row Level Security (RLS)** für alle Tabellen aktiviert
-- Benutzer können nur auf ihre eigenen Daten zugreifen
-- Sichere API-Schlüssel-Handhabung
-- HTTPS-Verschlüsselung für alle Verbindungen
-
-## 🚧 Nächste Schritte
-
-- [ ] Spracheingabe-Integration (Speech-to-Text)
-- [ ] Stimmausgabe für AI-Antworten (Text-to-Speech)
-- [ ] Erweiterte Mood-Tracking-Visualisierungen
-- [ ] Goals & Journal Modal-Implementierungen
-- [ ] Voice-Features für Therapiesitzungen
-- [ ] Admin-Dashboard für Therapeuten
-
-## 🤝 Contributing
-
-1. Fork das Repository
-2. Erstelle einen Feature-Branch (`git checkout -b feature/AmazingFeature`)
-3. Committe deine Änderungen (`git commit -m 'Add some AmazingFeature'`)
-4. Push zum Branch (`git push origin feature/AmazingFeature`)
-5. Öffne einen Pull Request
-
-## 📄 Lizenz
-
-Dieses Projekt ist unter der MIT Lizenz veröffentlicht. Siehe `LICENSE` für Details.
-
-## 🆘 Support
-
-Für Fragen oder Probleme:
-1. Öffne ein Issue auf GitHub
-2. Überprüfe die Supabase-Konfiguration
-3. Stelle sicher, dass alle Umgebungsvariablen korrekt gesetzt sind
+- Voice-Input noch nicht implementiert (nur Text-Chat verfügbar)
+- Kognitive Verzerrungserkennung benötigt erweiterte AI-Integration
+- Stimmungstracking und Ziele-Modals noch in Entwicklung
 
 ---
 
-**AURA** - Deine AI-gestützte Begleiterin für mentales Wohlbefinden 🧠💙
+**Version**: 1.0.0  
+**Entwickelt mit**: React + Supabase + Google Gemini  
+**Letzte Aktualisierung**: 2025-11-04

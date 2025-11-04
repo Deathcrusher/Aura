@@ -79,8 +79,8 @@ function App() {
 
   // Initialize Gemini AI
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (apiKey && apiKey !== 'YOUR_GEMINI_API_KEY') {
+    const apiKey = import.meta.env.VITE_API_KEY;
+    if (apiKey && apiKey !== 'YOUR_API_KEY') {
       genAIRef.current = new GoogleGenerativeAI(apiKey);
     }
   }, []);
