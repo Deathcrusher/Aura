@@ -1,4 +1,5 @@
-import { Blob } from '@google/genai';
+// Local type compatible with Gemini inline data parts
+export type GenAIInlineData = { data: string; mimeType: string };
 
 // Custom base64 encode function
 export function encode(bytes: Uint8Array): string {
@@ -43,7 +44,7 @@ export async function decodeAudioData(
 
 
 // Creates a Blob for the Gemini API from raw audio data
-export function createBlob(data: Float32Array): Blob {
+export function createBlob(data: Float32Array): GenAIInlineData {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {

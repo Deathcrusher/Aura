@@ -153,12 +153,12 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
         <div className="flex-1 flex flex-col p-4 overflow-hidden relative">
             
             {/* Avatars Row */}
-            <div className="flex justify-between items-center w-full max-w-3xl mx-auto px-4">
-                <div className="relative w-24 h-24">
+            <div className="flex justify-between items-center w-full max-w-3xl mx-auto px-2 sm:px-4">
+                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
                     <UserAvatar profile={userProfile} className="w-full h-full"/>
                     <div className={`absolute -inset-1 rounded-full border-2 transition-colors duration-500 ${getStatusRingClass('user')}`}></div>
                 </div>
-                 <div className="relative w-32 h-32 flex items-center justify-center">
+                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 flex items-center justify-center">
                     <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{width: '100%', height: '100%'}} />
                     <AuraHumanAvatar className="w-full h-full relative" />
                     <div className={`absolute -inset-1 rounded-full border-2 transition-colors duration-500 ${getStatusRingClass('aura')}`}></div>
@@ -168,7 +168,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
 
             {/* Live Transcript Area */}
             <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-end mt-4 min-h-0">
-                 <div className="p-4 rounded-xl overflow-y-auto space-y-4">
+                 <div className="px-3 sm:px-4 py-4 rounded-xl overflow-y-auto space-y-4">
                     {activeSession.transcript.map(entry => {
                          const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
                          const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;

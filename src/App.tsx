@@ -103,6 +103,7 @@ function App() {
   const speechRecognitionRef = useRef<SpeechRecognitionService | null>(null);
   const ttsServiceRef = useRef<TextToSpeechService | null>(null);
   const audioVisualizationRef = useRef<AudioVisualization | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
 
   const T = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
 
@@ -352,6 +353,13 @@ function App() {
     // Stop any ongoing speech recognition or TTS
     speechRecognitionRef.current?.stop();
     ttsServiceRef.current?.stop();
+    // Cleanup mic visualization and stream
+    audioVisualizationRef.current?.cleanup();
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach((t) => t.stop());
+      micStreamRef.current = null;
+    }
+    inputAnalyserRef.current = null;
   };
 
   const handleStartVoiceSession = async () => {
@@ -362,16 +370,32 @@ function App() {
 
     try {
       setSessionState(SessionState.LISTENING);
-      
+      // Prepare mic visualization
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStreamRef.current = stream;
+        if (audioVisualizationRef.current) {
+          inputAnalyserRef.current = await audioVisualizationRef.current.createFromStream(stream);
+        }
+      } catch (err) {
+        console.warn('Mic visualization unavailable:', err);
+      }
+
       speechRecognitionRef.current.start(
         (transcript) => {
           // Handle speech result
           setCurrentInput(transcript);
-          handleSendMessage(transcript);
+          handleSendMessage(transcript, true);
         },
         () => {
           // Handle speech end
           setSessionState(SessionState.IDLE);
+          audioVisualizationRef.current?.cleanup();
+          if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach((t) => t.stop());
+            micStreamRef.current = null;
+          }
+          inputAnalyserRef.current = null;
         }
       );
     } catch (error) {
@@ -380,7 +404,7 @@ function App() {
     }
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
     if (!activeSession || !user || !text.trim()) return;
 
     try {
@@ -403,7 +427,7 @@ function App() {
       setCurrentOutput('');
 
       if (genAIRef.current) {
-        const model = genAIRef.current.getGenerativeModel({ model: 'gemini-pro' });
+        const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
         
         // Get user's memory for context
         const memory = await getAuraMemory(user.id);
@@ -415,10 +439,13 @@ function App() {
         Antworte empathisch und therapeutisch auf die Nachricht des Nutzers.`;
 
         const chat = model.startChat({
-          history: activeSession.transcript.slice(-10).map(entry => ({
-            role: entry.speaker === Speaker.USER ? 'user' : 'model',
-            parts: [{ text: entry.text }],
-          })),
+          history: [
+            { role: 'user', parts: [{ text: context }] },
+            ...activeSession.transcript.slice(-10).map(entry => ({
+              role: entry.speaker === Speaker.USER ? 'user' : 'model',
+              parts: [{ text: entry.text }],
+            }))
+          ],
         });
 
         const result = await chat.sendMessage(text);
@@ -438,8 +465,8 @@ function App() {
           transcript: [...prev.transcript, auraEntry],
         } : null);
 
-        // Speak the response if TTS is supported and we're in voice mode
-        if (sessionState === SessionState.PROCESSING && ttsServiceRef.current?.isSupported()) {
+        // Speak the response if requested and TTS is supported
+        if (speakResponse && ttsServiceRef.current?.isSupported()) {
           setSessionState(SessionState.SPEAKING);
           try {
             await ttsServiceRef.current.speak(response, userProfile.language);
@@ -671,7 +698,7 @@ function App() {
             <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4">
               <div className="max-w-3xl mx-auto">
                 {sessionState === SessionState.IDLE ? (
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                     <input
                       type="text"
                       value={currentInput}
@@ -683,11 +710,11 @@ function App() {
                         }
                       }}
                       placeholder="Schreibe eine Nachricht..."
-                      className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="min-w-0 w-full sm:flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={handleStartVoiceSession}
-                      className="px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                      className="w-full sm:w-auto px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
                       title="Sprachnachricht aufnehmen"
                     >
                       <MicrophoneIcon className="w-5 h-5" />
@@ -699,7 +726,7 @@ function App() {
                           setCurrentInput('');
                         }
                       }}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
                       disabled={!currentInput.trim()}
                     >
                       Senden
