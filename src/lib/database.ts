@@ -189,7 +189,6 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
       onboarding_completed: updates.onboardingCompleted,
       subscription_plan: updates.subscription?.plan,
       subscription_expiry_date: updates.subscription?.expiryDate,
-      updated_at: Date.now(),
     }, { onConflict: 'id' })
 
   if (error) throw error

@@ -234,12 +234,16 @@ function App() {
             ...profile,
           });
         } else {
-          // Create default profile for new user
-          await updateUserProfile(user.id, DEFAULT_PROFILE);
+          // Create default profile for new user (best-effort)
           setUserProfile(DEFAULT_PROFILE);
+          updateUserProfile(user.id, DEFAULT_PROFILE).catch((e) =>
+            console.warn('Could not persist default profile yet:', e),
+          );
         }
       } catch (error) {
         console.error('Error loading profile:', error);
+        // Fallback to default in UI to avoid onboarding loop
+        setUserProfile(DEFAULT_PROFILE);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -304,8 +308,12 @@ function App() {
     };
 
     try {
-      await updateUserProfile(user.id, updatedProfile);
+      // Update UI immediately to let the user proceed
       setUserProfile(updatedProfile);
+      // Persist in background (don't block UX)
+      updateUserProfile(user.id, updatedProfile).catch((e) =>
+        console.warn('Could not persist onboarding completion yet:', e),
+      );
       
       // Create first session
       await handleNewChat();
