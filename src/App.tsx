@@ -34,7 +34,13 @@ import {
   LogoutIcon,
   StopIcon,
   XIcon,
+  MicrophoneIcon,
 } from './components/Icons';
+import {
+  SpeechRecognitionService,
+  TextToSpeechService,
+  AudioVisualization,
+} from './utils/voice';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import './App.css';
 
@@ -74,16 +80,38 @@ function App() {
   const inputAnalyserRef = useRef<AnalyserNode | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
   const genAIRef = useRef<GoogleGenerativeAI | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognitionService | null>(null);
+  const ttsServiceRef = useRef<TextToSpeechService | null>(null);
+  const audioVisualizationRef = useRef<AudioVisualization | null>(null);
 
   const T = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
 
-  // Initialize Gemini AI
+  // Initialize Gemini AI and Voice Services
   useEffect(() => {
     const apiKey = import.meta.env.VITE_API_KEY;
     if (apiKey && apiKey !== 'YOUR_API_KEY') {
       genAIRef.current = new GoogleGenerativeAI(apiKey);
     }
+
+    // Initialize voice services
+    speechRecognitionRef.current = new SpeechRecognitionService();
+    ttsServiceRef.current = new TextToSpeechService();
+    audioVisualizationRef.current = new AudioVisualization();
+
+    return () => {
+      // Cleanup on unmount
+      speechRecognitionRef.current?.abort();
+      ttsServiceRef.current?.stop();
+      audioVisualizationRef.current?.cleanup();
+    };
   }, []);
+
+  // Update speech recognition language when user profile changes
+  useEffect(() => {
+    if (speechRecognitionRef.current && userProfile.language) {
+      speechRecognitionRef.current.setLanguage(userProfile.language);
+    }
+  }, [userProfile.language]);
 
   // Load user profile when authenticated
   useEffect(() => {
@@ -243,6 +271,35 @@ function App() {
 
   const handleStopSession = () => {
     setSessionState(SessionState.IDLE);
+    // Stop any ongoing speech recognition or TTS
+    speechRecognitionRef.current?.stop();
+    ttsServiceRef.current?.stop();
+  };
+
+  const handleStartVoiceSession = async () => {
+    if (!speechRecognitionRef.current?.isSupported()) {
+      console.error('Speech recognition not supported');
+      return;
+    }
+
+    try {
+      setSessionState(SessionState.LISTENING);
+      
+      speechRecognitionRef.current.start(
+        (transcript) => {
+          // Handle speech result
+          setCurrentInput(transcript);
+          handleSendMessage(transcript);
+        },
+        () => {
+          // Handle speech end
+          setSessionState(SessionState.IDLE);
+        }
+      );
+    } catch (error) {
+      console.error('Error starting voice session:', error);
+      setSessionState(SessionState.ERROR);
+    }
   };
 
   const handleSendMessage = async (text: string) => {
@@ -302,12 +359,25 @@ function App() {
           ...prev,
           transcript: [...prev.transcript, auraEntry],
         } : null);
+
+        // Speak the response if TTS is supported and we're in voice mode
+        if (sessionState === SessionState.PROCESSING && ttsServiceRef.current?.isSupported()) {
+          setSessionState(SessionState.SPEAKING);
+          try {
+            await ttsServiceRef.current.speak(response, userProfile.language);
+          } catch (error) {
+            console.error('TTS error:', error);
+          }
+          setSessionState(SessionState.IDLE);
+        } else {
+          setSessionState(SessionState.IDLE);
+        }
       } else {
         // Fallback response when Gemini is not configured
         const auraEntry: TranscriptEntry = {
           id: crypto.randomUUID(),
           speaker: Speaker.AURA,
-          text: 'Ich verstehe. Erzähle mir mehr darüber. (Hinweis: Gemini API-Schlüssel fehlt für vollständige AI-Antworten)',
+          text: 'Ich verstehe. Erzähle mir mehr darüber. (Hinweis: API-Schlüssel fehlt für vollständige AI-Antworten)',
         };
 
         await addTranscriptEntryAuto(activeSession.id, auraEntry);
@@ -316,9 +386,9 @@ function App() {
           ...prev,
           transcript: [...prev.transcript, auraEntry],
         } : null);
-      }
 
-      setSessionState(SessionState.IDLE);
+        setSessionState(SessionState.IDLE);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setSessionState(SessionState.ERROR);
@@ -520,6 +590,13 @@ function App() {
                       placeholder="Schreibe eine Nachricht..."
                       className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <button
+                      onClick={handleStartVoiceSession}
+                      className="px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
+                      title="Sprachnachricht aufnehmen"
+                    >
+                      <MicrophoneIcon className="w-5 h-5" />
+                    </button>
                     <button
                       onClick={() => {
                         if (currentInput.trim()) {
