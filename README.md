@@ -6,6 +6,7 @@ Aura ist eine KI-gestützte Therapie-Anwendung, die empathische Gespräche mit e
 
 - 🔐 **Authentifizierung**: Sicheres Login/Registrierung via Supabase Auth
 - 💬 **AI-Gespräche**: Text-basierte Therapiesitzungen mit Google Gemini
+- 🎤 **Sprach-Chat**: Sprechen Sie direkt mit der AI (Sprach-zu-Text und Text-zu-Sprache)
 - 📊 **Sitzungsverlauf**: Speicherung und Anzeige vergangener Gespräche
 - 👤 **Benutzerprofile**: Personalisierte Profile mit Präferenzen
 - 🎯 **Ziele-Tracking**: Setzen und Verfolgen persönlicher Ziele
@@ -20,11 +21,12 @@ Aura ist eine KI-gestützte Therapie-Anwendung, die empathische Gespräche mit e
 - **Styling**: Tailwind CSS 3.4
 - **Backend**: Supabase (PostgreSQL + Auth)
 - **AI**: Google Gemini API
-- **Paketmanager**: pnpm
+- **Sprache**: Web Speech API (Browser-nativ)
+- **Paketmanager**: npm
 
 ## 📋 Voraussetzungen
 
-- Node.js 18+ und pnpm
+- Node.js 18+ und npm
 - Supabase-Projekt (bereits konfiguriert)
 - Google Gemini API-Schlüssel (optional für vollständige AI-Funktionalität)
 
@@ -32,7 +34,7 @@ Aura ist eine KI-gestützte Therapie-Anwendung, die empathische Gespräche mit e
 
 1. **Abhängigkeiten installieren:**
 ```bash
-pnpm install
+npm install
 ```
 
 2. **Gemini API-Schlüssel hinzufügen:**
@@ -46,7 +48,7 @@ VITE_API_KEY=your_api_key_here
 
 3. **Entwicklungsserver starten:**
 ```bash
-pnpm dev
+npm run dev
 ```
 
 Die Anwendung läuft auf `http://localhost:5173`
@@ -69,7 +71,8 @@ aura-supabase/
 │   │   ├── database.ts     # Datenbank-Operationen
 │   │   └── translations.ts # Übersetzungen (DE/EN)
 │   ├── utils/
-│   │   └── audio.ts        # Audio-Utilities
+│   │   ├── audio.ts        # Audio-Utilities
+│   │   └── voice.ts        # Sprach-Services (Speech Recognition/TTS)
 │   ├── types.ts            # TypeScript-Typen
 │   ├── App.tsx             # Hauptkomponente
 │   └── main.tsx            # Einstiegspunkt
@@ -105,8 +108,16 @@ Alle Tabellen haben Row Level Security (RLS) Policies für sichere Multi-User-Nu
 1. **Registrierung**: Erstellen Sie ein Konto mit E-Mail und Passwort
 2. **Onboarding**: Geben Sie Ihren Namen an und wählen Sie Sprache/Stimme
 3. **Gespräch starten**: Klicken Sie auf "Neues Gespräch" und beginnen Sie zu chatten
-4. **Verlauf anzeigen**: Alle Sitzungen werden in der Sidebar angezeigt
-5. **Profil anpassen**: Nutzen Sie die Sidebar-Menüs für weitere Funktionen
+4. **Sprach-Chat**: Klicken Sie auf das Mikrofon-Symbol für Spracheingabe
+5. **Verlauf anzeigen**: Alle Sitzungen werden in der Sidebar angezeigt
+6. **Profil anpassen**: Nutzen Sie die Sidebar-Menüs für weitere Funktionen
+
+## 🎤 Sprach-Funktionen
+
+- **Spracheingabe**: Browser-basierte Spracherkennung (Chrome, Edge, Safari)
+- **Audio-Ausgabe**: Text-zu-Sprache für AI-Antworten
+- **Sprachen**: Deutsch (de-DE) und Englisch (en-US)
+- **Audio-Visualisierung**: Echtzeit-Feedback während der Aufnahme
 
 ## 🔒 Sicherheit
 
@@ -117,15 +128,29 @@ Alle Tabellen haben Row Level Security (RLS) Policies für sichere Multi-User-Nu
 
 ## 🚢 Deployment
 
+### Vercel Deployment
+
 ```bash
 # Build für Produktion
-pnpm build
+npm run build
 
 # Vorschau des Production-Builds
-pnpm preview
+npm run preview
 ```
 
-Deploy den `dist`-Ordner auf Ihre bevorzugte Hosting-Plattform (Vercel, Netlify, etc.)
+Das Repository ist für Vercel-Deployment optimiert:
+- `vercel.json` konfiguriert für Vite-Builds
+- Environment Variables werden über Vercel Dashboard gesetzt
+- Automatisches Deployment bei Git-Push
+
+### Environment Variables für Vercel
+
+Setzen Sie folgende Environment Variables in Ihrem Vercel Dashboard:
+```
+VITE_SUPABASE_URL=https://swentdldrcmemkisuqcg.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_API_KEY=your_gemini_api_key_here
+```
 
 ## 🧪 Entwicklung
 
@@ -145,16 +170,16 @@ Das ist ein internes Projekt. Bei Fragen wenden Sie sich an den Projektadministr
 
 - Die Anwendung benötigt eine aktive Internetverbindung für Supabase und Gemini API
 - Ohne API-Schlüssel funktioniert die App mit einfachen Fallback-Antworten
-- Voice-Input-Funktionalität ist für zukünftige Entwicklung vorbereitet
+- Voice-Input benötigt moderne Browser mit Web Speech API-Unterstützung
 
 ## 🐛 Bekannte Einschränkungen
 
-- Voice-Input noch nicht implementiert (nur Text-Chat verfügbar)
 - Kognitive Verzerrungserkennung benötigt erweiterte AI-Integration
 - Stimmungstracking und Ziele-Modals noch in Entwicklung
+- Voice-Input funktioniert am besten in Chrome/Edge
 
 ---
 
-**Version**: 1.0.0  
-**Entwickelt mit**: React + Supabase + Google Gemini  
+**Version**: 1.1.0  
+**Entwickelt mit**: React + Supabase + Google Gemini + Web Speech API  
 **Letzte Aktualisierung**: 2025-11-04
