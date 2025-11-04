@@ -431,9 +431,16 @@ function App() {
 
         if (transcript) {
           await handleSendMessage(transcript, true);
+          // After responding, generate/update summary
+          if (activeSession) {
+            generateAndStoreSummary(activeSession.id, userProfile.language);
+          }
           return;
         }
         setSessionState(SessionState.IDLE);
+        if (activeSession) {
+          generateAndStoreSummary(activeSession.id, userProfile.language);
+        }
         return;
       }
 
@@ -445,6 +452,9 @@ function App() {
         micStreamRef.current = null;
       }
       inputAnalyserRef.current = null;
+      if (activeSession) {
+        generateAndStoreSummary(activeSession.id, userProfile.language);
+      }
     } catch (error) {
       console.error('Error stopping session:', error);
       setSessionState(SessionState.ERROR);

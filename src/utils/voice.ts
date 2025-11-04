@@ -138,72 +138,125 @@ export class SpeechRecognitionService {
   }
 }
 
+import { GoogleGenAI, Modality } from '@google/genai'
+import { decode, decodeAudioData } from './audio'
+
 export class TextToSpeechService {
   private synth: SpeechSynthesis;
   private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private audioCtx: AudioContext | null = null;
+  private audioSource: AudioBufferSourceNode | null = null;
+  private analyser: AnalyserNode | null = null;
 
   constructor() {
     this.synth = window.speechSynthesis;
   }
 
   isSupported(): boolean {
-    return 'speechSynthesis' in window;
+    return Boolean((import.meta as any).env?.VITE_API_KEY) || 'speechSynthesis' in window;
   }
 
-  speak(text: string, lang: string = 'de-DE', voiceName?: string): Promise<void> {
+  getAnalyser(): AnalyserNode | null {
+    return this.analyser;
+  }
+
+  private async speakWithGemini(text: string, lang: string, voiceName?: string) {
+    const apiKey = (import.meta as any).env?.VITE_API_KEY as string | undefined;
+    if (!apiKey) throw new Error('Missing VITE_API_KEY for Gemini TTS');
+
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-preview-tts',
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: voiceName ? { prebuiltVoiceConfig: { voiceName } } : undefined,
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error('No audio data returned from Gemini');
+
+    // Prepare audio context at 24kHz (matches generated PCM)
+    if (this.audioCtx && this.audioCtx.state !== 'closed') {
+      try { this.audioCtx.close(); } catch {}
+    }
+    this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    this.analyser = this.audioCtx.createAnalyser();
+    this.analyser.fftSize = 256;
+
+    const buffer = await decodeAudioData(decode(base64Audio), this.audioCtx, 24000, 1);
+    const source = this.audioCtx.createBufferSource();
+    this.audioSource = source;
+    source.buffer = buffer;
+    source.connect(this.analyser);
+    this.analyser.connect(this.audioCtx.destination);
+
+    return new Promise<void>((resolve, reject) => {
+      source.onended = () => {
+        resolve();
+      };
+      try {
+        source.start();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  async speak(text: string, lang: string = 'de-DE', voiceName?: string): Promise<void> {
+    // Try Gemini TTS first
+    try {
+      if ((import.meta as any).env?.VITE_API_KEY) {
+        return await this.speakWithGemini(text, lang, voiceName);
+      }
+    } catch (e) {
+      console.warn('Gemini TTS failed, falling back to Web Speech:', e);
+    }
+
+    // Fallback to Web Speech API
     return new Promise((resolve, reject) => {
-      if (!this.isSupported()) {
+      if (!('speechSynthesis' in window)) {
         reject(new Error('Text-to-speech not supported'));
         return;
       }
 
-      // Cancel any ongoing speech
       this.stop();
-
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
-      // If voices are not loaded yet, wait once for the event
       let voices = this.synth.getVoices();
       if (!voices || voices.length === 0) {
         const once = () => {
           this.synth.removeEventListener('voiceschanged', once);
-          // Retry with voices now available
           this.speak(text, lang, voiceName).then(resolve).catch(reject);
         };
         this.synth.addEventListener('voiceschanged', once);
-        // Fallback timeout in case event never fires
         setTimeout(() => {
           this.synth.removeEventListener('voiceschanged', once);
-          // Proceed with default voice
           this.synth.speak(utterance);
           resolve();
         }, 1000);
         return;
       }
 
-      // Try to find the requested voice
       if (voiceName) {
         const voice = voices.find(v => v.name.includes(voiceName));
-        if (voice) {
-          utterance.voice = voice;
-        }
+        if (voice) utterance.voice = voice;
       } else {
-        // Find a German voice if language is German
         const germanVoice = voices.find(v => v.lang.startsWith('de'));
-        if (germanVoice) {
-          utterance.voice = germanVoice;
-        }
+        if (germanVoice) utterance.voice = germanVoice;
       }
 
       utterance.onend = () => {
         this.currentUtterance = null;
         resolve();
       };
-
       utterance.onerror = (event) => {
         this.currentUtterance = null;
         reject(event);
@@ -215,14 +268,22 @@ export class TextToSpeechService {
   }
 
   stop(): void {
-    if (this.synth.speaking) {
-      this.synth.cancel();
-    }
+    // Stop Web Speech if active
+    if (this.synth.speaking) this.synth.cancel();
     this.currentUtterance = null;
+
+    // Stop Gemini playback if active
+    try { this.audioSource?.stop(); } catch {}
+    this.audioSource = null;
+    if (this.audioCtx) {
+      try { this.audioCtx.close(); } catch {}
+      this.audioCtx = null;
+    }
+    this.analyser = null;
   }
 
   isSpeaking(): boolean {
-    return this.synth.speaking;
+    return this.synth.speaking || Boolean(this.audioSource);
   }
 
   getVoices(): SpeechSynthesisVoice[] {
