@@ -180,7 +180,8 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 
   const { error } = await supabase
     .from('profiles')
-    .update({
+    .upsert({
+      id: userId,
       name: updates.name,
       voice: updates.voice,
       language: updates.language,
@@ -188,8 +189,8 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
       onboarding_completed: updates.onboardingCompleted,
       subscription_plan: updates.subscription?.plan,
       subscription_expiry_date: updates.subscription?.expiryDate,
-    })
-    .eq('id', userId)
+      updated_at: Date.now(),
+    }, { onConflict: 'id' })
 
   if (error) throw error
 }
