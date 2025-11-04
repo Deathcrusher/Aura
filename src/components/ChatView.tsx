@@ -168,6 +168,12 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
 
             {/* Live Transcript Area */}
             <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-end mt-4 min-h-0">
+                 {activeSession.summary && (
+                    <div className="mb-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-900 dark:text-yellow-100">
+                        <strong className="block mb-1">{T.ui.chat?.sessionSummaryTitle ?? 'Zusammenfassung'}</strong>
+                        <p>{activeSession.summary}</p>
+                    </div>
+                 )}
                  <div className="px-3 sm:px-4 py-4 rounded-xl overflow-y-auto space-y-4">
                     {activeSession.transcript.map(entry => {
                          const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);

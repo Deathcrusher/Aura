@@ -22,6 +22,7 @@ import {
   addTranscriptEntryAuto,
   deleteChatSession,
   getAuraMemory,
+  updateChatSession,
 } from './lib/database';
 import { translations } from './lib/translations';
 import {
@@ -42,7 +43,9 @@ import {
   SpeechRecognitionService,
   TextToSpeechService,
   AudioVisualization,
+  VoiceRecorder,
 } from './utils/voice';
+import { encode } from './utils/audio';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const DEFAULT_PROFILE: UserProfile = {
@@ -104,6 +107,8 @@ function App() {
   const ttsServiceRef = useRef<TextToSpeechService | null>(null);
   const audioVisualizationRef = useRef<AudioVisualization | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
+  const voiceRecorderRef = useRef<VoiceRecorder | null>(null);
+  const [isRecordingFallback, setIsRecordingFallback] = useState(false);
 
   const T = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
 
@@ -291,8 +296,46 @@ function App() {
   };
 
   const handlePreviewVoice = async (voiceId: string, language: string) => {
-    console.log('Preview voice:', voiceId, language);
-    // Voice preview will be implemented with Gemini TTS later
+    try {
+      if (!ttsServiceRef.current?.isSupported()) {
+        console.warn('TTS not supported in this browser');
+        return;
+      }
+      const sample = language.startsWith('de')
+        ? 'Hallo! So klingt diese Stimme. Gefällt dir diese Stimmlage?'
+        : 'Hello! This is a voice preview. Do you like this tone?';
+      await ttsServiceRef.current.speak(sample, language, voiceId);
+    } catch (error) {
+      console.error('Voice preview failed:', error);
+    }
+  };
+
+  const generateAndStoreSummary = async (sessionId: string, lang: string) => {
+    try {
+      if (!genAIRef.current || !activeSession) return;
+      const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const lastTurns = activeSession.transcript.slice(-20)
+        .map(e => `${e.speaker === Speaker.USER ? 'User' : 'Aura'}: ${e.text}`)
+        .join('\n');
+
+      const prompt = lang.startsWith('de')
+        ? 'Erstelle eine kurze, verständliche Zusammenfassung der bisherigen Sitzung in 2-3 Sätzen. Keine Aufzählungen, nur Fließtext.'
+        : 'Write a short, clear summary of the session so far in 2–3 sentences. No bullet points, just plain text.';
+
+      const result = await model.generateContent([
+        { text: prompt },
+        { text: lastTurns || 'Noch keine Inhalte.' },
+      ]);
+
+      const summary = result.response.text().trim();
+      if (summary) {
+        setActiveSession(prev => (prev ? { ...prev, summary } : prev));
+        await updateChatSession(sessionId, { summary });
+      }
+    } catch (error) {
+      console.warn('Summary generation failed:', error);
+    }
   };
 
   const handleNewChat = async () => {
@@ -348,28 +391,68 @@ function App() {
     }
   };
 
-  const handleStopSession = () => {
-    setSessionState(SessionState.IDLE);
-    // Stop any ongoing speech recognition or TTS
-    speechRecognitionRef.current?.stop();
-    ttsServiceRef.current?.stop();
-    // Cleanup mic visualization and stream
-    audioVisualizationRef.current?.cleanup();
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
+  const handleStopSession = async () => {
+    try {
+      // Stop any ongoing speech recognition or TTS
+      speechRecognitionRef.current?.stop();
+      ttsServiceRef.current?.stop();
+
+      // If fallback recording is active, stop and transcribe
+      if (isRecordingFallback && voiceRecorderRef.current) {
+        setSessionState(SessionState.PROCESSING);
+        let transcript = '';
+        try {
+          const blob = await voiceRecorderRef.current.stop();
+          const buffer = await blob.arrayBuffer();
+          const b64 = encode(new Uint8Array(buffer));
+
+          if (genAIRef.current) {
+            const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            const prompt = 'Transkribiere die folgende deutsche Sprachnachricht. Gib nur den reinen Text zurück.';
+            const result = await model.generateContent([
+              { text: prompt },
+              { inlineData: { data: b64, mimeType: blob.type || 'audio/webm' } },
+            ]);
+            transcript = result.response.text().trim();
+          }
+        } catch (err) {
+          console.error('Transcription error:', err);
+        } finally {
+          setIsRecordingFallback(false);
+        }
+
+        // Cleanup mic visualization and stream
+        audioVisualizationRef.current?.cleanup();
+        if (micStreamRef.current) {
+          micStreamRef.current.getTracks().forEach((t) => t.stop());
+          micStreamRef.current = null;
+        }
+        inputAnalyserRef.current = null;
+
+        if (transcript) {
+          await handleSendMessage(transcript, true);
+          return;
+        }
+        setSessionState(SessionState.IDLE);
+        return;
+      }
+
+      // Default cleanup
+      setSessionState(SessionState.IDLE);
+      audioVisualizationRef.current?.cleanup();
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
+      }
+      inputAnalyserRef.current = null;
+    } catch (error) {
+      console.error('Error stopping session:', error);
+      setSessionState(SessionState.ERROR);
     }
-    inputAnalyserRef.current = null;
   };
 
   const handleStartVoiceSession = async () => {
-    if (!speechRecognitionRef.current?.isSupported()) {
-      console.error('Speech recognition not supported');
-      return;
-    }
-
     try {
-      setSessionState(SessionState.LISTENING);
       // Prepare mic visualization
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -381,23 +464,33 @@ function App() {
         console.warn('Mic visualization unavailable:', err);
       }
 
-      speechRecognitionRef.current.start(
-        (transcript) => {
-          // Handle speech result
-          setCurrentInput(transcript);
-          handleSendMessage(transcript, true);
-        },
-        () => {
-          // Handle speech end
-          setSessionState(SessionState.IDLE);
-          audioVisualizationRef.current?.cleanup();
-          if (micStreamRef.current) {
-            micStreamRef.current.getTracks().forEach((t) => t.stop());
-            micStreamRef.current = null;
+      if (speechRecognitionRef.current?.isSupported()) {
+        setSessionState(SessionState.LISTENING);
+        speechRecognitionRef.current.start(
+          (transcript) => {
+            setCurrentInput(transcript);
+            handleSendMessage(transcript, true);
+          },
+          () => {
+            setSessionState(SessionState.IDLE);
+            audioVisualizationRef.current?.cleanup();
+            if (micStreamRef.current) {
+              micStreamRef.current.getTracks().forEach((t) => t.stop());
+              micStreamRef.current = null;
+            }
+            inputAnalyserRef.current = null;
           }
-          inputAnalyserRef.current = null;
-        }
-      );
+        );
+        return;
+      }
+
+      // Fallback: MediaRecorder
+      if (!voiceRecorderRef.current) {
+        voiceRecorderRef.current = new VoiceRecorder();
+      }
+      await voiceRecorderRef.current.start();
+      setIsRecordingFallback(true);
+      setSessionState(SessionState.LISTENING);
     } catch (error) {
       console.error('Error starting voice session:', error);
       setSessionState(SessionState.ERROR);
@@ -477,6 +570,9 @@ function App() {
         } else {
           setSessionState(SessionState.IDLE);
         }
+
+        // Update session summary asynchronously (best-effort)
+        generateAndStoreSummary(activeSession.id, userProfile.language);
       } else {
         // Fallback response when Gemini is not configured
         const auraEntry: TranscriptEntry = {
@@ -493,6 +589,7 @@ function App() {
         } : null);
 
         setSessionState(SessionState.IDLE);
+        // No API -> skip AI summary
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -698,38 +795,14 @@ function App() {
             <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4">
               <div className="max-w-3xl mx-auto">
                 {sessionState === SessionState.IDLE ? (
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <input
-                      type="text"
-                      value={currentInput}
-                      onChange={(e) => setCurrentInput(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && currentInput.trim()) {
-                          handleSendMessage(currentInput);
-                          setCurrentInput('');
-                        }
-                      }}
-                      placeholder="Schreibe eine Nachricht..."
-                      className="min-w-0 w-full sm:flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                  <div className="flex items-center justify-center">
                     <button
                       onClick={handleStartVoiceSession}
-                      className="w-full sm:w-auto px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
-                      title="Sprachnachricht aufnehmen"
+                      className="w-full sm:w-auto px-6 py-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 shadow-md"
+                      title="Sprachaufnahme starten"
                     >
-                      <MicrophoneIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (currentInput.trim()) {
-                          handleSendMessage(currentInput);
-                          setCurrentInput('');
-                        }
-                      }}
-                      className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed"
-                      disabled={!currentInput.trim()}
-                    >
-                      Senden
+                      <MicrophoneIcon className="w-6 h-6" />
+                      <span className="font-semibold">Sprechen</span>
                     </button>
                   </div>
                 ) : (

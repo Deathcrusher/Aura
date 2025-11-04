@@ -166,8 +166,26 @@ export class TextToSpeechService {
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
+      // If voices are not loaded yet, wait once for the event
+      let voices = this.synth.getVoices();
+      if (!voices || voices.length === 0) {
+        const once = () => {
+          this.synth.removeEventListener('voiceschanged', once);
+          // Retry with voices now available
+          this.speak(text, lang, voiceName).then(resolve).catch(reject);
+        };
+        this.synth.addEventListener('voiceschanged', once);
+        // Fallback timeout in case event never fires
+        setTimeout(() => {
+          this.synth.removeEventListener('voiceschanged', once);
+          // Proceed with default voice
+          this.synth.speak(utterance);
+          resolve();
+        }, 1000);
+        return;
+      }
+
       // Try to find the requested voice
-      const voices = this.synth.getVoices();
       if (voiceName) {
         const voice = voices.find(v => v.name.includes(voiceName));
         if (voice) {
