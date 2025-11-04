@@ -14,15 +14,7 @@ export const StopIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-export const SpeakingIndicator: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={`flex items-center space-x-1 ${className}`}>
-        <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-        <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-        <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"></span>
-    </div>
-);
-
-const AURA_AVATAR_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/2wBDAQICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCAEgASADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAECA//EABwQAQEBAAMBAQEAAAAAAAAAAAABEQISIUFRgf/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A8qKigioCoKgqCoKgqCoAqCoKgoiioKqKigioKIIoigioKIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqCoKgqAqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqCoKgqAqCoKgqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgq";
+const AURA_AVATAR_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/2wBDAQICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCAEgASADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAECA//EABwQAQEBAAMBAQEAAAAAAAAAAAABEQISIUFRgf/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A8qKigioCoKgqCoKgqAqCoKgoiioKqKigioKIIoigioKIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqCoKgqAqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqCoKgqAqCoKgqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgqCoKgqCoKgioKgqCoKgqAqCoKgqCoKgioKgqCoKgqAqCoKgqCoKIIoigiAqCoKIIoigiAqCoKgqCoKgqAqCoKgqCoKIKgqCoKgqCoKgqCoKgq";
 
 export const AuraHumanAvatar: React.FC<{ className?: string }> = ({ className }) => (
     <img src={AURA_AVATAR_BASE64} alt="Aura, your AI therapist" className={`rounded-full object-cover ${className}`} />
@@ -68,40 +60,6 @@ export const HeartIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
 );
 
-export const MoodVeryGoodIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-3.5 6c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm7 0c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-3.5 9.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
-);
-
-export const MoodGoodIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM8.5 8c.83 0 1.5.67 1.5 1.5S9.33 11 8.5 11 7 10.33 7 9.5 7.67 8 8.5 8zm7 0c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-3.5 6.5c1.01 0 1.91-.39 2.6-1H9.01c.69.61 1.59 1 2.59 1z"/></svg>
-);
-
-export const MoodNeutralIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM8.5 8c.83 0 1.5.67 1.5 1.5S9.33 11 8.5 11 7 10.33 7 9.5 7.67 8 8.5 8zm7 0c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-4 6H8v-1.5h7V14z"/></svg>
-);
-
-export const MoodBadIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM8.5 8c.83 0 1.5.67 1.5 1.5S9.33 11 8.5 11 7 10.33 7 9.5 7.67 8 8.5 8zm7 0c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-3.41 5.59c-.78.78-2.05.78-2.83 0l-.35-.35c.98-.63 2.2-.63 3.18 0l-.35.35c.08.08.15.17.22.26z"/></svg>
-);
-
-export const MoodVeryBadIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-3.5 6c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm7 0c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5-1.5-.67-1.5-1.5.67-1.5 1.5-1.5zm-3.5 4.5c-2.33 0-4.31 1.46-5.11 3.5H6.89c-.8-2.04-2.78-3.5-5.11-3.5z"/></svg>
-);
-
-export const ChartBarIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/></svg>
-);
-
-export const AlertTriangleIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
-);
-
-export const PlayIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path d="M8 5v14l11-7z" />
-    </svg>
-);
-
 export const BookOpenIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/>
@@ -114,28 +72,11 @@ export const UserIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-export const CameraIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <circle cx="12" cy="12" r="3.2"/>
-        <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
-    </svg>
-);
-
 export const SpinnerIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className={`animate-spin ${className}`}>
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
-);
-
-export const PencilIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-    </svg>
-);
-
-export const DownloadIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
 );
 
 export const LogOutIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -144,8 +85,32 @@ export const LogOutIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-export const SparklesIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M12 2.5l1.09 3.37h3.55l-2.87 2.08 1.09 3.37L12 9.24l-2.86 2.08 1.09-3.37-2.87-2.08h3.55L12 2.5zM6 12l1.09 3.37h3.55l-2.87 2.08 1.09 3.37L6 18.74l-2.86 2.08 1.09-3.37-2.87-2.08h3.55L6 12zm12 0l1.09 3.37h3.55l-2.87 2.08 1.09 3.37L18 18.74l-2.86 2.08 1.09-3.37-2.87-2.08h3.55L18 12z"/>
-  </svg>
+export const LogoutIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+    </svg>
+);
+
+export const JournalIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"/>
+    </svg>
+);
+
+export const HistoryIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+    </svg>
+);
+
+export const PlayIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M8 5v14l11-7z"/>
+    </svg>
+);
+
+export const ChartBarIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/>
+    </svg>
 );
