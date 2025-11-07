@@ -691,7 +691,8 @@ function App() {
 
         sessionPromiseRef.current = ai.live.connect({
           // Use the official live model id from the SDK docs
-          model: 'gemini-live-2.5-flash-preview',
+          // Use the same model id that worked in the previous project for maximum compatibility
+          model: 'gemini-2.5-flash-native-audio-preview-09-2025',
           callbacks: {
             onopen: () => {
               setSessionState(SessionState.LISTENING);
