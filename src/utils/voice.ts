@@ -67,17 +67,29 @@ export class SpeechRecognitionService {
     
     if (SpeechRecognition) {
       this.recognition = new SpeechRecognition();
-      this.recognition.continuous = false;
-      this.recognition.interimResults = false;
+      // Keep recognition running until we decide to stop on a final result
+      this.recognition.continuous = true;
+      // Allow interim results, but we will only emit on final
+      this.recognition.interimResults = true;
       // Limit alternatives for quicker, more reliable results
       try { this.recognition.maxAlternatives = 1; } catch {}
       this.recognition.lang = 'de-DE';
 
       this.recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (this.onResultCallback) {
-          this.onResultCallback(transcript);
+        // Prefer final results; concatenate all finals
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res.isFinal) {
+            finalTranscript += (res[0]?.transcript || '');
+          }
         }
+        const transcript = (finalTranscript || event.results?.[0]?.[0]?.transcript || '').trim();
+        if (transcript && this.onResultCallback) {
+          try { this.onResultCallback(transcript); } catch {}
+        }
+        // Stop after first reliable result so the app can process it
+        try { this.recognition.stop(); } catch {}
       };
 
       this.recognition.onend = () => {
@@ -87,10 +99,7 @@ export class SpeechRecognitionService {
         }
       };
 
-      // Some browsers need an explicit stop on speech end to flush final result
-      this.recognition.onspeechend = () => {
-        try { this.recognition.stop(); } catch {}
-      };
+      // Do not force-stop on speech end; we stop after final result above
 
       this.recognition.onstart = () => {
         this.isListening = true;

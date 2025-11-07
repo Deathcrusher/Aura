@@ -817,6 +817,7 @@ function App() {
             handleSendMessage(transcript, true);
           },
           async () => {
+            // If we did not get any transcript, try fallback recording
             if (!recognitionGotResultRef.current) {
               try {
                 if (!voiceRecorderRef.current) {
@@ -829,14 +830,18 @@ function App() {
               } catch (e) {
                 console.warn('Fallback recorder failed to start:', e);
               }
+              // No recorder either -> reset to idle and cleanup
+              setSessionState(SessionState.IDLE);
+              audioVisualizationRef.current?.cleanup();
+              if (micStreamRef.current) {
+                micStreamRef.current.getTracks().forEach((t) => t.stop());
+                micStreamRef.current = null;
+              }
+              inputAnalyserRef.current = null;
+              return;
             }
-            setSessionState(SessionState.IDLE);
-            audioVisualizationRef.current?.cleanup();
-            if (micStreamRef.current) {
-              micStreamRef.current.getTracks().forEach((t) => t.stop());
-              micStreamRef.current = null;
-            }
-            inputAnalyserRef.current = null;
+            // We already delivered a transcript. Keep session flow (PROCESSING/SPEAKING)
+            // and do not force IDLE or clean up here.
           }
         );
         return;
