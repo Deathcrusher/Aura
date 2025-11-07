@@ -12,6 +12,15 @@ Die App ist auf Sprachchat fokussiert (kein Schreibchat). Der Mikrofon‑Button 
 
 Ohne `VITE_API_KEY` läuft die App im Demo‑Modus: Aufnahme funktioniert, Antworten sind Platzhalter.
 
+### Kompatibilität zum alten Projekt
+- Früheres Projekt nutzte teils `GEMINI_API_KEY`/`process.env.API_KEY`. In dieser App wird client‑seitig `VITE_API_KEY` erwartet.
+- Damit bestehende `.env.local` Dateien weiter funktionieren, mappt `vite.config.ts` automatisch auch `GEMINI_API_KEY`/`API_KEY` nach `VITE_API_KEY` (falls gesetzt). Empfehlung: künftig `VITE_API_KEY` verwenden.
+
+### Wenn Sprache nicht funktioniert
+- Prüfe, ob ein gültiger API‑Key hinterlegt ist (`.env.local` → `VITE_API_KEY`).
+- Stelle sicher, dass Mikrofonrechte erlaubt sind und du über HTTPS oder `http://localhost` testest.
+- Falls die Live‑Verbindung (Gemini Live) nicht verfügbar ist (z. B. fehlende Berechtigung/Modell), fällt die App jetzt automatisch auf lokale Erkennung (Web Speech API) bzw. Aufnahme + Transkription zurück.
+
 ## Deployment (Vercel)
 1. Repo importieren
 2. Env‑Variablen setzen (`VITE_API_KEY`, optional Supabase)
@@ -30,4 +39,3 @@ Ohne `VITE_API_KEY` läuft die App im Demo‑Modus: Aufnahme funktioniert, Antwo
 
 Version: 2.0.1  
 Letztes Update: 2025‑11‑04
-

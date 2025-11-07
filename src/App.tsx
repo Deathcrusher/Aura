@@ -88,10 +88,12 @@ const DEFAULT_PROFILE: UserProfile = {
 function App() {
   // Helper to validate API key (avoid placeholders)
   const getValidApiKey = () => {
-    const key = (import.meta as any).env?.VITE_API_KEY as string | undefined;
+    // Support both VITE_API_KEY and VITE_GEMINI_API_KEY (or defined via vite.config.ts)
+    const envObj = (import.meta as any).env || {};
+    const key = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY) as string | undefined;
     if (!key) return null;
-    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
-    return invalid.includes(key) ? null : key;
+    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY'];
+    return invalid.includes(String(key)) ? null : key;
   };
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
@@ -783,11 +785,56 @@ function App() {
                 }
               }
             },
-            onerror: (e: any) => {
-              console.error('Live session error:', e);
-              setSessionState(SessionState.ERROR);
+            onerror: async (e: any) => {
+              console.error('Live session error, falling back to local STT:', e);
+              // Try SpeechRecognition -> MediaRecorder fallback path
+              try {
+                if (speechRecognitionRef.current?.isSupported()) {
+                  setSessionState(SessionState.LISTENING);
+                  recognitionGotResultRef.current = false;
+                  speechRecognitionRef.current.start(
+                    (transcript) => {
+                      recognitionGotResultRef.current = true;
+                      setCurrentInput(transcript);
+                      handleSendMessage(transcript, true);
+                    },
+                    async () => {
+                      if (!recognitionGotResultRef.current) {
+                        try {
+                          if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                          await voiceRecorderRef.current.start();
+                          setIsRecordingFallback(true);
+                          setSessionState(SessionState.LISTENING);
+                          return;
+                        } catch (err) {
+                          console.warn('Fallback recorder failed to start:', err);
+                        }
+                        setSessionState(SessionState.IDLE);
+                        audioVisualizationRef.current?.cleanup();
+                        if (micStreamRef.current) {
+                          micStreamRef.current.getTracks().forEach((t) => t.stop());
+                          micStreamRef.current = null;
+                        }
+                        inputAnalyserRef.current = null;
+                      }
+                    }
+                  );
+                } else {
+                  if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                  await voiceRecorderRef.current.start();
+                  setIsRecordingFallback(true);
+                  setSessionState(SessionState.LISTENING);
+                }
+              } catch (err) {
+                console.error('Local STT fallback failed:', err);
+                setSessionState(SessionState.ERROR);
+              }
             },
             onclose: () => {
+              // If we switched to local fallback (recording or recognition), do not force close
+              if (isRecordingFallback || sessionStateRef.current === SessionState.LISTENING) {
+                return;
+              }
               // Graceful close -> cleanup
               handleStopSession();
             },
