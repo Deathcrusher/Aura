@@ -168,7 +168,10 @@ export class TextToSpeechService {
   }
 
   isSupported(): boolean {
-    return Boolean((import.meta as any).env?.VITE_API_KEY) || 'speechSynthesis' in window;
+    const key = (import.meta as any).env?.VITE_API_KEY as string | undefined;
+    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
+    const hasValidGeminiKey = Boolean(key) && !invalid.includes(String(key));
+    return hasValidGeminiKey || 'speechSynthesis' in window;
   }
 
   getAnalyser(): AnalyserNode | null {
@@ -177,7 +180,8 @@ export class TextToSpeechService {
 
   private async speakWithGemini(text: string, lang: string, voiceName?: string) {
     const apiKey = (import.meta as any).env?.VITE_API_KEY as string | undefined;
-    if (!apiKey) throw new Error('Missing VITE_API_KEY for Gemini TTS');
+    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
+    if (!apiKey || invalid.includes(apiKey)) throw new Error('Missing VITE_API_KEY for Gemini TTS');
 
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
@@ -224,7 +228,9 @@ export class TextToSpeechService {
   async speak(text: string, lang: string = 'de-DE', voiceName?: string): Promise<void> {
     // Try Gemini TTS first
     try {
-      if ((import.meta as any).env?.VITE_API_KEY) {
+      const key = (import.meta as any).env?.VITE_API_KEY as string | undefined;
+      const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
+      if (key && !invalid.includes(String(key))) {
         return await this.speakWithGemini(text, lang, voiceName);
       }
     } catch (e) {

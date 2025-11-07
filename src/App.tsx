@@ -57,6 +57,8 @@ import {
   VoiceRecorder,
 } from './utils/voice';
 import { encode, decode, decodeAudioData } from './utils/audio';
+// For realtime audio input
+import { createBlob } from './utils/audio';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // Live streaming API
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -84,6 +86,13 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 function App() {
+  // Helper to validate API key (avoid placeholders)
+  const getValidApiKey = () => {
+    const key = (import.meta as any).env?.VITE_API_KEY as string | undefined;
+    if (!key) return null;
+    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
+    return invalid.includes(key) ? null : key;
+  };
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -212,8 +221,8 @@ function App() {
 
   // Initialize Gemini AI and Voice Services
   useEffect(() => {
-    const apiKey = import.meta.env.VITE_API_KEY;
-    if (apiKey && apiKey !== 'YOUR_API_KEY') {
+    const apiKey = getValidApiKey();
+    if (apiKey) {
       genAIRef.current = new GoogleGenerativeAI(apiKey);
     }
 
@@ -658,9 +667,9 @@ function App() {
         console.warn('Mic visualization unavailable:', err);
       }
 
-      // Prefer realtime Gemini live streaming when API key is available
-      const apiKey = import.meta.env.VITE_API_KEY;
-      if (apiKey && apiKey !== 'YOUR_API_KEY') {
+      // Prefer realtime Gemini live streaming when a valid API key is available
+      const apiKey = getValidApiKey();
+      if (apiKey) {
         setSessionState(SessionState.CONNECTING);
         currentInputRef.current = '';
         currentOutputRef.current = '';
@@ -677,7 +686,8 @@ function App() {
         const ai = new GoogleGenAI({ apiKey });
 
         sessionPromiseRef.current = ai.live.connect({
-          model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+          // Use the official live model id from the SDK docs
+          model: 'gemini-live-2.5-flash-preview',
           callbacks: {
             onopen: () => {
               setSessionState(SessionState.LISTENING);
@@ -781,9 +791,15 @@ function App() {
           },
           config: {
             responseModalities: [Modality.AUDIO],
+            // Ensure voice output matches selected voice
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: userProfile.voice || 'Zephyr' } } },
+            // Make Gemini behave like a therapist and speak in the user's language
+            systemInstruction: `Du bist Aura, eine einfühlsame, strukturierte KI-Therapeutin. \nSprich immer in der Sprache des Nutzers (${userProfile.language || 'de-DE'}), halte Antworten kurz, validierend und lösungsorientiert.\nNutze bei Bedarf Rückfragen und fasse gelegentlich zusammen. Vermeide Floskeln und bleibe konkret.`,
+            // Enable affective dialog if supported
+            enableAffectiveDialog: true,
+            // Request input/output transcription so we can show text alongside audio
             inputAudioTranscription: {},
             outputAudioTranscription: {},
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: userProfile.voice || 'Zephyr' } } },
           },
         });
 
