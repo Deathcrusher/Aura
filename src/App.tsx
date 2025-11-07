@@ -4,6 +4,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { Onboarding } from './components/Onboarding';
 import { ChatView } from './components/ChatView';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { WelcomeScreen } from './components/WelcomeScreen';
 import {
   UserProfile,
   ChatSession,
@@ -157,6 +158,9 @@ function App() {
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
   const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
   const [voicePreviewState, setVoicePreviewState] = useState<{ id: string; status: 'loading' | 'playing' } | null>(null);
+  // Auth entry state (welcome vs auth)
+  const [showAuth, setShowAuth] = useState<boolean>(false);
+  const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');
 
   const T = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
 
@@ -1081,17 +1085,33 @@ function App() {
   // Loading state
   if (authLoading || isLoadingProfile) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-100 to-blue-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-[#6c2bee] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600 dark:text-slate-300">Lädt...</p>
         </div>
       </div>
     );
   }
 
-  // Show auth screen if not logged in
+  // Show welcome/auth if not logged in
   if (!user) {
+    if (!showAuth) {
+      return (
+        <ErrorBoundary>
+          <WelcomeScreen
+            onGetStarted={() => {
+              setInitialAuthMode('signup');
+              setShowAuth(true);
+            }}
+            onSignIn={() => {
+              setInitialAuthMode('login');
+              setShowAuth(true);
+            }}
+          />
+        </ErrorBoundary>
+      );
+    }
     return (
       <ErrorBoundary>
         <AuthScreen
@@ -1100,6 +1120,7 @@ function App() {
           loading={authLoading}
           error={authError}
           T={T}
+          initialMode={initialAuthMode}
         />
       </ErrorBoundary>
     );
@@ -1122,7 +1143,7 @@ function App() {
   // Main app
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+      <div className="flex h-screen bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
         {/* Sidebar */}
         <div
           className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-slate-800 shadow-lg transform transition-transform duration-300 ${
@@ -1133,7 +1154,7 @@ function App() {
             <div className="p-4 border-b border-slate-200 dark:border-slate-700">
               <button
                 onClick={handleNewChat}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors"
               >
                 <PlusIcon className="w-5 h-5" />
                 <span>{T.ui.sidebar.newChat}</span>
@@ -1151,7 +1172,7 @@ function App() {
                       onClick={() => handleSelectSession(session.id)}
                       className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors ${
                         activeSession?.id === session.id
-                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100'
+                          ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100'
                           : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
@@ -1266,7 +1287,7 @@ function App() {
                 </p>
                 <button
                   onClick={handleNewChat}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-3 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors"
                 >
                   Neues Gespräch starten
                 </button>

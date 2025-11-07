@@ -48,10 +48,10 @@ export const MoodJournalModal: React.FC<MoodJournalModalProps> = ({ isOpen, onCl
                                 <button
                                     key={moodKey}
                                     onClick={() => setSelectedMood(moodKey)}
-                                    className={`text-center p-2 rounded-lg transition-all ${selectedMood === moodKey ? 'bg-blue-100 dark:bg-blue-900/50 scale-110' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                                    className={`text-center p-2 rounded-lg transition-all ${selectedMood === moodKey ? 'bg-violet-100 dark:bg-violet-900/50 scale-110' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                                 >
                                     <Icon className={`w-12 h-12 mx-auto ${color} ${darkColor}`} />
-                                    <span className={`mt-2 text-xs font-medium ${selectedMood === moodKey ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>{T.ui.moods[moodKey]}</span>
+                                    <span className={`mt-2 text-xs font-medium ${selectedMood === moodKey ? 'text-[#483d8b] dark:text-violet-300' : 'text-slate-600 dark:text-slate-400'}`}>{T.ui.moods[moodKey]}</span>
                                 </button>
                                 )
                             })}
@@ -65,7 +65,7 @@ export const MoodJournalModal: React.FC<MoodJournalModalProps> = ({ isOpen, onCl
                             id="mood-note"
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
-                            className="w-full h-24 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full h-24 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]"
                             placeholder={T.ui.moodModal.notesPlaceholder}
                         />
                     </div>
@@ -75,7 +75,7 @@ export const MoodJournalModal: React.FC<MoodJournalModalProps> = ({ isOpen, onCl
                     <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
                         {T.ui.cancel}
                     </button>
-                    <button onClick={handleSave} disabled={!selectedMood} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <button onClick={handleSave} disabled={!selectedMood} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors disabled:opacity-50">
                         {T.ui.save}
                     </button>
                 </div>

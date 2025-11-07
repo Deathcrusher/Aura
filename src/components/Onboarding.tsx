@@ -61,7 +61,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                             type="text"
                             value={profile.name === 'User' ? '' : profile.name}
                             onChange={(e) => setProfile(p => ({ ...p, name: e.target.value }))}
-                            className="w-full max-w-xs mt-8 px-4 py-3 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full max-w-xs mt-8 px-4 py-3 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]"
                             placeholder={T.ui.onboarding.namePlaceholder}
                         />
                     </div>
@@ -74,7 +74,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                         <div className="mt-8 space-y-6 w-full max-w-sm mx-auto text-left">
                             <div>
                                 <label htmlFor="language" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">{T.ui.onboarding.languageLabel}</label>
-                                <select id="language" value={profile.language} onChange={(e) => setProfile(p => ({ ...p, language: e.target.value }))} className="w-full px-3 py-2 bg-white/80 dark:bg-slate-700/80 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select id="language" value={profile.language} onChange={(e) => setProfile(p => ({ ...p, language: e.target.value }))} className="w-full px-3 py-2 bg-white/80 dark:bg-slate-700/80 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]">
                                     {AVAILABLE_LANGUAGES.map(lang => (<option key={lang.id} value={lang.id}>{lang.name}</option>))}
                                 </select>
                             </div>
@@ -84,9 +84,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                                     {AVAILABLE_VOICES.map(voice => {
                                         const genderMarker = T.ui.voiceGenderMarker[voice.gender];
                                         return (
-                                            <div key={voice.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${profile.voice === voice.id ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50/50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
+                                            <div key={voice.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${profile.voice === voice.id ? 'bg-violet-50 dark:bg-violet-900/40 border-violet-400' : 'bg-slate-50/50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
                                                 <label className="flex items-center cursor-pointer">
-                                                    <input type="radio" name="voice" value={voice.id} checked={profile.voice === voice.id} onChange={() => setProfile(p => ({ ...p, voice: voice.id }))} className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500" />
+                                                    <input type="radio" name="voice" value={voice.id} checked={profile.voice === voice.id} onChange={() => setProfile(p => ({ ...p, voice: voice.id }))} className="w-4 h-4 text-[#6c2bee] bg-gray-100 border-gray-300 focus:ring-[#6c2bee]" />
                                                     <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name} {genderMarker}</span>
                                                 </label>
                                                 <button onClick={() => onPreviewVoice(voice.id, profile.language)} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"><PlayIcon className="w-4 h-4 text-slate-600 dark:text-slate-300"/></button>
@@ -112,8 +112,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8 w-full max-w-xl mx-auto text-left">
                             {features.map(f => (
                                 <div key={f.title} className="p-4 bg-white/50 dark:bg-slate-800/50 rounded-lg flex items-start gap-4">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-full mt-1">
-                                      <f.icon className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                                    <div className="p-2 bg-violet-100 dark:bg-violet-900/50 rounded-full mt-1">
+                                      <f.icon className="w-5 h-5 text-[#6c2bee] dark:text-violet-300" />
                                     </div>
                                     <div>
                                         <h4 className="font-semibold text-slate-800 dark:text-slate-200">{f.title}</h4>
@@ -131,7 +131,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
 
 
     return (
-        <div className="fixed inset-0 bg-gradient-to-br from-slate-50 to-blue-100 dark:from-slate-900 dark:to-slate-800 z-50 flex flex-col items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 animate-fade-in bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
             <div className="w-full max-w-2xl text-center flex-1 flex flex-col justify-center overflow-y-auto pt-8">
                 {renderStepContent()}
             </div>
@@ -139,7 +139,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
             <div className="w-full max-w-xl pb-8 pt-4">
                 <div className="flex items-center justify-center gap-2 mb-6">
                     {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-                        <div key={i} className={`w-1/4 h-1 rounded-full transition-colors ${step >= i ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
+                        <div key={i} className={`w-1/4 h-1 rounded-full transition-colors ${step >= i ? 'bg-[#6c2bee]' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
                     ))}
                 </div>
                 <div className="flex justify-between items-center">
@@ -153,7 +153,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                     <button 
                         onClick={nextStep} 
                         disabled={step === 1 && (!profile.name || profile.name === 'User')}
-                        className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed"
+                        className="px-8 py-3 bg-[#6c2bee] text-white rounded-lg font-semibold hover:bg-[#5a22cc] transition-colors shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed"
                     >
                         {step === TOTAL_STEPS - 1 ? T.ui.onboarding.finish : T.ui.onboarding.next}
                     </button>

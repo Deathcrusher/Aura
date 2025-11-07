@@ -64,7 +64,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                 <img
                                     src={localProfile.avatarUrl}
                                     alt="Profile"
-                                    className="w-24 h-24 rounded-full object-cover bg-slate-200 dark:bg-slate-600 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 ring-blue-500"
+                                    className="w-24 h-24 rounded-full object-cover bg-slate-200 dark:bg-slate-600 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 ring-[#6c2bee]"
                                 />
                             ) : (
                                 <div className="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
@@ -73,7 +73,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             )}
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="absolute -bottom-2 -right-2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-md border-2 border-white dark:border-slate-800"
+                                className="absolute -bottom-2 -right-2 p-2 bg-[#6c2bee] text-white rounded-full hover:bg-[#5a22cc] transition-colors shadow-md border-2 border-white dark:border-slate-800"
                                 aria-label="Change profile picture"
                             >
                                 <CameraIcon className="w-5 h-5"/>
@@ -93,7 +93,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                         <p className={`font-bold text-lg ${isPremium ? 'text-yellow-500' : 'text-slate-800 dark:text-slate-200'}`}>
                            {isPremium ? 'Aura Premium' : 'Aura Free'}
                         </p>
-                        <button onClick={handleManageSubscription} className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                        <button onClick={handleManageSubscription} className="mt-2 text-sm font-semibold text-[#483d8b] dark:text-violet-300 hover:underline">
                             {isPremium ? T.ui.subscription.manage : T.ui.subscription.upgrade}
                         </button>
                     </div>
@@ -107,7 +107,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             id="name"
                             value={localProfile.name}
                             onChange={(e) => setLocalProfile(p => ({ ...p, name: e.target.value }))}
-                            className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]"
                             placeholder={T.ui.profileModal.namePlaceholder}
                         />
                     </div>
@@ -119,7 +119,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                             id="language"
                             value={localProfile.language}
                             onChange={(e) => setLocalProfile(p => ({ ...p, language: e.target.value }))}
-                            className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]"
                         >
                             {AVAILABLE_LANGUAGES.map(lang => (
                                 <option key={lang.id} value={lang.id}>{lang.name}</option>
@@ -137,7 +137,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                 const genderMarker = T.ui.voiceGenderMarker[voice.gender];
 
                                 return (
-                                <div key={voice.id} className={`p-3 rounded-lg border transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
+                                <div key={voice.id} className={`p-3 rounded-lg border transition-colors ${isSelected ? 'bg-violet-50 dark:bg-violet-900/40 border-violet-400' : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'}`}>
                                     <div className="flex items-center justify-between">
                                         <label className="flex items-center cursor-pointer flex-1 mr-2">
                                             <input
@@ -146,7 +146,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                                 value={voice.id}
                                                 checked={isSelected}
                                                 onChange={() => setLocalProfile(p => ({ ...p, voice: voice.id }))}
-                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                                className="w-4 h-4 text-[#6c2bee] bg-gray-100 border-gray-300 focus:ring-[#6c2bee] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                                             />
                                             <span className="ms-3 text-sm font-medium text-slate-800 dark:text-slate-200">{voice.name} {genderMarker}</span>
                                         </label>
@@ -185,7 +185,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                         <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
                             {T.ui.cancel}
                         </button>
-                        <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
+                        <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors">
                             {T.ui.save}
                         </button>
                     </div>

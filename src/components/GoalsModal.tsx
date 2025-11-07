@@ -53,13 +53,13 @@ export const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose, onSave,
                     <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="w-full h-32 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full h-32 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]"
                         placeholder={T.ui.goalsModal.placeholder}
                     />
                     <button
                         onClick={handleSuggest}
                         disabled={isSuggesting || !description.trim()}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-[#483d8b] dark:text-violet-300 bg-violet-100 dark:bg-violet-900/40 rounded-md hover:bg-violet-200 dark:hover:bg-violet-900/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSuggesting ? (
                             <>
@@ -83,7 +83,7 @@ export const GoalsModal: React.FC<GoalsModalProps> = ({ isOpen, onClose, onSave,
                     <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
                         {T.ui.cancel}
                     </button>
-                    <button onClick={handleSave} disabled={!description.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                    <button onClick={handleSave} disabled={!description.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors disabled:opacity-50">
                         {T.ui.goalsModal.saveButton}
                     </button>
                 </div>

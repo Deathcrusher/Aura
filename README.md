@@ -31,6 +31,13 @@ Ohne `VITE_API_KEY` läuft die App im Demo‑Modus: Aufnahme funktioniert, Antwo
 - Mobile und Browser ohne Speech API: Fallback via MediaRecorder + Gemini‑Transkription.
 - Erfordert Mikrofonfreigabe und sichere Herkunft (HTTPS/localhost).
 
+## Voice‑Live Architektur & Versionen
+- SDK: `@google/genai@^1.27.0` (bewährte Version für Live‑Audio)
+- Modell: `gemini-2.5-flash-native-audio-preview-09-2025`
+- Audio‑Eingang: 16 kHz PCM (Mono), Ausgang: 24 kHz PCM (Mono)
+- Env: `VITE_API_KEY` (Kompat‑Mapping für `GEMINI_API_KEY`/`API_KEY` in `vite.config.ts`)
+- Details & Upgrade‑Hinweise: siehe `docs/VOICE_LIVE.md`
+
 ## Features
 - Voice‑Only Chat (STT + TTS)
 - KI‑Antworten (Gemini 1.5)

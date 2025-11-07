@@ -77,7 +77,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                         </div>
                         <button
                             onClick={onUpgrade}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-transform hover:scale-[1.02] shadow-lg"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold text-white bg-[#6c2bee] rounded-lg hover:bg-[#5a22cc] transition-transform hover:scale-[1.02] shadow-lg"
                         >
                             <SparklesIcon className="w-6 h-6"/>
                             <span>{T.ui.subscription.upgradeButton}</span>

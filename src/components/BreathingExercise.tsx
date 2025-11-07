@@ -48,7 +48,7 @@ export const BreathingExercise: React.FC<BreathingExerciseProps> = ({ onFinish, 
             <div className="text-center">
                 <div className="relative w-48 h-48 sm:w-64 sm:h-64 flex items-center justify-center">
                     <div
-                        className="absolute w-full h-full bg-blue-500 rounded-full transition-transform duration-4000 ease-in-out"
+                        className="absolute w-full h-full bg-[#6c2bee] rounded-full transition-transform duration-4000 ease-in-out"
                         style={{ transform: `scale(${scale})` }}
                     ></div>
                     <span className="relative text-7xl font-bold text-white mix-blend-overlay">{countdown}</span>

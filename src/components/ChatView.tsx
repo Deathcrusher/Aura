@@ -133,7 +133,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
         if (speaker === 'aura') {
             switch(sessionState) {
                 case SessionState.LISTENING:
-                    return 'border-blue-500/50';
+                    return 'border-[#6c2bee]/50';
                 case SessionState.SPEAKING:
                     return 'border-teal-400';
                 case SessionState.PROCESSING:
@@ -182,8 +182,8 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                         return(
                             <div key={entry.id} className={`flex items-start gap-3 group animate-bubble-in ${isUser ? 'justify-end' : ''}`}>
                                 {!isUser && <AuraHumanAvatar className="w-8 h-8 flex-shrink-0" />}
-                                <div className={`relative max-w-md p-3 rounded-2xl ${isUser ? 'bg-blue-100 dark:bg-blue-900/60 rounded-br-none' : 'bg-white dark:bg-slate-800 rounded-bl-none'}`}>
-                                    <p className={`text-sm ${isUser ? 'text-blue-900 dark:text-blue-100' : 'text-slate-800 dark:text-slate-200'}`}>{entry.text}</p>
+                                <div className={`relative max-w-md p-3 rounded-2xl ${isUser ? 'bg-violet-100 dark:bg-violet-900/60 rounded-br-none' : 'bg-white dark:bg-slate-800 rounded-bl-none'}`}>
+                                    <p className={`text-sm ${isUser ? 'text-violet-900 dark:text-violet-100' : 'text-slate-800 dark:text-slate-200'}`}>{entry.text}</p>
                                     {distortion && (
                                     <button 
                                         onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
@@ -200,7 +200,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                     })}
                     {currentInput && (
                         <div className="flex items-start gap-3 justify-end animate-bubble-in">
-                            <div className="max-w-md p-3 rounded-2xl bg-blue-100/50 dark:bg-blue-900/30 rounded-br-none text-blue-900/70 dark:text-blue-100/70 italic">
+                            <div className="max-w-md p-3 rounded-2xl bg-violet-100/50 dark:bg-violet-900/30 rounded-br-none text-violet-900/70 dark:text-violet-100/70 italic">
                                 <p className="text-sm">{currentInput}</p>
                             </div>
                             <UserAvatar profile={userProfile} className="w-8 h-8 flex-shrink-0" />

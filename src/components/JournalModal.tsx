@@ -46,14 +46,14 @@ export const JournalModal: React.FC<JournalModalProps> = ({ isOpen, onClose, onS
                          <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            className="w-full h-full flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            className="w-full h-full flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee] resize-none"
                             placeholder={T.ui.journalModal.placeholder}
                         />
                     </div>
                     {entry?.insights && (
                         <div className="md:w-1/3 md:border-l md:pl-6 border-slate-200 dark:border-slate-700">
                              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                                <LightbulbIcon className="w-5 h-5 text-blue-500"/>
+                                <LightbulbIcon className="w-5 h-5 text-[#6c2bee]"/>
                                 {T.ui.journalModal.insightsTitle}
                             </h3>
                             <div className="space-y-4">
@@ -96,7 +96,7 @@ export const JournalModal: React.FC<JournalModalProps> = ({ isOpen, onClose, onS
                         <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
                             {T.ui.cancel}
                         </button>
-                        <button onClick={handleSave} disabled={!content.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50">
+                        <button onClick={handleSave} disabled={!content.trim()} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors disabled:opacity-50">
                             {T.ui.journalModal.save}
                         </button>
                     </div>
