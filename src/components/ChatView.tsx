@@ -182,8 +182,8 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                         return(
                             <div key={entry.id} className={`flex items-start gap-3 group animate-bubble-in ${isUser ? 'justify-end' : ''}`}>
                                 {!isUser && <AuraHumanAvatar className="w-8 h-8 flex-shrink-0" />}
-                                <div className={`relative max-w-md p-3 rounded-2xl ${isUser ? 'bg-violet-100 dark:bg-violet-900/60 rounded-br-none' : 'bg-white dark:bg-slate-800 rounded-bl-none'}`}>
-                                    <p className={`text-sm ${isUser ? 'text-violet-900 dark:text-violet-100' : 'text-slate-800 dark:text-slate-200'}`}>{entry.text}</p>
+                                <div className={`relative max-w-md p-3 rounded-2xl ${isUser ? 'bg-primary text-white rounded-br-none' : 'bg-gray-200 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none'}`}>
+                                    <p className={`text-sm ${isUser ? 'text-white' : 'text-inherit'}`}>{entry.text}</p>
                                     {distortion && (
                                     <button 
                                         onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
@@ -209,7 +209,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                     {currentOutput && (
                          <div className="flex items-start gap-3 animate-bubble-in">
                             <AuraHumanAvatar className="w-8 h-8 flex-shrink-0" />
-                            <div className="max-w-md p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 rounded-bl-none text-slate-800/70 dark:text-slate-200/70 italic flex items-center">
+                            <div className="max-w-md p-3 rounded-2xl bg-gray-200/70 dark:bg-[#2e2839]/70 rounded-bl-none text-slate-800/70 dark:text-slate-200/70 italic flex items-center">
                                 <p className="text-sm">{currentOutput}</p>
                                 <span className="inline-block w-1 h-3.5 ml-1 bg-slate-500 animate-pulse self-center"></span>
                             </div>

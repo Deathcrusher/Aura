@@ -32,7 +32,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, load
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 animate-fade-in bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 animate-fade-in bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)] dark:bg-[#161022]">
             <div className="w-full max-w-sm mx-auto text-center">
                 <AuraHumanAvatar className="w-24 h-24 mx-auto mb-6 animate-logo-breathe" />
                 <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">

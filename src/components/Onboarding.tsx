@@ -131,7 +131,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
 
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 animate-fade-in bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 animate-fade-in bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)] dark:bg-[#161022]">
             <div className="w-full max-w-2xl text-center flex-1 flex flex-col justify-center overflow-y-auto pt-8">
                 {renderStepContent()}
             </div>

@@ -51,6 +51,7 @@ import { GoalsModal } from './components/GoalsModal';
 import { MoodJournalModal } from './components/MoodJournalModal';
 import { JournalModal } from './components/JournalModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { AppFrame } from './components/AppFrame';
 import {
   SpeechRecognitionService,
   TextToSpeechService,
@@ -1085,7 +1086,7 @@ function App() {
   // Loading state
   if (authLoading || isLoadingProfile) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
+      <div className="fixed inset-0 flex items-center justify-center bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)] dark:bg-[#161022]">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#6c2bee] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600 dark:text-slate-300">Lädt...</p>
@@ -1143,12 +1144,12 @@ function App() {
   // Main app
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-[linear-gradient(135deg,#E6E6FA_0%,#ADD8E6_50%,#FFB6C1_100%)]">
+      <AppFrame>
         {/* Sidebar */}
         <div
-          className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-slate-800 shadow-lg transform transition-transform duration-300 ${
+          className={`absolute inset-y-0 left-0 z-30 w-64 bg-[#f6f6f8] dark:bg-[#1d162b] shadow-xl transform transition-transform duration-300 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:relative lg:translate-x-0`}
+          }`}
         >
           <div className="flex flex-col h-full">
             <div className="p-4 border-b border-slate-200 dark:border-slate-700">
@@ -1222,46 +1223,37 @@ function App() {
           </div>
         </div>
 
-        {/* Mobile sidebar backdrop */}
+        {/* Sidebar backdrop inside frame */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+            className="absolute inset-0 bg-black/50 z-20"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Main content */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <div className="bg-white/80 dark:bg-slate-800/70 backdrop-blur border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-4 sticky top-0 z-20">
+          {/* Top app bar (Stitch style) */}
+          <div className="flex items-center p-4 pb-2 justify-between border-b border-white/10">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="p-2 rounded-lg hover:bg-white/10 text-slate-800 dark:text-white/80"
             >
-              <MenuIcon className="w-6 h-6 text-slate-600 dark:text-slate-300" />
+              <MenuIcon className="w-5 h-5" />
             </button>
-            <div className="flex-1 flex items-center gap-3">
-              <img src="/assets/Aura_logo.png" alt="Aura" className="w-8 h-8 rounded-lg shadow-sm" />
-              <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                {activeSession?.title || 'Aura'}
-              </h1>
+            <div className="flex items-center gap-2">
+              <img src="/assets/Aura_logo.png" alt="Aura" className="w-7 h-7 rounded" />
+              <h2 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Aura</h2>
             </div>
             <button
-              type="button"
               onClick={handleThemeToggle}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-slate-600 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              aria-label={T.ui.theme.toggle}
-              aria-pressed={isDarkMode}
-              title={T.ui.theme.toggle}
+              className="p-2 rounded-lg hover:bg-white/10 text-slate-700 dark:text-white/80"
             >
               {isDarkMode ? (
                 <SunIcon className="w-5 h-5" />
               ) : (
                 <MoonIcon className="w-5 h-5" />
               )}
-              <span className="hidden sm:inline text-sm font-medium text-slate-600 dark:text-slate-300">
-                {isDarkMode ? T.ui.theme.light : T.ui.theme.dark}
-              </span>
             </button>
           </div>
 
@@ -1297,13 +1289,13 @@ function App() {
 
           {/* Controls */}
           {activeSession && (
-            <div className="bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-4">
+            <div className="bg-white/60 dark:bg-transparent border-t border-slate-200 dark:border-white/10 p-4">
               <div className="max-w-3xl mx-auto">
                 {sessionState === SessionState.IDLE ? (
                   <div className="flex items-center justify-center">
                     <button
                       onClick={handleStartVoiceSession}
-                      className="w-full sm:w-auto px-6 py-4 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 shadow-md"
+                      className="w-full sm:w-auto px-6 py-4 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors flex items-center justify-center gap-2 shadow-md"
                       title="Sprachaufnahme starten"
                     >
                       <MicrophoneIcon className="w-6 h-6" />
@@ -1331,7 +1323,7 @@ function App() {
             </div>
           )}
         </div>
-      </div>
+      </AppFrame>
       {/* Modals */}
       <ProfileModal
         isOpen={isProfileOpen}

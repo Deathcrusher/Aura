@@ -9,7 +9,7 @@ interface WelcomeScreenProps {
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted, onSignIn, logoSrc = '/assets/Aura_logo.png' }) => {
   return (
     <div
-      className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden font-sans"
+      className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden font-sans dark:bg-[#161022]"
       style={{
         background: 'linear-gradient(135deg, #E6E6FA 0%, #ADD8E6 50%, #FFB6C1 100%)',
       }}
@@ -52,4 +52,3 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted, onSi
     </div>
   );
 };
-
