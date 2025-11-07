@@ -658,7 +658,9 @@ function App() {
     try {
       // Prepare mic visualization
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } as MediaTrackConstraints,
+        });
         micStreamRef.current = stream;
         if (audioVisualizationRef.current) {
           inputAnalyserRef.current = await audioVisualizationRef.current.createFromStream(stream);
@@ -696,6 +698,7 @@ function App() {
               scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
               scriptProcessorRef.current.onaudioprocess = (e) => {
                 const inputData = e.inputBuffer.getChannelData(0);
+                // Send PCM audio chunk to Gemini Live (use 'media' to align with prior working impl)
                 sessionPromiseRef.current?.then((s: any) => s.sendRealtimeInput({ media: createBlob(inputData) }));
 
                 // Simple VAD-like RMS monitor
