@@ -147,6 +147,8 @@ function App() {
   const currentInputRef = useRef<string>('');
   const currentOutputRef = useRef<string>('');
   const sessionStateRef = useRef<SessionState>(SessionState.IDLE);
+  const liveActivityTimerRef = useRef<number | null>(null);
+  const liveHadActivityRef = useRef<boolean>(false);
   // Modals & UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -554,6 +556,12 @@ function App() {
       speechRecognitionRef.current?.stop();
       ttsServiceRef.current?.stop();
 
+      // Clear live activity guard timer
+      if (liveActivityTimerRef.current) {
+        clearTimeout(liveActivityTimerRef.current);
+        liveActivityTimerRef.current = null;
+      }
+
       // Stop realtime session if active
       if (sessionPromiseRef.current) {
         try {
@@ -696,13 +704,67 @@ function App() {
           callbacks: {
             onopen: () => {
               setSessionState(SessionState.LISTENING);
+              // Guard: if live session receives no input/response, fallback to local STT
+              liveHadActivityRef.current = false;
+              if (liveActivityTimerRef.current) {
+                clearTimeout(liveActivityTimerRef.current);
+              }
+              liveActivityTimerRef.current = window.setTimeout(async () => {
+                if (!liveHadActivityRef.current) {
+                  try {
+                    // Try Web Speech API first
+                    if (speechRecognitionRef.current?.isSupported()) {
+                      recognitionGotResultRef.current = false;
+                      speechRecognitionRef.current.start(
+                        (transcript) => {
+                          recognitionGotResultRef.current = true;
+                          setCurrentInput(transcript);
+                          handleSendMessage(transcript, true);
+                        },
+                        async () => {
+                          // If no transcript, fallback to MediaRecorder
+                          try {
+                            if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                            await voiceRecorderRef.current.start();
+                            setIsRecordingFallback(true);
+                            setSessionState(SessionState.LISTENING);
+                          } catch (e) {
+                            console.warn('Fallback recorder failed to start:', e);
+                            setSessionState(SessionState.ERROR);
+                          }
+                        }
+                      );
+                    } else {
+                      // Hard fallback: MediaRecorder
+                      if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                      await voiceRecorderRef.current.start();
+                      setIsRecordingFallback(true);
+                      setSessionState(SessionState.LISTENING);
+                    }
+                  } catch (e) {
+                    console.error('Live no-activity fallback failed:', e);
+                    setSessionState(SessionState.ERROR);
+                  }
+                }
+              }, 5000);
 
               mediaStreamSourceRef.current = inputAudioContextRef.current!.createMediaStreamSource(micStreamRef.current!);
               scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
               scriptProcessorRef.current.onaudioprocess = (e) => {
                 const inputData = e.inputBuffer.getChannelData(0);
-                // Send PCM audio chunk to Gemini Live (use 'media' to align with prior working impl)
-                sessionPromiseRef.current?.then((s: any) => s.sendRealtimeInput({ media: createBlob(inputData) }));
+                // Send PCM audio chunk to Gemini Live. Try v1.27 shape first, then 1.28 fallback.
+                const payload: any = createBlob(inputData);
+                sessionPromiseRef.current?.then((s: any) => {
+                  try {
+                    s.sendRealtimeInput({ media: payload });
+                  } catch (err1) {
+                    try {
+                      s.sendRealtimeInput({ inlineData: payload });
+                    } catch (err2) {
+                      // Swallow to avoid flooding logs per audio frame
+                    }
+                  }
+                });
 
                 // Simple VAD-like RMS monitor
                 const VAD_THRESHOLD = 0.01;
@@ -734,10 +796,14 @@ function App() {
               const turnDone = Boolean(message?.serverContent?.turnComplete);
 
               if (inputT) {
+                liveHadActivityRef.current = true;
+                if (liveActivityTimerRef.current) { clearTimeout(liveActivityTimerRef.current); liveActivityTimerRef.current = null; }
                 currentInputRef.current += inputT;
                 setCurrentInput(currentInputRef.current);
               }
               if (outputT) {
+                liveHadActivityRef.current = true;
+                if (liveActivityTimerRef.current) { clearTimeout(liveActivityTimerRef.current); liveActivityTimerRef.current = null; }
                 if (sessionStateRef.current !== SessionState.SPEAKING) setSessionState(SessionState.SPEAKING);
                 currentOutputRef.current += outputT;
                 setCurrentOutput(currentOutputRef.current);
@@ -747,6 +813,8 @@ function App() {
               const base64Audio = message?.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
               if (base64Audio && outputAudioContextRef.current && outputAnalyserRef.current) {
                 try {
+                  liveHadActivityRef.current = true;
+                  if (liveActivityTimerRef.current) { clearTimeout(liveActivityTimerRef.current); liveActivityTimerRef.current = null; }
                   const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
                   const source = outputAudioContextRef.current.createBufferSource();
                   source.buffer = audioBuffer;
@@ -846,8 +914,7 @@ function App() {
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: userProfile.voice || 'Zephyr' } } },
             // Make Gemini behave like a therapist and speak in the user's language
             systemInstruction: `Du bist Aura, eine einfühlsame, strukturierte KI-Therapeutin. \nSprich immer in der Sprache des Nutzers (${userProfile.language || 'de-DE'}), halte Antworten kurz, validierend und lösungsorientiert.\nNutze bei Bedarf Rückfragen und fasse gelegentlich zusammen. Vermeide Floskeln und bleibe konkret.`,
-            // Enable affective dialog if supported
-            enableAffectiveDialog: true,
+            // Affective dialog flag removed for compatibility
             // Request input/output transcription so we can show text alongside audio
             inputAudioTranscription: {},
             outputAudioTranscription: {},
