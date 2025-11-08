@@ -660,39 +660,39 @@ function App() {
     },
   };
 
-  const generateAndStoreSummary = async (sessionId: string, lang: string) => {
+  const generateAndStoreSummary = async (session: ChatSession, lang: string) => {
     try {
-      if (!genAIRef.current || !activeSession || activeSession.transcript.length <= 1) return;
+      if (!genAIRef.current || !session?.transcript || session.transcript.length <= 1) return;
 
       const translationBundle = translations[lang as keyof typeof translations] || translations['de-DE'];
       const [notes, summary, memoryUpdate, moodTrend, wordCloud] = await Promise.all([
-        summarizeAndCreateNotes(activeSession.transcript, userProfile.name, translationBundle),
-        generateUserSummaryText(activeSession.transcript, userProfile.name, translationBundle),
-        askAuraMemoryUpdate(activeSession.transcript, userProfile.memory, translationBundle),
-        generateMoodTrendData(activeSession.transcript, translationBundle),
-        generateWordCloudData(activeSession.transcript, translationBundle),
+        summarizeAndCreateNotes(session.transcript, userProfile.name, translationBundle),
+        generateUserSummaryText(session.transcript, userProfile.name, translationBundle),
+        askAuraMemoryUpdate(session.transcript, userProfile.memory, translationBundle),
+        generateMoodTrendData(session.transcript, translationBundle),
+        generateWordCloudData(session.transcript, translationBundle),
       ]);
 
-      const summaryText = summary || activeSession.summary || '';
-      const notesText = notes || activeSession.notes || '';
-      const summaryAudioBase64 = summaryText ? await generateSummaryAudio(summaryText, lang, userProfile.voice) : activeSession.summaryAudioBase64;
+      const summaryText = summary || session.summary || '';
+      const notesText = notes || session.notes || '';
+      const summaryAudioBase64 = summaryText ? await generateSummaryAudio(summaryText, lang, userProfile.voice) : session.summaryAudioBase64;
       const updatedMemory = memoryUpdate || userProfile.memory;
 
       setActiveSession(prev =>
-        prev && prev.id === sessionId
+        prev && prev.id === session.id
           ? { ...prev, summary: summaryText, notes: notesText, moodTrend, wordCloud, summaryAudioBase64 }
           : prev,
       );
       setSessions(prev =>
-        prev.map(session =>
-          session.id === sessionId
-            ? { ...session, summary: summaryText, notes: notesText, moodTrend, wordCloud, summaryAudioBase64 }
-            : session,
+        prev.map(existingSession =>
+          existingSession.id === session.id
+            ? { ...existingSession, summary: summaryText, notes: notesText, moodTrend, wordCloud, summaryAudioBase64 }
+            : existingSession,
         ),
       );
       setUserProfile(prev => ({ ...prev, memory: updatedMemory }));
 
-      await updateChatSession(sessionId, { summary: summaryText, notes: notesText, summaryAudioBase64, moodTrend, wordCloud });
+      await updateChatSession(session.id, { summary: summaryText, notes: notesText, summaryAudioBase64, moodTrend, wordCloud });
       if (user) {
         await updateAuraMemory(user.id, updatedMemory);
       }
@@ -839,6 +839,7 @@ function App() {
   };
 
   const handleStopSession = async (skipAnalysis: boolean = false) => {
+    const sessionSnapshot = activeSession;
     try {
       setIsExerciseVisible(false);
       // Stop any ongoing speech recognition or TTS
@@ -928,14 +929,14 @@ function App() {
         if (transcript) {
           await handleSendMessage(transcript, true);
           // After responding, generate/update summary
-          if (activeSession && !skipAnalysis) {
-            generateAndStoreSummary(activeSession.id, userProfile.language);
+          if (sessionSnapshot && !skipAnalysis) {
+            generateAndStoreSummary(sessionSnapshot, userProfile.language);
           }
           return;
         }
         setSessionState(SessionState.IDLE);
-        if (activeSession && !skipAnalysis) {
-          generateAndStoreSummary(activeSession.id, userProfile.language);
+        if (sessionSnapshot && !skipAnalysis) {
+          generateAndStoreSummary(sessionSnapshot, userProfile.language);
         }
         return;
       }
@@ -948,8 +949,8 @@ function App() {
         micStreamRef.current = null;
       }
       inputAnalyserRef.current = null;
-      if (activeSession && !skipAnalysis) {
-        generateAndStoreSummary(activeSession.id, userProfile.language);
+      if (sessionSnapshot && !skipAnalysis) {
+        generateAndStoreSummary(sessionSnapshot, userProfile.language);
       }
     } catch (error) {
       console.error('Error stopping session:', error);
@@ -1394,7 +1395,9 @@ function App() {
         }
 
         // Update session summary asynchronously (best-effort)
-        generateAndStoreSummary(activeSession.id, userProfile.language);
+        if (activeSession) {
+          generateAndStoreSummary(activeSession, userProfile.language);
+        }
       } else {
         // Fallback response when Gemini is not configured
         const auraEntry: TranscriptEntry = {
