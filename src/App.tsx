@@ -1322,7 +1322,7 @@ function App() {
           )}
 
           {/* Controls */}
-          {activeSession && (
+          {activeSession && currentView === 'chat' && (
             <div className="bg-white/60 dark:bg-transparent border-t border-slate-200 dark:border-white/10 p-4 fixed bottom-20 left-0 right-0 w-full max-w-lg mx-auto">
               <div className="max-w-3xl mx-auto">
                 {sessionState === SessionState.IDLE ? (
