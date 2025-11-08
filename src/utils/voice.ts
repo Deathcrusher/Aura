@@ -192,14 +192,17 @@ export class TextToSpeechService {
     const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
     if (!apiKey || invalid.includes(apiKey)) throw new Error('Missing VITE_API_KEY for Gemini TTS');
 
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-tts',
-      contents: [{ parts: [{ text }] }],
+    const genAI = new GoogleGenAI({ apiKey });
+    const response = await genAI.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [{
+        role: 'user',
+        parts: [{ text: text }]
+      }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
-          voiceConfig: voiceName ? { prebuiltVoiceConfig: { voiceName } } : undefined,
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName || 'Zephyr' } },
         },
       },
     });

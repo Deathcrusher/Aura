@@ -15,6 +15,8 @@ import {
   SubscriptionPlan,
   JournalEntry,
   Mood,
+  AuraMemory,
+  JournalInsights,
 } from './types';
 import {
   getUserProfile,
@@ -25,11 +27,13 @@ import {
   addTranscriptEntryAuto,
   deleteChatSession,
   getAuraMemory,
+  updateAuraMemory,
   updateChatSession,
   addGoal,
   addMoodEntry,
   addJournalEntry,
   deleteJournalEntry,
+  addCognitiveDistortion,
 } from './lib/database';
 import { translations } from './lib/translations';
 import {
@@ -45,6 +49,7 @@ import {
   MicrophoneIcon,
   SunIcon,
   MoonIcon,
+  AlertTriangleIcon,
 } from './components/Icons';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
@@ -55,6 +60,7 @@ import { AppFrame } from './components/AppFrame';
 import { HomeView } from './components/HomeView';
 import { JournalView } from './components/JournalView';
 import { ProfileView } from './components/ProfileView';
+import { BreathingExercise } from './components/BreathingExercise';
 import {
   SpeechRecognitionService,
   TextToSpeechService,
@@ -64,11 +70,15 @@ import {
 import { encode, decode, decodeAudioData } from './utils/audio';
 // For realtime audio input
 import { createBlob } from './utils/audio';
+// New Google GenAI SDK
+import { GoogleGenAI, Modality, FunctionDeclaration, Type } from '@google/genai';
+// Legacy library for fallback
 import { GoogleGenerativeAI } from '@google/generative-ai';
-// Live streaming API
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { GoogleGenAI, Modality } from '@google/genai';
+
+// Type for the new SDK client
+type GenAIClient = GoogleGenAI;
+
+type TranslationBundle = typeof translations[keyof typeof translations];
 
 const DEFAULT_PROFILE: UserProfile = {
   name: 'User',
@@ -100,6 +110,7 @@ function App() {
     const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY'];
     return invalid.includes(String(key)) ? null : key;
   };
+  
   const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -133,7 +144,7 @@ function App() {
 
   const inputAnalyserRef = useRef<AnalyserNode | null>(null);
   const outputAnalyserRef = useRef<AnalyserNode | null>(null);
-  const genAIRef = useRef<GoogleGenerativeAI | null>(null);
+  const genAIRef = useRef<GenAIClient | null>(null);
   const speechRecognitionRef = useRef<SpeechRecognitionService | null>(null);
   const ttsServiceRef = useRef<TextToSpeechService | null>(null);
   const audioVisualizationRef = useRef<AudioVisualization | null>(null);
@@ -154,12 +165,16 @@ function App() {
   const sessionStateRef = useRef<SessionState>(SessionState.IDLE);
   const liveActivityTimerRef = useRef<number | null>(null);
   const liveHadActivityRef = useRef<boolean>(false);
+  const lastTranscriptEntryIdRef = useRef<string>('');
+  const toolCallIdRef = useRef<string | null>(null);
   // Modals & UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
   const [isMoodOpen, setIsMoodOpen] = useState(false);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
+  const [isExerciseVisible, setIsExerciseVisible] = useState(false);
+  const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
   const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
   const [voicePreviewState, setVoicePreviewState] = useState<{ id: string; status: 'loading' | 'playing' } | null>(null);
   // Navigation state
@@ -237,7 +252,7 @@ function App() {
   useEffect(() => {
     const apiKey = getValidApiKey();
     if (apiKey) {
-      genAIRef.current = new GoogleGenerativeAI(apiKey);
+      genAIRef.current = new GoogleGenAI({ apiKey });
     }
 
     // Initialize voice services
@@ -396,31 +411,293 @@ function App() {
     await handlePreviewVoice(voiceId, userProfile.language || 'de-DE');
   };
 
+  const buildConversationText = (transcript: TranscriptEntry[]): string => {
+    return transcript
+      .slice(1)
+      .map(entry => `${entry.speaker === Speaker.USER ? 'User' : 'Aura'}: ${entry.text}`)
+      .join('\n');
+  };
+
+  const summarizeAndCreateNotes = async (
+    transcript: TranscriptEntry[],
+    name: string,
+    translationBundle: TranslationBundle,
+  ): Promise<string> => {
+    if (!genAIRef.current) return '';
+    const conversation = buildConversationText(transcript);
+    if (!conversation) return '';
+
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.summarizeNotesPrompt(name, conversation) }],
+        }],
+      });
+      return response.text.trim();
+    } catch (error) {
+      console.warn('Note generation failed:', error);
+      return '';
+    }
+  };
+
+  const generateUserSummaryText = async (
+    transcript: TranscriptEntry[],
+    name: string,
+    translationBundle: TranslationBundle,
+  ): Promise<string> => {
+    if (!genAIRef.current) return '';
+    const conversation = buildConversationText(transcript);
+    if (!conversation) return '';
+
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-1.5-pro',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.generateUserSummaryPrompt(name, conversation) }],
+        }],
+        config: {
+          thinkingConfig: { thinkingBudget: 32768 },
+        },
+      });
+      return response.text.trim();
+    } catch (error) {
+      console.warn('User summary failed:', error);
+      return '';
+    }
+  };
+
+  const askAuraMemoryUpdate = async (
+    transcript: TranscriptEntry[],
+    currentMemory: AuraMemory,
+    translationBundle: TranslationBundle,
+  ): Promise<AuraMemory> => {
+    if (!genAIRef.current) return currentMemory;
+    const conversation = buildConversationText(transcript);
+    if (!conversation) return currentMemory;
+
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.updateAuraMemoryPrompt(currentMemory, conversation) }],
+        }],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              keyRelationships: { type: Type.ARRAY, items: { type: Type.STRING } },
+              majorLifeEvents: { type: Type.ARRAY, items: { type: Type.STRING } },
+              recurringThemes: { type: Type.ARRAY, items: { type: Type.STRING } },
+              userGoals: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+          },
+          thinkingConfig: { thinkingBudget: 32768 },
+        },
+      });
+      const jsonStr = response.text.trim();
+      if (!jsonStr) return currentMemory;
+      return JSON.parse(jsonStr) as AuraMemory;
+    } catch (error) {
+      console.warn('Memory update failed:', error);
+      return currentMemory;
+    }
+  };
+
+  const generateMoodTrendData = async (
+    transcript: TranscriptEntry[],
+    translationBundle: TranslationBundle,
+  ): Promise<number[] | undefined> => {
+    if (!genAIRef.current) return undefined;
+    const conversation = buildConversationText(transcript);
+    if (!conversation) return undefined;
+
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.moodTrendPrompt(conversation) }],
+        }],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: { type: Type.ARRAY, items: { type: Type.NUMBER } },
+        },
+      });
+      const jsonStr = response.text.trim();
+      if (!jsonStr) return undefined;
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) && parsed.length === 4 && parsed.every((n: any) => typeof n === 'number')
+        ? parsed
+        : undefined;
+    } catch (error) {
+      console.warn('Mood trend generation failed:', error);
+      return undefined;
+    }
+  };
+
+  const generateWordCloudData = async (
+    transcript: TranscriptEntry[],
+    translationBundle: TranslationBundle,
+  ): Promise<{ text: string; value: number }[] | undefined> => {
+    if (!genAIRef.current) return undefined;
+    const conversation = buildConversationText(transcript);
+    if (!conversation) return undefined;
+
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.wordCloudPrompt(conversation) }],
+        }],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING },
+                value: { type: Type.NUMBER },
+              },
+            },
+          },
+        },
+      });
+      const jsonStr = response.text.trim();
+      if (!jsonStr) return undefined;
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) ? (parsed as { text: string; value: number }[]) : undefined;
+    } catch (error) {
+      console.warn('Word cloud generation failed:', error);
+      return undefined;
+    }
+  };
+
+  const generateSummaryAudio = async (text: string, language: string, voice: string): Promise<string | undefined> => {
+    if (!genAIRef.current) return undefined;
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text }],
+        }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Zephyr' } },
+          },
+        },
+      });
+      const candidate = response.candidates?.[0];
+      return candidate?.content?.parts?.[0]?.inlineData?.data;
+    } catch (error) {
+      console.warn('Summary audio generation failed:', error);
+      return undefined;
+    }
+  };
+
+  const generateJournalInsights = async (
+    entry: string,
+    translationBundle: TranslationBundle,
+  ): Promise<JournalInsights | undefined> => {
+    if (!genAIRef.current) return undefined;
+    try {
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.journalInsightPrompt(entry) }],
+        }],
+      });
+      const jsonStr = response.text.trim();
+      if (!jsonStr) return undefined;
+      const parsed = JSON.parse(jsonStr);
+      if (parsed?.keyThemes && parsed?.positiveNotes) {
+        return { keyThemes: parsed.keyThemes, positiveNotes: parsed.positiveNotes };
+      }
+      return undefined;
+    } catch (error) {
+      console.warn('Journal insights failed:', error);
+      return undefined;
+    }
+  };
+
+  const startBreathingExercise: FunctionDeclaration = {
+    name: 'startBreathingExercise',
+    description: 'Start a guided breathwork exercise for moments of high stress or panic.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {},
+    },
+  };
+
+  const identifyCognitiveDistortion: FunctionDeclaration = {
+    name: 'identifyCognitiveDistortion',
+    description: 'Flag a statement containing a cognitive distortion so the user can explore it.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        distortion: { type: Type.STRING, description: 'Name of the distortion (e.g. catastrophizing, all-or-nothing).' },
+        statement: { type: Type.STRING, description: 'The exact user statement containing the distortion.' },
+      },
+      required: ['distortion', 'statement'],
+    },
+  };
+
+  const triggerCrisisIntervention: FunctionDeclaration = {
+    name: 'triggerCrisisIntervention',
+    description: 'Initiate the crisis intervention flow in case of imminent self-harm or suicide intent.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {},
+    },
+  };
+
   const generateAndStoreSummary = async (sessionId: string, lang: string) => {
     try {
-      if (!genAIRef.current || !activeSession) return;
-      const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      if (!genAIRef.current || !activeSession || activeSession.transcript.length <= 1) return;
 
-      const lastTurns = activeSession.transcript.slice(-20)
-        .map(e => `${e.speaker === Speaker.USER ? 'User' : 'Aura'}: ${e.text}`)
-        .join('\n');
-
-      const prompt = lang.startsWith('de')
-        ? 'Erstelle eine kurze, verständliche Zusammenfassung der bisherigen Sitzung in 2-3 Sätzen. Keine Aufzählungen, nur Fließtext.'
-        : 'Write a short, clear summary of the session so far in 2–3 sentences. No bullet points, just plain text.';
-
-      const result = await model.generateContent([
-        { text: prompt },
-        { text: lastTurns || 'Noch keine Inhalte.' },
+      const translationBundle = translations[lang as keyof typeof translations] || translations['de-DE'];
+      const [notes, summary, memoryUpdate, moodTrend, wordCloud] = await Promise.all([
+        summarizeAndCreateNotes(activeSession.transcript, userProfile.name, translationBundle),
+        generateUserSummaryText(activeSession.transcript, userProfile.name, translationBundle),
+        askAuraMemoryUpdate(activeSession.transcript, userProfile.memory, translationBundle),
+        generateMoodTrendData(activeSession.transcript, translationBundle),
+        generateWordCloudData(activeSession.transcript, translationBundle),
       ]);
 
-      const summary = result.response.text().trim();
-      if (summary) {
-        setActiveSession(prev => (prev ? { ...prev, summary } : prev));
-        await updateChatSession(sessionId, { summary });
+      const summaryText = summary || activeSession.summary || '';
+      const notesText = notes || activeSession.notes || '';
+      const summaryAudioBase64 = summaryText ? await generateSummaryAudio(summaryText, lang, userProfile.voice) : activeSession.summaryAudioBase64;
+      const updatedMemory = memoryUpdate || userProfile.memory;
+
+      setActiveSession(prev =>
+        prev && prev.id === sessionId
+          ? { ...prev, summary: summaryText, notes: notesText, moodTrend, wordCloud, summaryAudioBase64 }
+          : prev,
+      );
+      setSessions(prev =>
+        prev.map(session =>
+          session.id === sessionId
+            ? { ...session, summary: summaryText, notes: notesText, moodTrend, wordCloud, summaryAudioBase64 }
+            : session,
+        ),
+      );
+      setUserProfile(prev => ({ ...prev, memory: updatedMemory }));
+
+      await updateChatSession(sessionId, { summary: summaryText, notes: notesText, summaryAudioBase64, moodTrend, wordCloud });
+      if (user) {
+        await updateAuraMemory(user.id, updatedMemory);
       }
     } catch (error) {
-      console.warn('Summary generation failed:', error);
+      console.warn('Session analysis failed:', error);
     }
   };
 
@@ -518,10 +795,11 @@ function App() {
     if (!user) return;
     try {
       const createdAt = Date.now();
+      const insights = await generateJournalInsights(entry.content, T);
       const id = await addJournalEntry(user.id, { ...entry, createdAt });
       setUserProfile(prev => ({
         ...prev,
-        journal: [{ id, content: entry.content, createdAt }, ...(prev.journal || [])],
+        journal: [{ id, content: entry.content, createdAt, insights }, ...(prev.journal || [])],
       }));
       setEditingJournalEntry(null);
       setIsJournalOpen(false);
@@ -560,8 +838,9 @@ function App() {
     }
   };
 
-  const handleStopSession = async () => {
+  const handleStopSession = async (skipAnalysis: boolean = false) => {
     try {
+      setIsExerciseVisible(false);
       // Stop any ongoing speech recognition or TTS
       speechRecognitionRef.current?.stop();
       ttsServiceRef.current?.stop();
@@ -620,13 +899,17 @@ function App() {
           const b64 = encode(new Uint8Array(buffer));
 
           if (genAIRef.current) {
-            const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
-            const prompt = 'Transkribiere die folgende deutsche Sprachnachricht. Gib nur den reinen Text zurück.';
-            const result = await model.generateContent([
-              { text: prompt },
-              { inlineData: { data: b64, mimeType: blob.type || 'audio/webm' } },
-            ]);
-            transcript = result.response.text().trim();
+            const response = await genAIRef.current.models.generateContent({
+              model: 'gemini-1.5-flash',
+              contents: [{
+                role: 'user',
+                parts: [
+                  { text: 'Transkribiere die folgende deutsche Sprachnachricht. Gib nur den reinen Text zurück.' },
+                  { inlineData: { data: b64, mimeType: blob.type || 'audio/webm' } },
+                ]
+              }]
+            });
+            transcript = response.text.trim();
           }
         } catch (err) {
           console.error('Transcription error:', err);
@@ -645,13 +928,13 @@ function App() {
         if (transcript) {
           await handleSendMessage(transcript, true);
           // After responding, generate/update summary
-          if (activeSession) {
+          if (activeSession && !skipAnalysis) {
             generateAndStoreSummary(activeSession.id, userProfile.language);
           }
           return;
         }
         setSessionState(SessionState.IDLE);
-        if (activeSession) {
+        if (activeSession && !skipAnalysis) {
           generateAndStoreSummary(activeSession.id, userProfile.language);
         }
         return;
@@ -665,7 +948,7 @@ function App() {
         micStreamRef.current = null;
       }
       inputAnalyserRef.current = null;
-      if (activeSession) {
+      if (activeSession && !skipAnalysis) {
         generateAndStoreSummary(activeSession.id, userProfile.language);
       }
     } catch (error) {
@@ -711,6 +994,9 @@ function App() {
           // Use the official live model id from the SDK docs
           // Use the same model id that worked in the previous project for maximum compatibility
           model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+          tools: [{
+            functionDeclarations: [startBreathingExercise, identifyCognitiveDistortion, triggerCrisisIntervention],
+          }],
           callbacks: {
             onopen: () => {
               setSessionState(SessionState.LISTENING);
@@ -850,16 +1136,64 @@ function App() {
                 setCurrentOutput('');
                 setSessionState(SessionState.LISTENING);
 
-                if (activeSession && (userText || auraText)) {
-                  if (userText) {
-                    const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText };
-                    await addTranscriptEntryAuto(activeSession.id, userEntry);
+                  if (activeSession && (userText || auraText)) {
+                    if (userText) {
+                      const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText };
+                      lastTranscriptEntryIdRef.current = userEntry.id;
+                      await addTranscriptEntryAuto(activeSession.id, userEntry);
                     setActiveSession(prev => prev ? { ...prev, transcript: [...prev.transcript, userEntry] } : prev);
                   }
                   if (auraText) {
                     const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText };
                     await addTranscriptEntryAuto(activeSession.id, auraEntry);
                     setActiveSession(prev => prev ? { ...prev, transcript: [...prev.transcript, auraEntry] } : prev);
+                  }
+                }
+              }
+              if (message.toolCall?.functionCalls?.length) {
+                for (const fc of message.toolCall.functionCalls) {
+                  if (fc.name === 'startBreathingExercise') {
+                    audioPlaybackSourcesRef.current.forEach(source => source.stop());
+                    audioPlaybackSourcesRef.current.clear();
+                    nextAudioStartTimeRef.current = 0;
+                    toolCallIdRef.current = fc.id;
+                    setIsExerciseVisible(true);
+                  } else if (fc.name === 'identifyCognitiveDistortion') {
+                    const { distortion, statement } = fc.args || {};
+                    const newDistortion: CognitiveDistortion = {
+                      type: (distortion as string) || 'unknown',
+                      statement: (statement as string) || '',
+                      transcriptEntryId: lastTranscriptEntryIdRef.current,
+                    };
+                    if (activeSession) {
+                      setSessions(prev =>
+                        prev.map(session =>
+                          session.id === activeSession.id
+                            ? {
+                                ...session,
+                                cognitiveDistortions: [...(session.cognitiveDistortions || []), newDistortion],
+                              }
+                            : session,
+                        ),
+                      );
+                      setActiveSession(prev =>
+                        prev && prev.id === activeSession.id
+                          ? {
+                              ...prev,
+                              cognitiveDistortions: [...(prev.cognitiveDistortions || []), newDistortion],
+                            }
+                          : prev,
+                      );
+                      setActiveDistortion(newDistortion);
+                      try {
+                        await addCognitiveDistortion(activeSession.id, newDistortion);
+                      } catch (insertionError) {
+                        console.warn('Failed to save distortion:', insertionError);
+                      }
+                    }
+                  } else if (fc.name === 'triggerCrisisIntervention') {
+                    setIsCrisisModalOpen(true);
+                    await handleStopSession(true);
                   }
                 }
               }
@@ -999,6 +1333,7 @@ function App() {
         text: text.trim(),
       };
 
+      lastTranscriptEntryIdRef.current = userEntry.id;
       await addTranscriptEntryAuto(activeSession.id, userEntry);
       
       setActiveSession(prev => prev ? {
@@ -1011,35 +1346,31 @@ function App() {
       setCurrentOutput('');
 
       if (genAIRef.current) {
-        const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        
-        // Get user's memory for context
-        const memory = await getAuraMemory(user.id);
-        
-        const context = `Du bist Aura, eine einfühlsame KI-Therapeutin. 
+        // Use the new SDK format for text generation
+        const response = await genAIRef.current.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: `Du bist Aura, eine einfühlsame KI-Therapeutin.
         Nutzer: ${userProfile.name}
-        Erinnerungen: ${JSON.stringify(memory)}
+        Erinnerungen: ${JSON.stringify(userProfile.memory)}
         
-        Antworte empathisch und therapeutisch auf die Nachricht des Nutzers.`;
-
-        const chat = model.startChat({
-          history: [
-            { role: 'user', parts: [{ text: context }] },
-            ...activeSession.transcript.slice(-10).map(entry => ({
-              role: entry.speaker === Speaker.USER ? 'user' : 'model',
-              parts: [{ text: entry.text }],
-            }))
-          ],
+        Antworte empathisch und therapeutisch auf die folgende Nachricht: ${text}`
+            }]
+          }],
+          config: {
+            thinkingConfig: { thinkingBudget: 0 } // Turn off thinking for faster responses
+          }
         });
-
-        const result = await chat.sendMessage(text);
-        const response = result.response.text();
+        
+        const responseText = response.text.trim();
 
         // Add AI response
         const auraEntry: TranscriptEntry = {
           id: crypto.randomUUID(),
           speaker: Speaker.AURA,
-          text: response,
+          text: responseText,
         };
 
         await addTranscriptEntryAuto(activeSession.id, auraEntry);
@@ -1053,7 +1384,7 @@ function App() {
         if (speakResponse && ttsServiceRef.current?.isSupported()) {
           setSessionState(SessionState.SPEAKING);
           try {
-            await ttsServiceRef.current.speak(response, userProfile.language);
+            await ttsServiceRef.current.speak(responseText, userProfile.language);
           } catch (error) {
             console.error('TTS error:', error);
           }
@@ -1409,6 +1740,43 @@ function App() {
         </div>
       </AppFrame>
       {/* Modals */}
+      {isExerciseVisible && (
+        <BreathingExercise
+          translations={T.ui.breathingExercise}
+          onFinish={() => setIsExerciseVisible(false)}
+        />
+      )}
+      {isCrisisModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg text-center p-8">
+            <AlertTriangleIcon className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{T.ui.crisisModal.title}</h2>
+            <p className="mt-2 text-slate-600 dark:text-slate-300">{T.ui.crisisModal.text}</p>
+            <div className="mt-6 space-y-3 text-left">
+              <a
+                href={userProfile.language === 'en-US' ? 'tel:911' : 'tel:112'}
+                className="block p-4 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                <p className="font-bold text-slate-800 dark:text-slate-100">{T.ui.crisisModal.emergency}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.crisisModal.emergencyDesc}</p>
+              </a>
+              <a
+                href={userProfile.language === 'en-US' ? 'tel:988' : 'tel:08001110111'}
+                className="block p-4 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                <p className="font-bold text-slate-800 dark:text-slate-100">{T.ui.crisisModal.helpline}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.crisisModal.helplineDesc}</p>
+              </a>
+            </div>
+            <button
+              onClick={() => setIsCrisisModalOpen(false)}
+              className="mt-8 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {T.ui.crisisModal.close}
+            </button>
+          </div>
+        </div>
+      )}
       <ProfileModal
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
@@ -1427,10 +1795,14 @@ function App() {
         onSuggestSmartGoal={async (desc: string) => {
           try {
             if (!genAIRef.current) return desc;
-            const prompt = `Formuliere aus folgendem Ziel ein konkretes SMART-Ziel: ${desc}`;
-            const model = genAIRef.current.getGenerativeModel({ model: 'gemini-1.5-pro' });
-            const res = await model.generateContent([{ text: prompt }]);
-            return res.response.text().trim() || desc;
+            const response = await genAIRef.current.models.generateContent({
+              model: 'gemini-1.5-pro',
+              contents: [{
+                role: 'user',
+                parts: [{ text: `Formuliere aus folgendem Ziel ein konkretes SMART-Ziel: ${desc}` }]
+              }]
+            });
+            return response.text.trim() || desc;
           } catch { return desc; }
         }}
         T={T}

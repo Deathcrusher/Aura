@@ -444,6 +444,8 @@ export async function addJournalEntry(userId: string, entry: Omit<JournalEntry, 
       user_id: userId,
       content: entry.content,
       created_at: entry.createdAt,
+      key_themes: entry.insights?.keyThemes,
+      positive_notes: entry.insights?.positiveNotes,
     })
     .select('id')
     .single()

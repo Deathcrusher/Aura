@@ -1,5 +1,23 @@
+import { AuraMemory } from '../types';
+
 // Deutsch (de-DE) Übersetzungen
 export const deDE = {
+  BASE_SYSTEM_INSTRUCTION: `**Sprachanweisung:** Führe dieses Gespräch ausschließlich auf Deutsch. Du bist Aura, eine empathische Psychotherapeutin. Höre zu, gib empathische Validation und erkenne Muster, ohne den Benutzer zu bewerten. Nutze deine Werkzeuge (z. B. identifyCognitiveDistortion, Atemübungen, triggerCrisisIntervention) nur dann, wenn sie wirklich nötig sind.`,
+  userNamePrompt: (name: string) => `Nenne den Benutzer beim Namen (${name}) und erkläre, dass du zuhörst und ihn begleiten möchtest.`,
+  memoryHeader: (name: string) => `Auras gespeichertes Wissen über ${name.toUpperCase()}:`,
+  memoryInstructions: 'Ziehe diese Erinnerungen behutsam heran, wenn sie das Gespräch bereichern, ohne sie eins zu eins zu wiederholen.',
+  goalsHeader: 'Aktuelle Ziele des Benutzers:',
+  goalsInstructions: 'Beziehe diese Ziele mit ein, feiere Fortschritte, erkunde Hindernisse und verbinde sie mit offenen Fragen.',
+  moodHeader: 'Mood-Tracker der letzten Tage:',
+  moodInstructions: 'Achte auf Stimmungen oder Wendetage und benenne sie, wenn sie relevant erscheinen.',
+  summarizeNotesPrompt: (name: string, transcript: string) => `Die folgende Abschrift ist von einer Therapiesitzung mit ${name}. Fasse die zentralen Themen, die Stimmungslagen und die wichtigsten Schritte als Notizen zusammen. Schreibe im Stil von Beobachtungen in der dritten Person (z. B. "${name} äußerte...").\n\n${transcript}`,
+  generateUserSummaryPrompt: (name: string, transcript: string) => `Du bist Aura, eine empathische Therapeutin. Formuliere eine kurze Zusammenfassung zu ${name}, in der du direkt die "Du"-Form nutzt. Hebe die Kernthemen, erkannten Emotionen und mögliche Ansätze hervor. Nutze Absätze, keine Aufzählungen.\n\nAbschrift:\n${transcript}`,
+  updateAuraMemoryPrompt: (memory: AuraMemory, transcript: string) => `Analysiere die folgende Abschrift, um die JSON-Erinnerungen des Benutzers zu aktualisieren. Nutze nur die Felder keyRelationships, majorLifeEvents, recurringThemes und userGoals. Vergleiche mit dem bestehenden Gedächtnis:\n${JSON.stringify(memory, null, 2)}\n\nAbschrift:\n${transcript}`,
+  moodTrendPrompt: (transcript: string) => `Analysiere die folgende Transkription. Teile das Gespräch in vier chronologisch gleiche Abschnitte und weise jedem Abschnitt eine Stimmung auf einer Skala von 1 (sehr schlecht) bis 5 (sehr gut) zu. Gib nur ein JSON-Array mit vier Zahlen zurück.\n\nAbschrift:\n${transcript}`,
+  wordCloudPrompt: (transcript: string) => `Analysiere die Beiträge des Benutzers und finde die 15 wichtigsten Wörter oder kurzen Phrasen (2-3 Wörter), die zentrale Themen beschreiben. Schließe Füllwörter aus. Gib ein JSON-Array zurück, in dem jedes Objekt einen "text" (Thema) und einen "value" (Wichtigkeit zwischen 10 und 50) enthält.\n\nAbschrift:\n${transcript}`,
+  journalInsightPrompt: (entry: string) => `Du bist Aura, eine reflektierende Therapeutin. Lies diesen Tagebucheintrag aufmerksam. Gib ausschließlich ein JSON-Objekt mit "keyThemes" (2-3 Themen) und "positiveNotes" (Stärken oder Ressourcen) zurück. Keine weiteren Erklärungen.\n\nEintrag:\n"""${entry}"""`,
+  smartGoalPrompt: (userInput: string) => `Ein Benutzer hat folgendes Ziel genannt: "${userInput}". Formuliere daraus ein SMARTes Ziel (spezifisch, messbar, erreichbar, relevant, terminiert) in der Ich-Form. Gib nur den Satz zurück.`,
+  voicePreviewText: 'Hallo, so klinge ich. Ich hoffe, meine Stimme gefällt dir.',
   ui: {
     auth: {
       signUpTitle: 'Willkommen bei Aura',
@@ -53,9 +71,11 @@ export const deDE = {
           'should-statements': 'Du setzt dich mit "Ich sollte"-Aussagen unter Druck.',
           'labeling': 'Du gibst dir selbst negative Etiketten.',
           'personalization': 'Du machst dich für Dinge verantwortlich, die außerhalb deiner Kontrolle liegen.',
-        };
-        return infos[type] || 'Ein kognitives Denkmuster wurde erkannt.';
+      };
+      return infos[type] || 'Ein kognitives Denkmuster wurde erkannt.';
       },
+      sessionSummaryTitle: 'Sitzungszusammenfassung',
+      sessionSummarySubtitle: 'Aura fasst für dich zusammen, was gerade stattfand.',
     },
     sidebar: {
       newChat: 'Neues Gespräch',
@@ -78,6 +98,13 @@ export const deDE = {
       listening: 'Ich höre zu...',
       processing: 'Verarbeite...',
       speaking: 'Spreche...',
+    },
+    breathingExercise: {
+      inhale: 'Einatmen',
+      hold: 'Halte den Atem',
+      exhale: 'Ausatmen',
+      holdEmpty: 'Pause ohne Atem',
+      finishButton: 'Beenden',
     },
     voiceGenderMarker: {
       male: '♂',
@@ -110,6 +137,15 @@ export const deDE = {
       upgradeNow: 'Jetzt upgraden',
       manage: 'Plan verwalten',
       upgrade: 'Upgrade durchführen',
+    },
+    crisisModal: {
+      title: 'Ihre Sicherheit ist uns wichtig',
+      text: 'Es fühlt sich so an, als würdest du gerade eine besonders schwierige Zeit durchleben. Bitte denke daran, dass Hilfe sofort erreichbar ist.',
+      emergency: 'Notruf: 112',
+      emergencyDesc: 'Für unmittelbare Gefahr für dich oder andere.',
+      helpline: 'Telefonseelsorge: 0800 111 0 111',
+      helplineDesc: 'Vertrauliche Gespräche rund um die Uhr.',
+      close: 'Zurück zur Unterhaltung',
     },
     profileModal: {
       title: 'Profil anpassen',
@@ -173,6 +209,22 @@ export const deDE = {
 
 // Englisch (en-US) Übersetzungen  
 export const enUS = {
+  BASE_SYSTEM_INSTRUCTION: `**System instruction:** Carry this conversation entirely in English. You are Aura, a compassionate therapist. Listen closely, highlight patterns, gently guide the user with validation, and only use tools like identifyCognitiveDistortion, breathing exercises, or crisis intervention when clearly needed.`,
+  userNamePrompt: (name: string) => `Address ${name} by name and affirm that you are here to listen and support.`,
+  memoryHeader: (name: string) => `Stored memory about ${name.toUpperCase()}:`,
+  memoryInstructions: 'Reference these memories softly to notice patterns without repeating them verbatim.',
+  goalsHeader: 'Current goals:',
+  goalsInstructions: 'Incorporate these goals into the dialogue, celebrate progress, and explore any obstacles.',
+  moodHeader: 'Recent mood log:',
+  moodInstructions: 'Observe mood shifts or turning points and bring gentle attention to them when helpful.',
+  summarizeNotesPrompt: (name: string, transcript: string) => `The following transcript is from a therapy session with ${name}. Summarize the core themes, emotional states, and key steps in concise notes. Write in third person, for example "${name} shared...".\n\nTranscript:\n${transcript}`,
+  generateUserSummaryPrompt: (name: string, transcript: string) => `You are Aura, an empathetic therapist. Write a short summary for ${name} using direct "you" language. Highlight main topics, emotional shifts, and actionable insights. Use paragraphs only.\n\nTranscript:\n${transcript}`,
+  updateAuraMemoryPrompt: (memory: AuraMemory, transcript: string) => `Analyze the following transcript and update the JSON memory profile for the user. Focus on keyRelationships, majorLifeEvents, recurringThemes, and userGoals. Merge new insights with this memory:\n${JSON.stringify(memory, null, 2)}\n\nTranscript:\n${transcript}`,
+  moodTrendPrompt: (transcript: string) => `Analyze the transcript. Divide it into four equal chronological sections and assign a mood rating of 1 (very bad) to 5 (very good) to each section. Return only a JSON array of four numbers.\n\nTranscript:\n${transcript}`,
+  wordCloudPrompt: (transcript: string) => `Review the user's speech in the transcript and identify the 15 most salient nouns, adjectives, or short phrases (2-3 words). Exclude filler words. Return a JSON array of objects with "text" and "value" (10-50) to represent each theme.\n\nTranscript:\n${transcript}`,
+  journalInsightPrompt: (entry: string) => `You are Aura, a reflective therapist. Read this journal entry and return only a JSON object with "keyThemes" (2-3 themes) and "positiveNotes" (strengths or resources). No extra explanation.\n\nEntry:\n"""${entry}"""`,
+  smartGoalPrompt: (userInput: string) => `The user said: "${userInput}". Rewrite it as a SMART goal (Specific, Measurable, Achievable, Relevant, Time-bound) in first-person. Return only the resulting sentence.`,
+  voicePreviewText: 'Hello, this is how I sound. I hope you like this voice.',
   ui: {
     auth: {
       signUpTitle: 'Welcome to Aura',
@@ -229,6 +281,8 @@ export const enUS = {
         };
         return infos[type] || 'A cognitive thinking pattern was detected.';
       },
+      sessionSummaryTitle: 'Session summary',
+      sessionSummarySubtitle: 'Aura briefly captures what just happened.',
     },
     sidebar: {
       newChat: 'New Chat',
@@ -251,6 +305,13 @@ export const enUS = {
       listening: 'Listening...',
       processing: 'Processing...',
       speaking: 'Speaking...',
+    },
+    breathingExercise: {
+      inhale: 'Inhale',
+      hold: 'Hold',
+      exhale: 'Exhale',
+      holdEmpty: 'Hold empty',
+      finishButton: 'Finish',
     },
     voiceGenderMarker: {
       male: '♂',
@@ -283,6 +344,15 @@ export const enUS = {
       upgradeNow: 'Upgrade now',
       manage: 'Manage plan',
       upgrade: 'Upgrade',
+    },
+    crisisModal: {
+      title: 'Your Safety is Important',
+      text: 'It sounds like you are going through a very difficult time. Please know that immediate help is available.',
+      emergency: 'Emergency Services: 911',
+      emergencyDesc: 'For immediate danger to you or others.',
+      helpline: 'Crisis Support: 988',
+      helplineDesc: 'Confidential support available any time.',
+      close: 'Return to the conversation',
     },
     profileModal: {
       title: 'Edit profile',
