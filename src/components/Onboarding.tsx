@@ -16,6 +16,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
     const [profile, setProfile] = useState<UserProfile>(defaultProfile);
     const [isFadingOut, setIsFadingOut] = useState(false);
 
+    // Update profile when defaultProfile changes (e.g., after login)
+    useEffect(() => {
+        if (defaultProfile.name && defaultProfile.name !== 'User') {
+            setProfile(prev => ({ ...prev, name: defaultProfile.name }));
+        }
+    }, [defaultProfile.name]);
+
     const T = translations[profile.language as keyof typeof translations] || translations['de-DE'];
 
     const changeStep = (newStep: number) => {

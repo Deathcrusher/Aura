@@ -397,15 +397,15 @@ function App() {
     try {
       // Update UI immediately to let the user proceed
       setUserProfile(updatedProfile);
-      // Persist in background (don't block UX)
-      updateUserProfile(user.id, updatedProfile).catch((e) =>
-        console.warn('Could not persist onboarding completion yet:', e),
-      );
+      // Persist to Supabase - await to ensure it's saved
+      await updateUserProfile(user.id, updatedProfile);
+      console.log('Onboarding completed and profile saved:', updatedProfile.name);
       
       // Create first session
       await handleNewChat();
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      // Still allow user to proceed even if save fails
     }
   };
 
