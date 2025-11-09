@@ -319,31 +319,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Bestimme die Redirect-URL: 
-      // WICHTIG: Die Redirect-URL muss die App-URL sein, nicht die Supabase Callback-URL
-      // Die Supabase Callback-URL ist bereits in Google Cloud Console konfiguriert
+      // Bestimme die Redirect-URL für OAuth
+      // WICHTIG: Diese URL muss mit den Redirect-URLs in Supabase Dashboard übereinstimmen
       const getRedirectUrl = () => {
+        // 1. Prüfe Umgebungsvariable (kann in Vercel gesetzt werden)
+        const envAppUrl = typeof import !== 'undefined' && (import.meta as any).env?.VITE_APP_URL
+        if (envAppUrl) {
+          console.log('🔐 Using VITE_APP_URL from environment:', envAppUrl)
+          return envAppUrl
+        }
+        
+        // 2. SSR Fallback
         if (typeof window === 'undefined') {
           return 'https://aura-two-beta.vercel.app'
         }
         
-        // Prüfe ob wir auf Vercel sind (Production)
-        const hostname = window.location.hostname
-        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+        // 3. Prüfe ob wir wirklich lokal sind (sehr strikt)
+        const hostname = window.location.hostname.toLowerCase()
+        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')
         
-        if (isLocalhost) {
-          // Lokal: localhost verwenden
-          console.warn('⚠️ Lokaler Test-Modus: Verwende localhost als Redirect-URL')
-          return window.location.origin
+        // 4. Prüfe Production-Modus
+        const isProduction = typeof import !== 'undefined' && (import.meta as any).env?.PROD === true
+        
+        console.log('🔐 OAuth Redirect Debug:', {
+          hostname,
+          isLocalhost,
+          isProduction,
+          origin: window.location.origin,
+          envMode: typeof import !== 'undefined' ? (import.meta as any).env?.MODE : 'unknown'
+        })
+        
+        // 5. Wenn Production-Modus ODER nicht localhost → Production-URL verwenden
+        if (isProduction || !isLocalhost) {
+          console.log('✅ Using Production URL: https://aura-two-beta.vercel.app')
+          return 'https://aura-two-beta.vercel.app'
         }
         
-        // Production: Immer die Vercel-Domain verwenden
-        return 'https://aura-two-beta.vercel.app'
+        // 6. Nur wenn wirklich lokal → localhost verwenden
+        console.warn('⚠️ Lokaler Test-Modus: Verwende localhost als Redirect-URL')
+        return window.location.origin
       }
       
       const redirectTo = getRedirectUrl()
-      console.log('🔐 Google OAuth Redirect URL:', redirectTo)
-      console.log('🔐 Current hostname:', typeof window !== 'undefined' ? window.location.hostname : 'SSR')
+      console.log('🔐 Final Google OAuth Redirect URL:', redirectTo)
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
