@@ -320,20 +320,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Bestimme die Redirect-URL: 
-      // 1. Verwende Umgebungsvariable falls gesetzt (für Production)
-      // 2. Sonst verwende die aktuelle Origin (funktioniert sowohl lokal als auch in Production)
+      // WICHTIG: Die Redirect-URL muss die App-URL sein, nicht die Supabase Callback-URL
+      // Die Supabase Callback-URL ist bereits in Google Cloud Console konfiguriert
       const getRedirectUrl = () => {
         if (typeof window === 'undefined') {
           return 'https://aura-two-beta.vercel.app'
         }
         
-        // In Production sollte window.location.origin automatisch die Vercel-Domain sein
-        // Falls lokal getestet wird, wird localhost verwendet
-        return window.location.origin
+        // Prüfe ob wir auf Vercel sind (Production)
+        const hostname = window.location.hostname
+        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+        
+        if (isLocalhost) {
+          // Lokal: localhost verwenden
+          console.warn('⚠️ Lokaler Test-Modus: Verwende localhost als Redirect-URL')
+          return window.location.origin
+        }
+        
+        // Production: Immer die Vercel-Domain verwenden
+        return 'https://aura-two-beta.vercel.app'
       }
       
       const redirectTo = getRedirectUrl()
       console.log('🔐 Google OAuth Redirect URL:', redirectTo)
+      console.log('🔐 Current hostname:', typeof window !== 'undefined' ? window.location.hostname : 'SSR')
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
