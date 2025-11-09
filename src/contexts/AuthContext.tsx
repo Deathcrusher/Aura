@@ -323,7 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // WICHTIG: Diese URL muss mit den Redirect-URLs in Supabase Dashboard übereinstimmen
       const getRedirectUrl = () => {
         // 1. Prüfe Umgebungsvariable (kann in Vercel gesetzt werden)
-        const envAppUrl = typeof import !== 'undefined' && (import.meta as any).env?.VITE_APP_URL
+        const envAppUrl = (import.meta as any).env?.VITE_APP_URL
         if (envAppUrl) {
           console.log('🔐 Using VITE_APP_URL from environment:', envAppUrl)
           return envAppUrl
@@ -339,14 +339,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')
         
         // 4. Prüfe Production-Modus
-        const isProduction = typeof import !== 'undefined' && (import.meta as any).env?.PROD === true
+        const isProduction = (import.meta as any).env?.PROD === true
         
         console.log('🔐 OAuth Redirect Debug:', {
           hostname,
           isLocalhost,
           isProduction,
           origin: window.location.origin,
-          envMode: typeof import !== 'undefined' ? (import.meta as any).env?.MODE : 'unknown'
+          envMode: (import.meta as any).env?.MODE || 'unknown'
         })
         
         // 5. Wenn Production-Modus ODER nicht localhost → Production-URL verwenden
