@@ -282,15 +282,20 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
     try {
       const raceResult = await Promise.race([queryPromise, queryTimeout.promise]);
       queryTimeout.cancel();
-      
-      // Check if we got a timeout result
-      if (!queryResolved && raceResult && raceResult.error && raceResult.error.message === 'Query timeout') {
-        console.error('❌ [getUserProfile] Query timed out after 5 seconds');
-        console.error('   - This might indicate a network issue or RLS policy problem');
-        return null;
+
+      const timedOutBeforeCompletion =
+        !queryResolved &&
+        Boolean(raceResult) &&
+        Boolean(raceResult.error) &&
+        raceResult.error.message === 'Query timeout';
+
+      if (timedOutBeforeCompletion) {
+        console.warn('⚠️ [getUserProfile] Query exceeded 5 seconds, waiting for completion...');
+        console.warn('   - This might indicate a transient network issue or RLS policy delay');
+        queryResult = await queryPromise;
+      } else {
+        queryResult = raceResult ?? (await queryPromise);
       }
-      
-      queryResult = raceResult;
     } catch (error) {
       queryTimeout.cancel();
       console.error('❌ [getUserProfile] Database query failed with exception:', error);
