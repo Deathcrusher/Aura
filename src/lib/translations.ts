@@ -193,6 +193,16 @@ export const deDE = {
       voiceLabel: 'Stimme',
       logout: 'Abmelden',
     },
+    profileView: {
+      accountInformation: 'Kontoinformationen',
+      manageAccount: 'Konto verwalten',
+      privacySettings: 'Datenschutz',
+      dataPrivacy: 'Daten & Datenschutzrichtlinie',
+      helpSupport: 'Hilfe & Support',
+      faq: 'FAQ',
+      contactSupport: 'Support kontaktieren',
+      aboutAura: 'Über Aura',
+    },
     voiceDescriptions: {
       Zephyr: 'Sanfte, beruhigende Stimme mit warmer Klangfarbe.',
       Puck: 'Energiegeladene Stimme mit freundlicher Klarheit.',
@@ -422,6 +432,16 @@ export const enUS = {
       languageLabel: 'Preferred language',
       voiceLabel: 'Voice',
       logout: 'Log out',
+    },
+    profileView: {
+      accountInformation: 'Account Information',
+      manageAccount: 'Manage Account',
+      privacySettings: 'Privacy Settings',
+      dataPrivacy: 'Data & Privacy Policy',
+      helpSupport: 'Help & Support',
+      faq: 'FAQ',
+      contactSupport: 'Contact Support',
+      aboutAura: 'About Aura',
     },
     voiceDescriptions: {
       Zephyr: 'Soft, calming tone with a warm timbre.',

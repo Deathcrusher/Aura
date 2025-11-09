@@ -1,10 +1,11 @@
 import React from 'react';
-import { UserProfile } from '../types';
+import { UserProfile, SubscriptionPlan } from '../types';
 import { translations } from '../lib/translations';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
   onOpenProfile: () => void;
+  onOpenSubscription?: () => void;
   onLogout?: () => void;
   T: typeof translations['de-DE'];
 }
@@ -12,25 +13,55 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({
   userProfile,
   onOpenProfile,
+  onOpenSubscription,
   onLogout,
   T
 }) => {
+  const isPremium = userProfile.subscription.plan === SubscriptionPlan.PREMIUM;
+
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-[#f6f6f8] dark:bg-[#161022]">
       {/* Top App Bar */}
-      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] px-4 pt-4 pb-2">
-        <div className="flex size-10 shrink-0 items-center justify-center" />
+      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] px-4 pt-4 pb-2 sticky top-0 z-10">
+        <div className="flex size-12 shrink-0 items-center justify-center" />
         <h1 className="flex-1 text-center text-xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white">
-          Settings
+          {T.ui.sidebar.profile}
         </h1>
-        <div className="flex size-10 shrink-0 items-center justify-center" />
+        <div className="flex size-12 shrink-0 items-center justify-center" />
       </header>
 
-      <main className="flex-1 pb-28">
+      <main className="flex-1 pb-28 overflow-y-auto">
+        {/* Profile Header */}
+        <section className="mt-4 px-4">
+          <div className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900/40 rounded-xl">
+            <div className="relative">
+              {userProfile.avatarUrl ? (
+                <img
+                  src={userProfile.avatarUrl}
+                  alt={userProfile.name}
+                  className="w-16 h-16 rounded-full object-cover bg-slate-200 dark:bg-slate-600 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-800 ring-[#6c2bee]"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center">
+                  <svg className="w-10 h-10 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{userProfile.name}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {isPremium ? 'Aura Premium' : 'Aura Free'}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Account Information Section */}
-        <section className="mt-4">
+        <section className="mt-6">
           <h2 className="px-4 pb-2 pt-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Account Information
+            {T.ui.profileView?.accountInformation || 'Kontoinformationen'}
           </h2>
           <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
             <button 
@@ -45,7 +76,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </svg>
                   </div>
                   <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                    Manage Account
+                    {T.ui.profileView?.manageAccount || 'Konto verwalten'}
                   </p>
                 </div>
                 <div className="shrink-0">
@@ -55,77 +86,40 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
               </div>
             </button>
-            <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
-            <div className="flex items-center gap-4 px-4 py-3.5">
-              <div className="flex flex-1 items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                  </svg>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Subscription
-                </p>
-              </div>
-              <div className="shrink-0">
-                <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Notifications Section */}
-        <section className="mt-6">
-          <h2 className="px-4 pb-2 pt-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Notifications
-          </h2>
-          <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
-            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-              <div className="flex items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Push Notifications
-                </p>
-              </div>
-              <div className="shrink-0">
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input checked className="peer sr-only" type="checkbox" />
-                  <div className="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#6c2bee] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:border-slate-600 dark:bg-slate-700" />
-                </label>
-              </div>
-            </div>
-            <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
-            <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-              <div className="flex items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Email Notifications
-                </p>
-              </div>
-              <div className="shrink-0">
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input className="peer sr-only" type="checkbox" />
-                  <div className="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:start-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-[#6c2bee] peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:border-slate-600 dark:bg-slate-700" />
-                </label>
-              </div>
-            </div>
+            {onOpenSubscription && (
+              <>
+                <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
+                <button 
+                  onClick={onOpenSubscription}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center gap-4 px-4 py-3.5">
+                    <div className="flex flex-1 items-center gap-4">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      </div>
+                      <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+                        {T.ui.subscription.manage || T.ui.subscription.upgrade}
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+              </>
+            )}
           </div>
         </section>
 
         {/* Privacy Settings Section */}
         <section className="mt-6">
           <h2 className="px-4 pb-2 pt-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Privacy Settings
+            {T.ui.profileView?.privacySettings || 'Datenschutz'}
           </h2>
           <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
             <div className="flex items-center gap-4 px-4 py-3.5">
@@ -136,25 +130,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </svg>
                 </div>
                 <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Data & Privacy Policy
-                </p>
-              </div>
-              <div className="shrink-0">
-                <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-            <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
-            <div className="flex items-center gap-4 px-4 py-3.5">
-              <div className="flex flex-1 items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Clear Chat History
+                  {T.ui.profileView?.dataPrivacy || 'Daten & Datenschutzrichtlinie'}
                 </p>
               </div>
               <div className="shrink-0">
@@ -169,7 +145,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         {/* Help & Support Section */}
         <section className="mt-6">
           <h2 className="px-4 pb-2 pt-4 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Help & Support
+            {T.ui.profileView?.helpSupport || 'Hilfe & Support'}
           </h2>
           <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
             <div className="flex items-center gap-4 px-4 py-3.5">
@@ -180,7 +156,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </svg>
                 </div>
                 <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  FAQ
+                  {T.ui.profileView?.faq || 'FAQ'}
                 </p>
               </div>
               <div className="shrink-0">
@@ -198,7 +174,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </svg>
                 </div>
                 <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  Contact Support
+                  {T.ui.profileView?.contactSupport || 'Support kontaktieren'}
                 </p>
               </div>
               <div className="shrink-0">
@@ -216,7 +192,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   </svg>
                 </div>
                 <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  About AURA
+                  {T.ui.profileView?.aboutAura || 'Über Aura'}
                 </p>
               </div>
               <div className="shrink-0">
@@ -230,7 +206,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         {/* Log Out Section */}
         {onLogout && (
-          <section className="mt-8">
+          <section className="mt-8 mb-6">
             <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
               <button onClick={onLogout} className="w-full text-left">
                 <div className="flex items-center gap-4 px-4 py-3.5">
@@ -241,7 +217,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       </svg>
                     </div>
                     <p className="flex-1 truncate text-base font-medium leading-normal text-red-500">
-                      Log Out
+                      {T.ui.sidebar.logout}
                     </p>
                   </div>
                 </div>

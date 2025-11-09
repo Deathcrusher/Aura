@@ -2157,6 +2157,8 @@ function App() {
             <ProfileView
               userProfile={userProfile}
               onOpenProfile={() => setIsProfileOpen(true)}
+              onOpenSubscription={() => setIsSubscriptionOpen(true)}
+              onLogout={() => signOut()}
               T={T}
             />
           )}
