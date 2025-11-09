@@ -232,16 +232,64 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
 
     console.log('✅ [getUserProfile] Session verified, loading profile from database...');
 
+    // Ensure the session is set in the Supabase client
+    // This is important for RLS policies to work correctly
+    if (currentSession && supabase) {
+      try {
+        const setSessionTimeout = createTimeout<{ error: { message: string } }>(
+          2000,
+          { error: { message: 'setSession timeout' } }
+        );
+        
+        const setSessionResult = await Promise.race([
+          supabase.auth.setSession(currentSession),
+          setSessionTimeout.promise
+        ]);
+        setSessionTimeout.cancel();
+        
+        if (setSessionResult.error) {
+          console.warn('⚠️ [getUserProfile] Could not set session in client:', setSessionResult.error);
+        } else {
+          console.log('✅ [getUserProfile] Session set in Supabase client');
+        }
+      } catch (error) {
+        console.warn('⚠️ [getUserProfile] Error setting session:', error);
+        // Continue anyway - the session might already be set
+      }
+    }
+
     // Select only profile columns explicitly to avoid automatic joins
     // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
     // Reduced timeout to 5 seconds
     console.log('🔍 [getUserProfile] Executing database query...');
-    const profileQuery = supabase
+    console.log('🔍 [getUserProfile] Query details:', {
+      userId,
+      hasSession: !!currentSession,
+      sessionUserId: currentSession?.user?.id
+    });
+    
+    // Create the query promise explicitly with better error handling
+    let queryResolved = false;
+    const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .order('created_at', { ascending: false })
-      .limit(1);
+      .limit(1)
+      .then((result) => {
+        queryResolved = true;
+        console.log('✅ [getUserProfile] Query completed:', {
+          hasData: !!result.data,
+          dataLength: result.data?.length || 0,
+          hasError: !!result.error
+        });
+        return result;
+      })
+      .catch((error) => {
+        queryResolved = true;
+        console.error('❌ [getUserProfile] Query error:', error);
+        return { data: null, error };
+      });
     
     const queryTimeout = createTimeout<{ data: null, error: { message: string } }>(
       5000,
@@ -250,11 +298,20 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
     
     let queryResult: { data: any, error: any };
     try {
-      queryResult = await Promise.race([profileQuery, queryTimeout.promise]);
+      const raceResult = await Promise.race([queryPromise, queryTimeout.promise]);
       queryTimeout.cancel();
+      
+      // Check if we got a timeout result
+      if (!queryResolved && raceResult && raceResult.error && raceResult.error.message === 'Query timeout') {
+        console.error('❌ [getUserProfile] Query timed out after 5 seconds');
+        console.error('   - This might indicate a network issue or RLS policy problem');
+        return null;
+      }
+      
+      queryResult = raceResult;
     } catch (error) {
       queryTimeout.cancel();
-      console.error('❌ [getUserProfile] Database query failed:', error);
+      console.error('❌ [getUserProfile] Database query failed with exception:', error);
       return null;
     }
     
