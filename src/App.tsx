@@ -453,7 +453,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-flash',
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.generateUserSummaryPrompt(name, conversation) }],
@@ -901,7 +901,7 @@ function App() {
 
           if (genAIRef.current) {
             const response = await genAIRef.current.models.generateContent({
-              model: 'gemini-1.5-flash',
+              model: 'gemini-2.5-flash',
               contents: [{
                 role: 'user',
                 parts: [
@@ -1349,7 +1349,7 @@ function App() {
       if (genAIRef.current) {
         // Use the new SDK format for text generation
         const response = await genAIRef.current.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash',
           contents: [{
             role: 'user',
             parts: [{
@@ -1799,7 +1799,7 @@ function App() {
           try {
             if (!genAIRef.current) return desc;
             const response = await genAIRef.current.models.generateContent({
-              model: 'gemini-1.5-pro',
+              model: 'gemini-2.5-flash',
               contents: [{
                 role: 'user',
                 parts: [{ text: `Formuliere aus folgendem Ziel ein konkretes SMART-Ziel: ${desc}` }]

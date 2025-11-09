@@ -4,6 +4,7 @@
 - Brought back Gemini Live tool support with breathing exercise, cognitive distortion, and crisis intervention function declarations, added UI handling (breathing overlay, crisis modal), and persisted cognitive distortions to the database events that drive the chat view overlay (`src/App.tsx`, `src/lib/database.ts`).
 - Ensured journal entries capture AI insights (saved via Supabase and shown in the modal) and that the crisis/breathing UI strings exist in both locales, so the restored flows are localized and documented (`src/App.tsx`, `src/lib/translations.ts`, `src/lib/database.ts`).
 - Fixed the session analysis pipeline so summaries/memory updates always use the chat session that triggered them, even when the voice call is torn down or the user leaves the session (`src/App.tsx`).
+- Standardized all AI prompts to `gemini-2.5-flash` so summaries, chat replies, and goal suggestions no longer rely on the deprecated 1.5 family (`src/App.tsx`).
 
 ## Testing
 
