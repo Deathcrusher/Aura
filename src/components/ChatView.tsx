@@ -29,7 +29,6 @@ const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: (
                     <p className="text-xs text-slate-500 dark:text-slate-400">{T.ui.chat.distortionInfo(distortion.type)}</p>
                 </div>
                 <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
-                    {/* Inline X icon */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
@@ -48,175 +47,101 @@ const UserAvatar: React.FC<{ profile: UserProfile, className?: string }> = ({ pr
     );
 };
 
-
 export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession, currentInput, currentOutput, activeDistortion, setActiveDistortion, inputAnalyserNode, outputAnalyserNode, userProfile, T }) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [activeSession.transcript, currentInput, currentOutput]);
 
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        const centerX = (canvas.width / dpr) / 2;
-        const centerY = (canvas.height / dpr) / 2;
-
-        let animationFrameId: number;
-        let idlePhase = 0;
-
-        const renderFrame = () => {
-            animationFrameId = requestAnimationFrame(renderFrame);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const analyser = sessionState === SessionState.USER_SPEAKING
-                ? inputAnalyserNode
-                : sessionState === SessionState.SPEAKING
-                    ? outputAnalyserNode
-                    : null;
-            
-            const baseRadius = 64; // Corresponds to w-32 avatar
-
-            if (analyser) {
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-                analyser.getByteFrequencyData(dataArray);
-
-                const avg = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
-                const normalizedAvg = avg / 128.0;
-
-                const color = sessionState === SessionState.USER_SPEAKING ? 'rgba(34, 197, 94, ' : 'rgba(45, 212, 191, ';
-                
-
-                for (let i = 1; i <= 3; i++) {
-                    const radius = baseRadius + (i * 12) + (normalizedAvg * 20);
-                    const opacity = Math.max(0, 0.4 - (i * 0.12) - (1 - normalizedAvg) * 0.3);
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    ctx.strokeStyle = `${color}${opacity})`;
-                    ctx.lineWidth = 1 + normalizedAvg * 1.5;
-                    ctx.stroke();
-                }
-            } else if (sessionState === SessionState.LISTENING || sessionState === SessionState.IDLE) {
-                idlePhase += 0.015;
-                const breath = (Math.sin(idlePhase) + 1) / 2; // Varies between 0 and 1
-
-                const color = 'rgba(59, 130, 246, '; // Blue for listening state
-                const radius = baseRadius + 10 + breath * 8;
-                const opacity = 0.1 + breath * 0.25;
-                
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                ctx.strokeStyle = `${color}${opacity})`;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-        };
-
-        renderFrame();
-
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-        };
-    }, [sessionState, inputAnalyserNode, outputAnalyserNode]);
-
-    const getStatusRingClass = (speaker: 'aura' | 'user') => {
-        if (speaker === 'aura') {
-            switch(sessionState) {
-                case SessionState.LISTENING:
-                    return 'border-[#6c2bee]/50';
-                case SessionState.SPEAKING:
-                    return 'border-teal-400';
-                case SessionState.PROCESSING:
-                case SessionState.CONNECTING:
-                     return 'border-purple-500 animate-spin';
-                default:
-                    return 'border-slate-300 dark:border-slate-600';
-            }
-        }
-        if (speaker === 'user') {
-            return sessionState === SessionState.USER_SPEAKING ? 'border-green-500' : 'border-slate-300 dark:border-slate-600';
-        }
-        return 'border-slate-300 dark:border-slate-600';
-    }
-
     return (
-        <div className="flex-1 flex flex-col p-4 overflow-hidden relative">
-            
-            {/* Avatars Row */}
-            <div className="flex justify-between items-center w-full max-w-3xl mx-auto px-2 sm:px-4">
-                <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
-                    <UserAvatar profile={userProfile} className="w-full h-full"/>
-                    <div className={`absolute -inset-1 rounded-full border-2 transition-colors duration-500 ${getStatusRingClass('user')}`}></div>
+        <div className="relative flex h-screen w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden mx-auto max-w-lg">
+            {/* Top App Bar */}
+            <div className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between border-b border-white/10 shrink-0">
+                <div className="flex size-12 shrink-0 items-center">
+                    <AuraHumanAvatar className="w-9 h-9" />
                 </div>
-                 <div className="relative w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 flex items-center justify-center">
-                    <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{width: '100%', height: '100%'}} />
-                    <AuraHumanAvatar className="w-full h-full relative" />
-                    <div className={`absolute -inset-1 rounded-full border-2 transition-colors duration-500 ${getStatusRingClass('aura')}`}></div>
+                <h2 className="text-black dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1">Aura</h2>
+                <div className="flex w-12 items-center justify-end">
+                    <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-black dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 
-
-            {/* Live Transcript Area */}
-            <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-end mt-4 min-h-0">
-                 {activeSession.summary && (
+            {/* Chat History */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                {activeSession.summary && (
                     <div className="mb-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-900 dark:text-yellow-100">
                         <strong className="block mb-1">{T.ui.chat?.sessionSummaryTitle ?? 'Zusammenfassung'}</strong>
                         <p>{activeSession.summary}</p>
                     </div>
-                 )}
-                 <div className="px-3 sm:px-4 py-4 rounded-xl overflow-y-auto space-y-4">
-                    {activeSession.transcript.map(entry => {
-                         const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
-                         const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;
-                         const isUser = entry.speaker === Speaker.USER;
-                        return(
-                            <div key={entry.id} className={`flex items-start gap-3 group animate-bubble-in ${isUser ? 'justify-end' : ''}`}>
-                                {!isUser && <AuraHumanAvatar className="w-8 h-8 flex-shrink-0" />}
-                                <div className={`relative max-w-md px-4 py-3 rounded-xl ${isUser ? 'bg-[#6c2bee] text-white rounded-br-none' : 'bg-slate-100 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none'}`}>
-                                    <p className={`text-sm ${isUser ? 'text-white' : 'text-slate-800 dark:text-slate-200'}`}>{entry.text}</p>
+                )}
+                
+                {activeSession.transcript.map(entry => {
+                    const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
+                    const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;
+                    const isUser = entry.speaker === Speaker.USER;
+                    
+                    return (
+                        <div key={entry.id} className={`flex items-end gap-3 ${isUser ? 'justify-end' : ''}`}>
+                            {!isUser && <AuraHumanAvatar className="w-10 h-10 shrink-0" />}
+                            <div className="flex flex-1 flex-col gap-1 items-start">
+                                {!isUser && <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px]">Aura</p>}
+                                {isUser && <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px] text-right ml-auto">You</p>}
+                                <div className={`relative text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 ${
+                                    isUser 
+                                        ? 'bg-[#6c2bee] text-white rounded-br-none ml-auto' 
+                                        : 'bg-gray-200 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none'
+                                }`}>
+                                    <p>{entry.text}</p>
                                     {distortion && (
-                                    <button
-                                        onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
-                                        className={`absolute -bottom-3 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full backdrop-blur-sm ${isDistortionActive ? 'bg-purple-200 dark:bg-purple-800' : 'bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
-                                        title={T.ui.chat.distortionDetected}
-                                    >
-                                        <LightbulbIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                                    </button>
+                                        <button
+                                            onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
+                                            className={`absolute -bottom-3 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full backdrop-blur-sm ${isDistortionActive ? 'bg-purple-200 dark:bg-purple-800' : 'bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
+                                            title={T.ui.chat.distortionDetected}
+                                        >
+                                            <LightbulbIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                        </button>
                                     )}
                                 </div>
-                                {isUser && <UserAvatar profile={userProfile} className="w-8 h-8 flex-shrink-0" />}
                             </div>
-                        )
-                    })}
-                    {currentInput && (
-                        <div className="flex items-start gap-3 justify-end animate-bubble-in">
-                            <div className="max-w-md px-4 py-3 rounded-xl bg-[#6c2bee]/20 dark:bg-[#6c2bee]/30 rounded-br-none text-[#6c2bee] dark:text-violet-200 italic">
-                                <p className="text-sm">{currentInput}</p>
-                            </div>
-                            <UserAvatar profile={userProfile} className="w-8 h-8 flex-shrink-0" />
+                            {isUser && <UserAvatar profile={userProfile} className="w-10 h-10 shrink-0" />}
                         </div>
-                    )}
-                    {currentOutput && (
-                         <div className="flex items-start gap-3 animate-bubble-in">
-                            <AuraHumanAvatar className="w-8 h-8 flex-shrink-0" />
-                            <div className="max-w-md px-4 py-3 rounded-xl bg-slate-100/70 dark:bg-[#2e2839]/70 rounded-bl-none text-slate-800/70 dark:text-slate-200/70 italic flex items-center">
-                                <p className="text-sm">{currentOutput}</p>
-                                <span className="inline-block w-1 h-3.5 ml-1 bg-slate-500 animate-pulse self-center"></span>
+                    );
+                })}
+                
+                {currentInput && (
+                    <div className="flex items-end gap-3 justify-end">
+                        <div className="flex flex-1 flex-col gap-1 items-end">
+                            <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px] text-right">You</p>
+                            <p className="text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 bg-[#6c2bee]/20 dark:bg-[#6c2bee]/30 text-[#6c2bee] dark:text-violet-200 rounded-br-none italic">
+                                {currentInput}
+                            </p>
+                        </div>
+                        <UserAvatar profile={userProfile} className="w-10 h-10 shrink-0" />
+                    </div>
+                )}
+                
+                {currentOutput && (
+                    <div className="flex items-end gap-3">
+                        <AuraHumanAvatar className="w-10 h-10 shrink-0" />
+                        <div className="flex flex-1 flex-col gap-1 items-start">
+                            <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px]">Aura</p>
+                            <div className="text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 bg-gray-200 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none items-center space-x-2">
+                                <p>Aura is typing</p>
+                                <div className="flex space-x-1">
+                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{animationDelay: '-0.3s'}} />
+                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{animationDelay: '-0.15s'}} />
+                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" />
+                                </div>
                             </div>
                         </div>
-                    )}
-                    <div ref={transcriptEndRef} />
-                </div>
+                    </div>
+                )}
+                <div ref={transcriptEndRef} />
             </div>
 
             {activeDistortion && (
