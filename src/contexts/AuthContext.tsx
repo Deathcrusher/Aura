@@ -327,11 +327,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       if (error) {
         console.error('Google OAuth Fehler:', error)
+        // Spezielle Fehlermeldung wenn Provider nicht aktiviert ist
+        if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+          throw new Error('Google-Login ist noch nicht aktiviert. Bitte aktiviere Google OAuth im Supabase Dashboard unter Authentication → Providers → Google.')
+        }
         throw error
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Fehler beim Google-Login:', error)
-      throw error
+      // Wenn es bereits eine benutzerfreundliche Nachricht ist, weiterwerfen
+      if (error.message?.includes('Supabase Dashboard')) {
+        throw error
+      }
+      throw new Error(error.message || 'Fehler beim Google-Login. Bitte versuche es erneut.')
     }
   }
 
