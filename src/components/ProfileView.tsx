@@ -20,9 +20,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const isPremium = userProfile.subscription.plan === SubscriptionPlan.PREMIUM;
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-[#f6f6f8] dark:bg-[#161022]">
+    <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
       {/* Top App Bar */}
-      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] px-4 pt-4 pb-2 sticky top-0 z-10">
+      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] px-4 pt-4 pb-2 sticky top-0 z-10 shrink-0">
         <div className="flex size-12 shrink-0 items-center justify-center" />
         <h1 className="flex-1 text-center text-xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white">
           {T.ui.sidebar.profile}
@@ -30,7 +30,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex size-12 shrink-0 items-center justify-center" />
       </header>
 
-      <main className="flex-1 pb-28 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-28">
         {/* Profile Header */}
         <section className="mt-4 px-4">
           <div className="flex items-center gap-4 p-4 bg-white dark:bg-slate-900/40 rounded-xl">

@@ -17,9 +17,9 @@ export const JournalView: React.FC<JournalViewProps> = ({
   const [currentMonth] = useState(new Date());
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-[#f6f6f8] dark:bg-[#161022]">
+    <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
       {/* Top App Bar */}
-      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between sticky top-0 z-10">
+      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between sticky top-0 z-10 shrink-0">
         <div className="flex size-12 shrink-0 items-center" />
         <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">My Journal</h1>
         <div className="flex w-12 items-center justify-end">
@@ -32,7 +32,7 @@ export const JournalView: React.FC<JournalViewProps> = ({
         </div>
       </header>
 
-      <main className="flex-grow pb-28 px-4">
+      <main className="flex-1 overflow-y-auto pb-28 px-4">
         {/* Calendar Picker */}
         <div className="flex flex-wrap items-center justify-center gap-6 pt-2">
           <div className="flex w-full max-w-[480px] flex-1 flex-col gap-0.5">

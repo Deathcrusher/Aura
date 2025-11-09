@@ -319,20 +319,33 @@ function App() {
       try {
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id);
-        
-        // Timeout für das Profil-Laden (15 Sekunden - reduziert von 30)
-        // Die getUserProfile Funktion hat bereits interne Timeouts, aber wir haben hier einen Fallback
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
+
+        const PROFILE_TIMEOUT_SENTINEL = Symbol('profile-timeout');
+        const profilePromise = getUserProfile(user.id, session);
+
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        const timeoutPromise = new Promise<typeof PROFILE_TIMEOUT_SENTINEL>((resolve) => {
+          timeoutId = setTimeout(() => {
             console.error('❌ [App] Profile loading timeout after 15 seconds');
-            reject(new Error('Profile loading timeout'));
+            console.warn('   - Waiting for Supabase response before falling back');
+            resolve(PROFILE_TIMEOUT_SENTINEL);
           }, 15000);
         });
-        
-        const profile = await Promise.race([
-          getUserProfile(user.id, session),
-          timeoutPromise
+
+        let profile: UserProfile | null | typeof PROFILE_TIMEOUT_SENTINEL = await Promise.race([
+          profilePromise,
+          timeoutPromise,
         ]);
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        if (profile === PROFILE_TIMEOUT_SENTINEL) {
+          console.info('ℹ️ [App] Profile load still pending after 15 seconds, awaiting final response...');
+          profile = await profilePromise;
+        }
         
         if (profile) {
           console.log('✅ Profile loaded from Supabase:', {
@@ -932,7 +945,7 @@ function App() {
     const isPremium = userProfile.subscription.plan === SubscriptionPlan.PREMIUM;
 
     return (
-      <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
+      <div className="flex-1 overflow-y-auto p-4 animate-fade-in min-h-0">
         <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Mood Chart */}
           <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
@@ -2060,9 +2073,9 @@ function App() {
         )}
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {/* Top app bar (Stitch style) */}
-          <div className="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10">
+          <div className="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10 shrink-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-lg hover:bg-white/10 text-slate-800 dark:text-white/80"
@@ -2086,18 +2099,19 @@ function App() {
           </div>
 
           {/* Main content view */}
-          {currentView === 'home' && (
-            <HomeView
-              userProfile={userProfile}
-              onNewChat={handleNewChat}
-              onOpenGoals={() => setIsGoalsOpen(true)}
-              onOpenMood={() => setIsMoodOpen(true)}
-              onOpenJournal={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }}
-              onOpenProfile={() => setIsProfileOpen(true)}
-              T={T}
-            />
-          )}
-          {currentView === 'chat' && (
+          <div className="flex-1 overflow-hidden min-h-0">
+            {currentView === 'home' && (
+              <HomeView
+                userProfile={userProfile}
+                onNewChat={handleNewChat}
+                onOpenGoals={() => setIsGoalsOpen(true)}
+                onOpenMood={() => setIsMoodOpen(true)}
+                onOpenJournal={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }}
+                onOpenProfile={() => setIsProfileOpen(true)}
+                T={T}
+              />
+            )}
+            {currentView === 'chat' && (
             <>
               {activeSession ? (
                 <>
@@ -2169,10 +2183,11 @@ function App() {
             />
           )}
           {currentView === 'insights' && renderInsightsView()}
+          </div>
 
           {/* Controls */}
           {activeSession && currentView === 'chat' && (
-            <div className="bg-white/60 dark:bg-transparent border-t border-slate-200 dark:border-white/10 p-4 fixed bottom-20 left-0 right-0 w-full max-w-lg mx-auto">
+            <div className="bg-white/60 dark:bg-transparent border-t border-slate-200 dark:border-white/10 p-4 shrink-0">
               <div className="max-w-3xl mx-auto">
                 {sessionState === SessionState.IDLE ? (
                   <div className="flex items-center justify-center">
@@ -2207,7 +2222,7 @@ function App() {
           )}
           
           {/* Bottom Navigation Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 w-full max-w-lg mx-auto">
+          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 shrink-0">
             <div className="flex justify-around items-center h-20 max-w-md mx-auto">
               <button
                 onClick={() => setCurrentView('home')}

@@ -33,9 +33,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#f6f6f8] dark:bg-[#161022]">
+    <div className="flex-1 overflow-y-auto bg-[#f6f6f8] dark:bg-[#161022] min-h-0">
       {/* Top App Bar */}
-      <div className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between sticky top-0 z-10">
+      <div className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between sticky top-0 z-10 shrink-0">
         <div className="flex size-12 shrink-0 items-center">
           <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-slate-300 dark:bg-slate-700" />
         </div>

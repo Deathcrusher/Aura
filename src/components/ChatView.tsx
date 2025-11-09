@@ -55,7 +55,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
     }, [activeSession.transcript, currentInput, currentOutput]);
 
     return (
-        <div className="relative flex h-screen w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden mx-auto max-w-lg">
+        <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
             {/* Top App Bar */}
             <div className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between border-b border-white/10 shrink-0">
                 <div className="flex size-12 shrink-0 items-center">
