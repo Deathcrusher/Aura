@@ -320,9 +320,13 @@ function App() {
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id);
         
-        // Timeout für das Profil-Laden (30 Sekunden)
+        // Timeout für das Profil-Laden (15 Sekunden - reduziert von 30)
+        // Die getUserProfile Funktion hat bereits interne Timeouts, aber wir haben hier einen Fallback
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error('Profile loading timeout')), 30000);
+          setTimeout(() => {
+            console.error('❌ [App] Profile loading timeout after 15 seconds');
+            reject(new Error('Profile loading timeout'));
+          }, 15000);
         });
         
         const profile = await Promise.race([
@@ -357,6 +361,8 @@ function App() {
         }
       } catch (error) {
         console.error('❌ Error loading profile:', error);
+        console.error('   - Error details:', error instanceof Error ? error.message : String(error));
+        console.error('   - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         // Fallback to default in UI to avoid onboarding loop
         setUserProfile(DEFAULT_PROFILE);
       } finally {

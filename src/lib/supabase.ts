@@ -32,7 +32,27 @@ let supabaseClient: SupabaseClient | null = null
 
 if (isSupabaseConfigured) {
   try {
-    supabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string)
+    supabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        // Timeout für Auth-Operationen
+        flowType: 'pkce'
+      },
+      // Global timeout für alle Requests (10 Sekunden)
+      global: {
+        headers: {
+          'x-client-info': 'aura-app'
+        }
+      },
+      // Real-time Konfiguration
+      realtime: {
+        params: {
+          eventsPerSecond: 10
+        }
+      }
+    })
     console.log('✅ Supabase client erfolgreich initialisiert');
   } catch (error) {
     console.error('❌ Fehler beim Initialisieren des Supabase Clients:', error);
