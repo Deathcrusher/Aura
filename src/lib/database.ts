@@ -191,18 +191,29 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
   if (updates.subscription?.plan !== undefined) profileData.subscription_plan = updates.subscription.plan;
   if (updates.subscription?.expiryDate !== undefined) profileData.subscription_expiry_date = updates.subscription.expiryDate;
 
-  console.log('💾 Saving profile to Supabase:', profileData);
+  console.log('💾 Saving profile to Supabase:', {
+    userId,
+    profileData,
+    hasSupabase,
+    isSupabaseConfigured
+  });
 
-  const { error } = await supabase
+  if (!hasSupabase || !supabase) {
+    console.warn('⚠️ Supabase not configured, skipping save');
+    return;
+  }
+
+  const { data, error } = await supabase
     .from('profiles')
     .upsert(profileData, { onConflict: 'id' })
+    .select()
 
   if (error) {
     console.error('❌ Error saving profile:', error);
     throw error;
   }
   
-  console.log('✅ Profile saved successfully');
+  console.log('✅ Profile saved successfully:', data);
 }
 
 // Aura Memory Operations

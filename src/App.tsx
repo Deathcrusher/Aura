@@ -321,10 +321,18 @@ function App() {
             name: profile.name,
             onboardingCompleted: profile.onboardingCompleted
           });
-          setUserProfile({
+          // Merge profile with defaults, ensuring onboardingCompleted is properly set
+          const mergedProfile = {
             ...DEFAULT_PROFILE,
             ...profile,
+            onboardingCompleted: profile.onboardingCompleted === true, // Force boolean check
+          };
+          console.log('🔀 Merged profile:', {
+            name: mergedProfile.name,
+            onboardingCompleted: mergedProfile.onboardingCompleted,
+            originalOnboardingCompleted: profile.onboardingCompleted
           });
+          setUserProfile(mergedProfile);
         } else {
           console.log('⚠️ No profile found, creating default');
           // Create default profile for new user (best-effort)
@@ -409,22 +417,36 @@ function App() {
     try {
       // Update UI immediately to let the user proceed
       setUserProfile(updatedProfile);
-      // Persist to Supabase - await to ensure it's saved
-      await updateUserProfile(user.id, updatedProfile);
-      console.log('✅ Onboarding completed and profile saved to Supabase:', updatedProfile.name);
       
-      // Verify it was saved by reloading
+      // CRITICAL: Persist to Supabase FIRST before doing anything else
+      console.log('💾 Starting to save profile...');
+      await updateUserProfile(user.id, updatedProfile);
+      console.log('✅ Profile saved to Supabase successfully');
+      
+      // Double-check: Reload profile to verify it was saved
       const savedProfile = await getUserProfile(user.id);
-      console.log('✅ Verified saved profile:', {
-        name: savedProfile?.name,
-        onboardingCompleted: savedProfile?.onboardingCompleted
-      });
+      if (savedProfile) {
+        console.log('✅ Verified saved profile from DB:', {
+          name: savedProfile.name,
+          onboardingCompleted: savedProfile.onboardingCompleted
+        });
+        
+        // Update state with the verified profile from DB
+        setUserProfile({
+          ...DEFAULT_PROFILE,
+          ...savedProfile,
+          onboardingCompleted: savedProfile.onboardingCompleted === true
+        });
+      } else {
+        console.warn('⚠️ Could not verify saved profile - might not be persisted');
+      }
       
       // Create first session
       await handleNewChat();
     } catch (error) {
       console.error('❌ Error completing onboarding:', error);
-      // Still allow user to proceed even if save fails
+      // Show error to user
+      alert('Fehler: Das Onboarding konnte nicht gespeichert werden. Bitte versuche es erneut oder kontaktiere den Support.');
     }
   };
 
@@ -1850,8 +1872,14 @@ function App() {
   }
 
   // Show onboarding if not completed
-  if (!userProfile.onboardingCompleted) {
-    console.log('🔄 Showing onboarding because onboardingCompleted is:', userProfile.onboardingCompleted);
+  // IMPORTANT: Only show onboarding if user is logged in AND profile is loaded AND onboarding is not completed
+  if (user && !isLoadingProfile && !userProfile.onboardingCompleted) {
+    console.log('🔄 Showing onboarding because:', {
+      hasUser: !!user,
+      isLoadingProfile,
+      onboardingCompleted: userProfile.onboardingCompleted,
+      profileName: userProfile.name
+    });
     return (
       <ErrorBoundary>
         <Onboarding
