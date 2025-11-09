@@ -189,16 +189,14 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       return null;
     }
 
-    let session = currentSession;
-
     console.log('✅ [getUserProfile] Session found:', {
-      userId: session.user.id,
-      expiresAt: session.expires_at,
-      expiresIn: session.expires_at ? Math.max(0, session.expires_at * 1000 - Date.now()) : 'unknown'
+      userId: currentSession.user.id,
+      expiresAt: currentSession.expires_at,
+      expiresIn: currentSession.expires_at ? Math.max(0, currentSession.expires_at * 1000 - Date.now()) : 'unknown'
     });
 
     // Verify session is not expired
-    if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+    if (currentSession.expires_at && currentSession.expires_at * 1000 < Date.now()) {
       console.warn('⚠️ [getUserProfile] Session expired, attempting to refresh...');
       try {
         const refreshTimeout = createTimeout<{ data: { session: null }, error: null }>(
@@ -212,7 +210,7 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
         refreshTimeout.cancel();
         
         if (refreshedSession && !refreshError) {
-          session = refreshedSession;
+          currentSession = refreshedSession;
           console.log('✅ [getUserProfile] Session refreshed successfully');
         } else {
           console.error('❌ [getUserProfile] Failed to refresh expired session:', refreshError);
@@ -225,9 +223,9 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       }
     }
 
-    if (session.user.id !== userId) {
+    if (currentSession.user.id !== userId) {
       console.error('❌ CRITICAL: User ID mismatch!');
-      console.error('   - Session user ID:', session.user.id);
+      console.error('   - Session user ID:', currentSession.user.id);
       console.error('   - Requested user ID:', userId);
       return null;
     }
@@ -269,7 +267,7 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
         errorDetails: error.details,
         errorHint: error.hint,
         userId: userId,
-        hasSession: !!session
+        hasSession: !!currentSession
       });
       throw error;
     }
