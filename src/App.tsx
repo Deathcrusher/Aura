@@ -5,6 +5,7 @@ import { Onboarding } from './components/Onboarding';
 import { ChatView } from './components/ChatView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
+import { SessionSummaryCard } from './components/SessionSummaryCard';
 import {
   UserProfile,
   ChatSession,
@@ -50,12 +51,23 @@ import {
   SunIcon,
   MoonIcon,
   AlertTriangleIcon,
+  PlayIcon,
+  DownloadIcon,
+  PencilIcon,
+  TrashIcon,
+  ChartBarIcon,
+  MoodVeryGoodIcon,
+  MoodGoodIcon,
+  MoodNeutralIcon,
+  MoodBadIcon,
+  MoodVeryBadIcon,
 } from './components/Icons';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
 import { MoodJournalModal } from './components/MoodJournalModal';
 import { JournalModal } from './components/JournalModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
+import { PremiumLockOverlay } from './components/PremiumLockOverlay';
 import { AppFrame } from './components/AppFrame';
 import { HomeView } from './components/HomeView';
 import { JournalView } from './components/JournalView';
@@ -167,6 +179,9 @@ function App() {
   const liveHadActivityRef = useRef<boolean>(false);
   const lastTranscriptEntryIdRef = useRef<string>('');
   const toolCallIdRef = useRef<string | null>(null);
+  const summaryAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const summaryAudioContextRef = useRef<AudioContext | null>(null);
+  const summaryAudioCacheRef = useRef<Record<string, string>>({});
   // Modals & UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -177,8 +192,13 @@ function App() {
   const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
   const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
   const [voicePreviewState, setVoicePreviewState] = useState<{ id: string; status: 'loading' | 'playing' } | null>(null);
+  const [isProcessingSession, setIsProcessingSession] = useState(false);
+  const [showPostSessionSummary, setShowPostSessionSummary] = useState(false);
+  const [summaryPlaybackState, setSummaryPlaybackState] = useState<'idle' | 'loading' | 'playing'>('idle');
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   // Navigation state
-  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile'>('chat');
+  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights'>('chat');
   // Auth entry state (welcome vs auth)
   const [showAuth, setShowAuth] = useState<boolean>(false);
   const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');
@@ -189,6 +209,13 @@ function App() {
   useEffect(() => {
     sessionStateRef.current = sessionState;
   }, [sessionState]);
+
+  useEffect(() => {
+    const shouldShowSummary = (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession;
+    if (!shouldShowSummary) {
+      stopSummaryPlayback();
+    }
+  }, [showPostSessionSummary, sessionState, activeSession?.summary, isProcessingSession]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -418,6 +445,37 @@ function App() {
       .join('\n');
   };
 
+  // Build comprehensive system instruction with memory, goals, and mood
+  const getSystemInstruction = (language: string, profile: UserProfile): string => {
+    const T = translations[language as keyof typeof translations] || translations['de-DE'];
+    let instruction = T.BASE_SYSTEM_INSTRUCTION;
+
+    instruction += `\n\n${T.userNamePrompt(profile.name)}`;
+
+    if (profile.memory && Object.values(profile.memory).some(arr => Array.isArray(arr) && arr.length > 0)) {
+      instruction += `\n\n---\n${T.memoryHeader(profile.name.toUpperCase())}\n${T.memoryInstructions}\n${JSON.stringify(profile.memory, null, 2)}\n---`;
+    }
+
+    const activeGoals = profile.goals?.filter(g => g.status === 'active') || [];
+    if (activeGoals.length > 0) {
+      const goalsText = activeGoals.map(g => `- ${g.description}`).join('\n');
+      instruction += `\n\n---\n${T.goalsHeader}\n${T.goalsInstructions}\n${goalsText}\n---`;
+    }
+
+    if (profile.moodJournal && profile.moodJournal.length > 0) {
+      const recentMoods = profile.moodJournal.slice(-7);
+      if (recentMoods.length > 0) {
+        const moodSummary = recentMoods.map(entry => {
+          const date = new Date(entry.createdAt);
+          const moodText = T.ui.moods[entry.mood as Mood] || entry.mood;
+          return `- ${date.toLocaleDateString(language, { weekday: 'short' })}: ${moodText}${entry.note ? ` (${entry.note})` : ''}`;
+        }).join('\n');
+        instruction += `\n\n---\n${T.moodHeader}\n${T.moodInstructions}\n${moodSummary}\n---`;
+      }
+    }
+    return instruction;
+  };
+
   const summarizeAndCreateNotes = async (
     transcript: TranscriptEntry[],
     name: string,
@@ -453,7 +511,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.generateUserSummaryPrompt(name, conversation) }],
@@ -583,7 +641,7 @@ function App() {
     if (!genAIRef.current) return undefined;
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash-preview-tts',
         contents: [{
           role: 'user',
           parts: [{ text }],
@@ -601,6 +659,280 @@ function App() {
       console.warn('Summary audio generation failed:', error);
       return undefined;
     }
+  };
+
+  const stopSummaryPlayback = () => {
+    if (summaryAudioSourceRef.current) {
+      summaryAudioSourceRef.current.stop();
+      summaryAudioSourceRef.current.onended = null;
+    }
+    if (summaryAudioContextRef.current) {
+      summaryAudioContextRef.current.close();
+    }
+    summaryAudioSourceRef.current = null;
+    summaryAudioContextRef.current = null;
+    setSummaryPlaybackState('idle');
+  };
+
+  const playSummaryAudio = async () => {
+    if (summaryPlaybackState !== 'idle') {
+      stopSummaryPlayback();
+      return;
+    }
+    
+    if (!activeSession?.summary) return;
+
+    setSummaryPlaybackState('loading');
+    
+    try {
+      let base64Audio: string | undefined;
+
+      // 1. Check in-memory cache
+      if (summaryAudioCacheRef.current[activeSession.id]) {
+        base64Audio = summaryAudioCacheRef.current[activeSession.id];
+      } 
+      // 2. Check transient state for just-completed session
+      else if (activeSession.summaryAudioBase64) {
+        base64Audio = activeSession.summaryAudioBase64;
+      }
+      // 3. Generate if not found
+      else {
+        base64Audio = await generateSummaryAudio(activeSession.summary, userProfile.language || 'de-DE', userProfile.voice || 'Zephyr');
+      }
+
+      if (base64Audio) {
+        // Cache the generated audio
+        summaryAudioCacheRef.current[activeSession.id] = base64Audio;
+        
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        summaryAudioContextRef.current = audioCtx;
+        
+        const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
+        const source = audioCtx.createBufferSource();
+        summaryAudioSourceRef.current = source;
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.start();
+        setSummaryPlaybackState('playing');
+        
+        source.onended = () => {
+          stopSummaryPlayback();
+        };
+      } else {
+        setSummaryPlaybackState('idle');
+      }
+    } catch (e) {
+      console.error("Failed to play summary audio:", e);
+      setSummaryPlaybackState('idle');
+    }
+  };
+
+  const handleExportSession = (sessionId: string) => {
+    const session = sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const date = new Date(session.startTime);
+    const dateStringForFile = date.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    let content = `Aura Session: ${session.title}\n`;
+    content += `Date: ${date.toLocaleString(userProfile.language || 'de-DE', { dateStyle: 'full', timeStyle: 'short' })}\n\n`;
+    content += `====================\n\n`;
+
+    content += `TRANSCRIPT\n\n`;
+    session.transcript.forEach(entry => {
+      const speaker = entry.speaker === Speaker.USER ? userProfile.name : 'Aura';
+      content += `[${speaker}]: ${entry.text}\n\n`;
+    });
+
+    if (session.summary) {
+      content += `====================\n\n`;
+      content += `SUMMARY\n\n`;
+      content += session.summary;
+    }
+
+    const sanitizedTitle = session.title.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
+    const filename = `Aura-Session-${sanitizedTitle}-${dateStringForFile}.txt`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleStartEditing = (session: ChatSession) => {
+    setEditingSessionId(session.id);
+    setEditingTitle(session.title);
+  };
+
+  const handleSaveTitle = async () => {
+    if (editingSessionId && editingTitle.trim()) {
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === editingSessionId ? { ...s, title: editingTitle.trim() } : s
+        )
+      );
+      if (activeSession?.id === editingSessionId) {
+        setActiveSession(prev => prev ? { ...prev, title: editingTitle.trim() } : null);
+      }
+      if (user) {
+        await updateChatSession(editingSessionId, { title: editingTitle.trim() });
+      }
+      setEditingSessionId(null);
+      setEditingTitle('');
+    }
+  };
+
+  const handleCancelEditing = () => {
+    setEditingSessionId(null);
+    setEditingTitle('');
+  };
+
+  const moodConfig: { [key in Mood]: { icon: React.FC<{ className?: string }>; color: string; value: number } } = {
+    'Sehr gut': { icon: MoodVeryGoodIcon, color: 'text-green-500 dark:text-green-400', value: 5 },
+    'Gut': { icon: MoodGoodIcon, color: 'text-lime-500 dark:text-lime-400', value: 4 },
+    'Neutral': { icon: MoodNeutralIcon, color: 'text-yellow-500 dark:text-yellow-400', value: 3 },
+    'Schlecht': { icon: MoodBadIcon, color: 'text-orange-500 dark:text-orange-400', value: 2 },
+    'Sehr schlecht': { icon: MoodVeryBadIcon, color: 'text-red-500 dark:text-red-400', value: 1 },
+  };
+
+  const MoodTrendChart: React.FC<{ data: number[] }> = ({ data }) => {
+    const width = 300;
+    const height = 100;
+    const points = data.map((value, index) => {
+      const x = (index / (data.length - 1)) * width;
+      const y = height - ((value - 1) / 4) * (height - 20) + 10; // Map 1-5 to y-coord with padding
+      return `${x},${y}`;
+    }).join(' ');
+
+    return (
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+        <defs>
+          <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={`M0,${height} L${points} L${width},${height} Z`} fill="url(#trendGradient)" />
+        <polyline fill="none" stroke="#3b82f6" strokeWidth="2" points={points} />
+        {data.map((value, index) => {
+          const x = (index / (data.length - 1)) * width;
+          const y = height - ((value - 1) / 4) * (height - 20) + 10;
+          return <circle key={index} cx={x} cy={y} r="3" fill="#3b82f6" stroke="#fff" strokeWidth="1" />;
+        })}
+      </svg>
+    );
+  };
+
+  const WordCloudDisplay: React.FC<{ data: { text: string; value: number }[] }> = ({ data }) => {
+    const values = data.map(d => d.value);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+
+    const getStyle = (value: number) => {
+      const ratio = (value - minVal) / (maxVal - minVal);
+      const fontSize = 12 + ratio * 24; // from 12px to 36px
+      const opacity = 0.6 + ratio * 0.4; // from 0.6 to 1
+      return { fontSize: `${fontSize}px`, opacity };
+    };
+
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 p-4">
+        {data.sort((a, b) => b.value - a.value).map(item => (
+          <span key={item.text} style={getStyle(item.value)} className="font-semibold text-slate-700 dark:text-slate-300 transition-all">
+            {item.text}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  const renderInsightsView = () => {
+    const recentMoods = (userProfile.moodJournal || []).slice(-30).sort((a, b) => a.createdAt - b.createdAt);
+    const recurringThemes = userProfile.memory?.recurringThemes || [];
+    const allDistortions = sessions.flatMap(s => s.cognitiveDistortions || []);
+    const uniqueDistortionTypes = [...new Set(allDistortions.map(d => d.type))];
+    const latestSession = sessions.filter(s => s.summary).sort((a, b) => b.startTime - a.startTime)[0];
+    const isPremium = userProfile.subscription.plan === SubscriptionPlan.PREMIUM;
+
+    return (
+      <div className="flex-1 p-4 overflow-y-auto animate-fade-in">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Mood Chart */}
+          <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.moodChartTitle(recentMoods.length)}</h3>
+            {recentMoods.length > 1 ? (
+              <div className="flex items-end justify-around h-48 border-b border-slate-200 dark:border-slate-700 pb-2">
+                {recentMoods.map(entry => {
+                  const { icon: Icon, color, value } = moodConfig[entry.mood];
+                  const barHeight = (value / 5) * 100;
+                  return (
+                    <div key={entry.id} className="flex flex-col items-center justify-end h-full group w-10" title={`${T.ui.moods[entry.mood]} on ${new Date(entry.createdAt).toLocaleDateString(userProfile.language || 'de-DE')}`}>
+                      <div className="w-2.5 bg-slate-200 dark:bg-slate-700 rounded-t-full" style={{ height: `${100 - barHeight}%` }}></div>
+                      <div className="w-2.5 bg-blue-500 rounded-t-full group-hover:bg-blue-400" style={{ height: `${barHeight}%` }}></div>
+                      <Icon className={`w-5 h-5 mt-2 ${color}`} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.moodChartEmpty}</p>
+            )}
+          </div>
+          {/* Session Mood Trend */}
+          <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2 relative">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.sessionMoodTrendTitle}</h3>
+            {latestSession?.moodTrend ? (
+              <MoodTrendChart data={latestSession.moodTrend} />
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.sessionMoodTrendEmpty}</p>
+            )}
+            {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionOpen(true)} T={T} />}
+          </div>
+          {/* Topic Cloud */}
+          <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm col-span-1 lg:col-span-2 relative">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.wordCloudTitle}</h3>
+            {latestSession?.wordCloud ? (
+              <WordCloudDisplay data={latestSession.wordCloud} />
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.wordCloudEmpty}</p>
+            )}
+            {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionOpen(true)} T={T} />}
+          </div>
+
+          {/* Recurring Themes */}
+          <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm relative">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.recurringThemesTitle}</h3>
+            {recurringThemes.length > 0 ? (
+              <ul className="list-disc list-inside space-y-2">
+                {recurringThemes.map((theme, i) => <li key={i} className="text-sm text-slate-700 dark:text-slate-300">{theme}</li>)}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.recurringThemesEmpty}</p>
+            )}
+            {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionOpen(true)} T={T} />}
+          </div>
+          {/* Cognitive Distortions */}
+          <div className="p-6 bg-white dark:bg-slate-800/70 rounded-xl shadow-sm relative">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">{T.ui.insightsView.distortionsTitle}</h3>
+            {uniqueDistortionTypes.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {uniqueDistortionTypes.map(type => (
+                  <span key={type} className="px-3 py-1 text-xs font-medium text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/50 rounded-full">{type}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.insightsView.distortionsEmpty}</p>
+            )}
+            {!isPremium && <PremiumLockOverlay onUpgrade={() => setIsSubscriptionOpen(true)} T={T} />}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const generateJournalInsights = async (
@@ -664,6 +996,9 @@ function App() {
     try {
       if (!genAIRef.current || !session?.transcript || session.transcript.length <= 1) return;
 
+      setIsProcessingSession(true);
+      setShowPostSessionSummary(false);
+
       const translationBundle = translations[lang as keyof typeof translations] || translations['de-DE'];
       const [notes, summary, memoryUpdate, moodTrend, wordCloud] = await Promise.all([
         summarizeAndCreateNotes(session.transcript, userProfile.name, translationBundle),
@@ -677,6 +1012,10 @@ function App() {
       const notesText = notes || session.notes || '';
       const summaryAudioBase64 = summaryText ? await generateSummaryAudio(summaryText, lang, userProfile.voice) : session.summaryAudioBase64;
       const updatedMemory = memoryUpdate || userProfile.memory;
+
+      if (summaryAudioBase64 && session.id) {
+        summaryAudioCacheRef.current[session.id] = summaryAudioBase64;
+      }
 
       setActiveSession(prev =>
         prev && prev.id === session.id
@@ -696,13 +1035,20 @@ function App() {
       if (user) {
         await updateAuraMemory(user.id, updatedMemory);
       }
+
+      setShowPostSessionSummary(true);
     } catch (error) {
       console.warn('Session analysis failed:', error);
+    } finally {
+      setIsProcessingSession(false);
     }
   };
 
   const handleNewChat = async () => {
     if (!user) return;
+
+    setShowPostSessionSummary(false);
+    stopSummaryPlayback();
 
     try {
       const sessionId = await createChatSession(user.id, {
@@ -721,6 +1067,7 @@ function App() {
       setSessions(prev => [newSession, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
+      setCurrentView('chat');
     } catch (error) {
       console.error('Error creating new chat:', error);
     }
@@ -990,6 +1337,7 @@ function App() {
         outputAnalyserRef.current.fftSize = 256;
 
         const ai = new GoogleGenAI({ apiKey });
+        const dynamicSystemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
 
         sessionPromiseRef.current = ai.live.connect({
           // Use the official live model id from the SDK docs
@@ -998,6 +1346,19 @@ function App() {
           tools: [{
             functionDeclarations: [startBreathingExercise, identifyCognitiveDistortion, triggerCrisisIntervention],
           }],
+          config: {
+            systemInstruction: dynamicSystemInstruction,
+            responseModalities: [Modality.AUDIO],
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: userProfile.voice || 'Zephyr',
+                },
+              },
+            },
+          },
           callbacks: {
             onopen: () => {
               setSessionState(SessionState.LISTENING);
@@ -1347,20 +1708,33 @@ function App() {
       setCurrentOutput('');
 
       if (genAIRef.current) {
-        // Use the new SDK format for text generation
+        // Build comprehensive system instruction with memory, goals, and mood
+        const systemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
+        
+        // Build conversation history
+        const conversationHistory = activeSession.transcript
+          .slice(-10) // Last 10 messages for context
+          .map(entry => ({
+            role: entry.speaker === Speaker.USER ? 'user' as const : 'model' as const,
+            parts: [{ text: entry.text }]
+          }));
+
+        // Use the new SDK format for text generation with full context
         const response = await genAIRef.current.models.generateContent({
           model: 'gemini-2.5-flash',
-          contents: [{
-            role: 'user',
-            parts: [{
-              text: `Du bist Aura, eine einfühlsame KI-Therapeutin.
-        Nutzer: ${userProfile.name}
-        Erinnerungen: ${JSON.stringify(userProfile.memory)}
-        
-        Antworte empathisch und therapeutisch auf die folgende Nachricht: ${text}`
-            }]
-          }],
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: systemInstruction }]
+            },
+            ...conversationHistory,
+            {
+              role: 'user',
+              parts: [{ text: text }]
+            }
+          ],
           config: {
+            systemInstruction: systemInstruction,
             thinkingConfig: { thinkingBudget: 0 } // Turn off thinking for faster responses
           }
         });
@@ -1506,29 +1880,75 @@ function App() {
                 {T.ui.sidebar.history}
               </h3>
               <div className="space-y-2">
-                {sessions.map(session => (
-                  <div key={session.id} className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleSelectSession(session.id)}
-                      className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors ${
-                        activeSession?.id === session.id
-                          ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <p className="text-sm truncate">{session.title}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {new Date(session.startTime).toLocaleDateString('de-DE')}
-                      </p>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSession(session.id)}
-                      className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600"
-                    >
-                      <XIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                {sessions.map(session => {
+                  const isEditing = editingSessionId === session.id;
+                  const isActive = activeSession?.id === session.id;
+                  const isRunning = sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR && isActive;
+                  
+                  return (
+                    <div key={session.id} className="group relative">
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onBlur={handleSaveTitle}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveTitle();
+                              if (e.key === 'Escape') handleCancelEditing();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                            className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-violet-500 text-sm"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => !isRunning && handleSelectSession(session.id)}
+                            disabled={isRunning}
+                            className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors ${
+                              isActive
+                                ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            } ${isRunning ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            <p className="text-sm truncate">{session.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(session.startTime).toLocaleDateString('de-DE')}
+                            </p>
+                          </button>
+                          {!isRunning && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleExportSession(session.id); }}
+                                className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                                title={T.ui.chat.exportSession}
+                              >
+                                <DownloadIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleStartEditing(session); }}
+                                className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                                title={T.ui.chat.renameSession}
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
+                                className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600"
+                                title={T.ui.chat.deleteSession}
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1611,18 +2031,32 @@ function App() {
           {currentView === 'chat' && (
             <>
               {activeSession ? (
-                <ChatView
-                  sessionState={sessionState}
-                  activeSession={activeSession}
-                  currentInput={currentInput}
-                  currentOutput={currentOutput}
-                  activeDistortion={activeDistortion}
-                  setActiveDistortion={setActiveDistortion}
-                  inputAnalyserNode={inputAnalyserRef.current}
-                  outputAnalyserNode={outputAnalyserRef.current}
-                  userProfile={userProfile}
-                  T={T}
-                />
+                <>
+                  {(showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession ? (
+                    <div className="flex-1 flex items-center justify-center p-4">
+                      <SessionSummaryCard 
+                        summary={activeSession.summary!} 
+                        T={T} 
+                        onPlay={playSummaryAudio}
+                        playbackState={summaryPlaybackState}
+                        onExport={() => handleExportSession(activeSession.id)}
+                      />
+                    </div>
+                  ) : (
+                    <ChatView
+                      sessionState={sessionState}
+                      activeSession={activeSession}
+                      currentInput={currentInput}
+                      currentOutput={currentOutput}
+                      activeDistortion={activeDistortion}
+                      setActiveDistortion={setActiveDistortion}
+                      inputAnalyserNode={inputAnalyserRef.current}
+                      outputAnalyserNode={outputAnalyserRef.current}
+                      userProfile={userProfile}
+                      T={T}
+                    />
+                  )}
+                </>
               ) : (
                 <div className="flex-1 flex items-center justify-center p-4">
                   <div className="text-center">
@@ -1654,6 +2088,7 @@ function App() {
               T={T}
             />
           )}
+          {currentView === 'insights' && renderInsightsView()}
 
           {/* Controls */}
           {activeSession && currentView === 'chat' && (
@@ -1808,12 +2243,16 @@ function App() {
             return response.text.trim() || desc;
           } catch { return desc; }
         }}
+        currentView={currentView}
+        onNavigate={setCurrentView}
         T={T}
       />
       <MoodJournalModal
         isOpen={isMoodOpen}
         onClose={() => setIsMoodOpen(false)}
         onSave={handleSaveMood}
+        currentView={currentView}
+        onNavigate={setCurrentView}
         T={T}
       />
       <JournalModal
@@ -1822,6 +2261,8 @@ function App() {
         onSave={handleSaveJournal}
         onDelete={handleDeleteJournal}
         entry={editingJournalEntry}
+        currentView={currentView}
+        onNavigate={setCurrentView}
         T={T}
       />
       <SubscriptionModal
@@ -1829,6 +2270,8 @@ function App() {
         onClose={() => setIsSubscriptionOpen(false)}
         onUpgrade={handleUpgradeToPremium}
         subscription={userProfile.subscription}
+        currentView={currentView}
+        onNavigate={setCurrentView}
         T={T}
       />
     </ErrorBoundary>
