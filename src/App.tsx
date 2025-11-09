@@ -61,6 +61,7 @@ import {
   MoodNeutralIcon,
   MoodBadIcon,
   MoodVeryBadIcon,
+  SpinnerIcon,
 } from './components/Icons';
 import { ProfileModal } from './components/ProfileModal';
 import { GoalsModal } from './components/GoalsModal';
@@ -1343,9 +1344,6 @@ function App() {
           // Use the official live model id from the SDK docs
           // Use the same model id that worked in the previous project for maximum compatibility
           model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-          tools: [{
-            functionDeclarations: [startBreathingExercise, identifyCognitiveDistortion, triggerCrisisIntervention],
-          }],
           config: {
             systemInstruction: dynamicSystemInstruction,
             responseModalities: [Modality.AUDIO],
@@ -1358,6 +1356,9 @@ function App() {
                 },
               },
             },
+            tools: [{
+              functionDeclarations: [startBreathingExercise, identifyCognitiveDistortion, triggerCrisisIntervention],
+            }],
           },
           callbacks: {
             onopen: () => {
@@ -1613,17 +1614,6 @@ function App() {
               // Graceful close -> cleanup
               handleStopSession();
             },
-          },
-          config: {
-            responseModalities: [Modality.AUDIO],
-            // Ensure voice output matches selected voice
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: userProfile.voice || 'Zephyr' } } },
-            // Make Gemini behave like a therapist and speak in the user's language
-            systemInstruction: `Du bist Aura, eine einfühlsame, strukturierte KI-Therapeutin. \nSprich immer in der Sprache des Nutzers (${userProfile.language || 'de-DE'}), halte Antworten kurz, validierend und lösungsorientiert.\nNutze bei Bedarf Rückfragen und fasse gelegentlich zusammen. Vermeide Floskeln und bleibe konkret.`,
-            // Affective dialog flag removed for compatibility
-            // Request input/output transcription so we can show text alongside audio
-            inputAudioTranscription: {},
-            outputAudioTranscription: {},
           },
         });
 
@@ -2032,10 +2022,19 @@ function App() {
             <>
               {activeSession ? (
                 <>
-                  {(showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession ? (
+                  {isProcessingSession ? (
+                    <div className="flex-1 flex items-center justify-center p-4">
+                      <div className="text-center">
+                        <div className="w-12 h-12 border-4 border-[#6c2bee] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-slate-600 dark:text-slate-300 text-base">
+                          {T.ui.chat.creatingSummary || 'Zusammenfassung wird erstellt...'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && activeSession.summary ? (
                     <div className="flex-1 flex items-center justify-center p-4">
                       <SessionSummaryCard 
-                        summary={activeSession.summary!} 
+                        summary={activeSession.summary} 
                         T={T} 
                         onPlay={playSummaryAudio}
                         playbackState={summaryPlaybackState}
@@ -2114,7 +2113,7 @@ function App() {
                       {sessionState === SessionState.CONNECTING && T.ui.controls.connecting}
                     </p>
                     <button
-                    onClick={handleStopSession}
+                    onClick={() => handleStopSession()}
                     className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
                     >
                       <StopIcon className="w-5 h-5" />
