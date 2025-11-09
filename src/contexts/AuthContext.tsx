@@ -191,12 +191,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (profileError) throw profileError
 
-        // Erstelle Aura Memory
-        await supabase
+        // Erstelle Aura Memory nur wenn noch keiner existiert
+        const { data: existingMemory } = await supabase
           .from('aura_memory')
-          .insert({
-            user_id: session.user.id,
-          })
+          .select('id')
+          .eq('user_id', session.user.id)
+          .limit(1)
+          .maybeSingle()
+        
+        if (!existingMemory) {
+          await supabase
+            .from('aura_memory')
+            .insert({
+              user_id: session.user.id,
+            })
+        }
       }
 
       return { error: null }

@@ -121,10 +121,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 
   try {
-    // Use .select().limit(1) instead of maybeSingle() to handle potential duplicates
+    // Select only profile columns explicitly to avoid automatic joins
+    // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -293,14 +294,18 @@ export async function getAuraMemory(userId: string): Promise<AuraMemory | null> 
     return clone(profile.memory ?? createDefaultMemory())
   }
 
-  const { data, error } = await supabase
+  const { data: memories, error } = await supabase
     .from('aura_memory')
     .select('*')
     .eq('user_id', userId)
-    .maybeSingle()
+    .order('created_at', { ascending: false })
+    .limit(1)
 
   if (error) throw error
-  if (!data) return null
+  if (!memories || memories.length === 0) return null
+  
+  // Take the first (most recent) memory if multiple exist
+  const data = memories[0]
 
   return {
     keyRelationships: data.key_relationships || [],
