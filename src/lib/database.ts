@@ -121,14 +121,19 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 
   try {
-    const { data: profile, error } = await supabase
+    // Use .select().limit(1) instead of maybeSingle() to handle potential duplicates
+    const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .maybeSingle()
+      .order('created_at', { ascending: false })
+      .limit(1)
 
     if (error) throw error
-    if (!profile) return null
+    if (!profiles || profiles.length === 0) return null
+    
+    // Take the first (most recent) profile if multiple exist
+    const profile = profiles[0]
 
     // Lade zusätzliche Daten
     const [memory, goals, moodJournal, journal] = await Promise.all([
@@ -153,8 +158,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       moodJournal: moodJournal || [],
       journal: journal || [],
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fehler beim Laden des Profils:', error)
+    console.error('   - Error code:', error?.code)
+    console.error('   - Error message:', error?.message)
+    console.error('   - Error details:', error?.details)
+    console.error('   - Error hint:', error?.hint)
     return null
   }
 }
