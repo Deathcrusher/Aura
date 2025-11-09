@@ -319,28 +319,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Bestimme die Redirect-URL für OAuth - EINFACH und ROBUST
-      // Regel: Nur wenn explizit localhost → localhost verwenden, sonst IMMER Production-URL
-      const getRedirectUrl = () => {
-        // SSR Fallback
-        if (typeof window === 'undefined') {
-          return 'https://aura-two-beta.vercel.app'
-        }
-        
-        // Prüfe NUR ob wir wirklich auf localhost sind (sehr strikt)
-        const hostname = window.location.hostname.toLowerCase()
-        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
-        
-        // Nur wenn wirklich localhost → localhost verwenden
-        if (isLocalhost) {
-          return window.location.origin
-        }
-        
-        // SONST: IMMER Production-URL verwenden (funktioniert auf Vercel, Production, etc.)
-        return 'https://aura-two-beta.vercel.app'
-      }
-      
-      const redirectTo = getRedirectUrl()
+      // IMMER Production-URL verwenden - auch lokal funktioniert das, wenn die Redirect-URL in Supabase konfiguriert ist
+      const redirectTo = 'https://aura-two-beta.vercel.app'
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
