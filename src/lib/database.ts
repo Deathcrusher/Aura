@@ -121,6 +121,47 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 
   try {
+    // Check if user is authenticated FIRST - required for RLS policies
+    let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    // If no session, return null immediately - user needs to sign in
+    if (!session) {
+      console.error('❌ CRITICAL: No active session! User is not authenticated.');
+      console.error('   - Session error:', sessionError);
+      console.error('   - Cannot load profile without authentication');
+      console.error('   - User ID requested:', userId);
+      console.error('   - This usually means the user needs to sign in again');
+      return null;
+    }
+
+    // Verify session is not expired
+    if (session.expires_at && session.expires_at * 1000 < Date.now()) {
+      console.warn('⚠️ Session expired, attempting to refresh...');
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshedSession && !refreshError) {
+        session = refreshedSession;
+        console.log('✅ Session refreshed successfully');
+      } else {
+        console.error('❌ Failed to refresh expired session:', refreshError);
+        console.error('   - User needs to sign in again');
+        return null;
+      }
+    }
+
+    if (session.user.id !== userId) {
+      console.error('❌ CRITICAL: User ID mismatch!');
+      console.error('   - Session user ID:', session.user.id);
+      console.error('   - Requested user ID:', userId);
+      return null;
+    }
+
+    console.log('✅ Session verified for profile load:', {
+      sessionUserId: session.user.id,
+      requestedUserId: userId,
+      sessionValid: !!session,
+      sessionExpiresAt: session.expires_at
+    });
+
     // Select only profile columns explicitly to avoid automatic joins
     // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
     const { data: profiles, error } = await supabase
@@ -130,8 +171,22 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       .order('created_at', { ascending: false })
       .limit(1)
 
-    if (error) throw error
-    if (!profiles || profiles.length === 0) return null
+    if (error) {
+      console.error('❌ Error loading profile from Supabase:', {
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint,
+        userId: userId,
+        hasSession: !!session
+      });
+      throw error;
+    }
+    
+    if (!profiles || profiles.length === 0) {
+      console.log('⚠️ No profile found for user:', userId);
+      return null;
+    }
     
     // Take the first (most recent) profile if multiple exist
     const profile = profiles[0]
