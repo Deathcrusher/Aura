@@ -296,7 +296,7 @@ export async function getAuraMemory(userId: string): Promise<AuraMemory | null> 
 
   const { data: memories, error } = await supabase
     .from('aura_memory')
-    .select('*')
+    .select('key_relationships, major_life_events, recurring_themes, user_goals')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -349,9 +349,10 @@ export async function getGoals(userId: string): Promise<Goal[]> {
 
   const { data, error } = await supabase
     .from('goals')
-    .select('*')
+    .select('id, description, status, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .limit(100) // Limit to prevent loading too many goals
 
   if (error) throw error
 
@@ -458,9 +459,10 @@ export async function getMoodEntries(userId: string): Promise<MoodEntry[]> {
 
   const { data, error } = await supabase
     .from('mood_entries')
-    .select('*')
+    .select('id, mood, note, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .limit(100) // Limit to prevent loading too many mood entries
 
   if (error) throw error
 
@@ -505,9 +507,10 @@ export async function getJournalEntries(userId: string): Promise<JournalEntry[]>
 
   const { data, error } = await supabase
     .from('journal_entries')
-    .select('*')
+    .select('id, content, created_at, key_themes, positive_notes')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .limit(50) // Limit to prevent loading too many journal entries (they can be large)
 
   if (error) throw error
 
