@@ -195,13 +195,32 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
     userId,
     profileData,
     hasSupabase,
-    isSupabaseConfigured
+    isSupabaseConfigured,
+    supabaseClientExists: !!supabase
   });
 
   if (!hasSupabase || !supabase) {
+    console.error('❌ CRITICAL: Supabase not configured!');
+    console.error('   - hasSupabase:', hasSupabase);
+    console.error('   - isSupabaseConfigured:', isSupabaseConfigured);
+    console.error('   - supabase client exists:', !!supabase);
+    console.error('   - Profile wird nur im localStorage gespeichert (Demo-Modus)');
     console.warn('⚠️ Supabase not configured, skipping save');
     return;
   }
+
+  // Check if user is authenticated
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.error('❌ CRITICAL: No active session! User is not authenticated.');
+    console.error('   - Cannot update profile without authentication');
+    throw new Error('User must be authenticated to update profile');
+  }
+
+  console.log('✅ User authenticated, session exists:', {
+    userId: session.user.id,
+    matchesProfileId: session.user.id === userId
+  });
 
   const { data, error } = await supabase
     .from('profiles')
@@ -210,6 +229,9 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 
   if (error) {
     console.error('❌ Error saving profile:', error);
+    console.error('   - Error code:', error.code);
+    console.error('   - Error message:', error.message);
+    console.error('   - Error details:', error.details);
     throw error;
   }
   

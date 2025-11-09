@@ -5,21 +5,38 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 
-// Debug logging
+// Debug logging - zeigt genau was konfiguriert ist
 if (typeof window !== 'undefined') {
-  console.log('🔧 Supabase Configuration Check:', {
+  const configStatus = {
     hasUrl: !!supabaseUrl,
     hasKey: !!supabaseAnonKey,
     isConfigured: isSupabaseConfigured,
-    url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'missing'
-  });
+    urlPreview: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'MISSING',
+    keyPreview: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'MISSING',
+    envMode: import.meta.env.MODE,
+    isProduction: import.meta.env.PROD
+  };
+  
+  console.log('🔧 Supabase Configuration Check:', configStatus);
+  
+  if (!isSupabaseConfigured) {
+    console.error('❌ SUPABASE IST NICHT KONFIGURIERT!');
+    console.error('Die App läuft im Demo-Modus mit localStorage.');
+    console.error('Bitte setze in Vercel:');
+    console.error('  - VITE_SUPABASE_URL');
+    console.error('  - VITE_SUPABASE_ANON_KEY');
+  }
 }
 
 let supabaseClient: SupabaseClient | null = null
 
 if (isSupabaseConfigured) {
-  supabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string)
-  console.log('✅ Supabase client initialized');
+  try {
+    supabaseClient = createClient(supabaseUrl as string, supabaseAnonKey as string)
+    console.log('✅ Supabase client erfolgreich initialisiert');
+  } catch (error) {
+    console.error('❌ Fehler beim Initialisieren des Supabase Clients:', error);
+  }
 } else if (typeof window !== 'undefined') {
   console.warn(
     '[Aura] ⚠️ Supabase-Umgebungsvariablen fehlen. Die App läuft im Demo-Modus mit lokalem Speicher.'
