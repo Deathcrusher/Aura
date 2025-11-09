@@ -232,31 +232,9 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
 
     console.log('✅ [getUserProfile] Session verified, loading profile from database...');
 
-    // Ensure the session is set in the Supabase client
-    // This is important for RLS policies to work correctly
-    if (currentSession && supabase) {
-      try {
-        const setSessionTimeout = createTimeout<{ error: { message: string } }>(
-          2000,
-          { error: { message: 'setSession timeout' } }
-        );
-        
-        const setSessionResult = await Promise.race([
-          supabase.auth.setSession(currentSession),
-          setSessionTimeout.promise
-        ]);
-        setSessionTimeout.cancel();
-        
-        if (setSessionResult.error) {
-          console.warn('⚠️ [getUserProfile] Could not set session in client:', setSessionResult.error);
-        } else {
-          console.log('✅ [getUserProfile] Session set in Supabase client');
-        }
-      } catch (error) {
-        console.warn('⚠️ [getUserProfile] Error setting session:', error);
-        // Continue anyway - the session might already be set
-      }
-    }
+    // Note: The session should already be set in the Supabase client via onAuthStateChange
+    // We don't need to set it again here - the client should automatically use it for RLS
+    console.log('✅ [getUserProfile] Session available, proceeding with query');
 
     // Select only profile columns explicitly to avoid automatic joins
     // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
@@ -269,21 +247,25 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
     });
     
     // Create the query promise explicitly with better error handling
+    // Use maybeSingle() for efficiency - it returns a single object or null
     let queryResolved = false;
     const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
+      .maybeSingle()
       .then((result) => {
         queryResolved = true;
         console.log('✅ [getUserProfile] Query completed:', {
           hasData: !!result.data,
-          dataLength: result.data?.length || 0,
-          hasError: !!result.error
+          hasError: !!result.error,
+          profileName: result.data?.name
         });
-        return result;
+        // Convert single object to array format for compatibility
+        return {
+          data: result.data ? [result.data] : null,
+          error: result.error
+        };
       })
       .catch((error) => {
         queryResolved = true;
