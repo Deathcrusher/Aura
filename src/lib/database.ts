@@ -143,7 +143,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       voice: profile.voice || 'Zephyr',
       language: profile.language || 'de-DE',
       avatarUrl: profile.avatar_url,
-      onboardingCompleted: profile.onboarding_completed || false,
+      onboardingCompleted: profile.onboarding_completed === true, // Explicitly check for true
       subscription: {
         plan: profile.subscription_plan || 'free',
         expiryDate: profile.subscription_expiry_date,
@@ -178,16 +178,18 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
     return
   }
 
-  const profileData = {
+  const profileData: any = {
     id: userId,
-    name: updates.name,
-    voice: updates.voice,
-    language: updates.language,
-    avatar_url: updates.avatarUrl,
-    onboarding_completed: updates.onboardingCompleted,
-    subscription_plan: updates.subscription?.plan,
-    subscription_expiry_date: updates.subscription?.expiryDate,
   };
+
+  // Only include fields that are explicitly provided (not undefined)
+  if (updates.name !== undefined) profileData.name = updates.name;
+  if (updates.voice !== undefined) profileData.voice = updates.voice;
+  if (updates.language !== undefined) profileData.language = updates.language;
+  if (updates.avatarUrl !== undefined) profileData.avatar_url = updates.avatarUrl;
+  if (updates.onboardingCompleted !== undefined) profileData.onboarding_completed = Boolean(updates.onboardingCompleted);
+  if (updates.subscription?.plan !== undefined) profileData.subscription_plan = updates.subscription.plan;
+  if (updates.subscription?.expiryDate !== undefined) profileData.subscription_expiry_date = updates.subscription.expiryDate;
 
   console.log('💾 Saving profile to Supabase:', profileData);
 

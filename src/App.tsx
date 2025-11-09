@@ -1851,6 +1851,7 @@ function App() {
 
   // Show onboarding if not completed
   if (!userProfile.onboardingCompleted) {
+    console.log('🔄 Showing onboarding because onboardingCompleted is:', userProfile.onboardingCompleted);
     return (
       <ErrorBoundary>
         <Onboarding
