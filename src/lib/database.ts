@@ -178,12 +178,34 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
     return
   }
 
+  // Check if user is authenticated FIRST
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (!session) {
+    console.error('❌ CRITICAL: No active session! User is not authenticated.');
+    console.error('   - Session error:', sessionError);
+    console.error('   - Cannot update profile without authentication');
+    throw new Error('User must be authenticated to update profile');
+  }
+
+  if (session.user.id !== userId) {
+    console.error('❌ CRITICAL: User ID mismatch!');
+    console.error('   - Session user ID:', session.user.id);
+    console.error('   - Requested user ID:', userId);
+    throw new Error('User ID mismatch - cannot update another user\'s profile');
+  }
+
   const profileData: any = {
     id: userId,
   };
 
-  // Only include fields that are explicitly provided (not undefined)
-  if (updates.name !== undefined) profileData.name = updates.name;
+  // Only include fields that are explicitly provided (not undefined) and not empty strings
+  if (updates.name !== undefined && updates.name !== null && updates.name.trim() !== '') {
+    profileData.name = updates.name.trim();
+  } else if (updates.name === '') {
+    // Don't update name if it's an empty string - keep existing value
+    console.warn('⚠️ Empty name provided, skipping name update');
+  }
+  
   if (updates.voice !== undefined) profileData.voice = updates.voice;
   if (updates.language !== undefined) profileData.language = updates.language;
   if (updates.avatarUrl !== undefined) profileData.avatar_url = updates.avatarUrl;
@@ -193,45 +215,60 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 
   console.log('💾 Saving profile to Supabase:', {
     userId,
+    sessionUserId: session.user.id,
     profileData,
     hasSupabase,
     isSupabaseConfigured,
     supabaseClientExists: !!supabase
   });
 
-  if (!hasSupabase || !supabase) {
-    console.error('❌ CRITICAL: Supabase not configured!');
-    console.error('   - hasSupabase:', hasSupabase);
-    console.error('   - isSupabaseConfigured:', isSupabaseConfigured);
-    console.error('   - supabase client exists:', !!supabase);
-    console.error('   - Profile wird nur im localStorage gespeichert (Demo-Modus)');
-    console.warn('⚠️ Supabase not configured, skipping save');
-    return;
-  }
-
-  // Check if user is authenticated
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    console.error('❌ CRITICAL: No active session! User is not authenticated.');
-    console.error('   - Cannot update profile without authentication');
-    throw new Error('User must be authenticated to update profile');
-  }
-
-  console.log('✅ User authenticated, session exists:', {
-    userId: session.user.id,
-    matchesProfileId: session.user.id === userId
-  });
-
-  const { data, error } = await supabase
+  // Check if profile exists first
+  const { data: existingProfile, error: checkError } = await supabase
     .from('profiles')
-    .upsert(profileData, { onConflict: 'id' })
-    .select()
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error('❌ Error checking existing profile:', checkError);
+    throw checkError;
+  }
+
+  let result;
+  if (existingProfile) {
+    // Profile exists - use UPDATE
+    console.log('📝 Profile exists, using UPDATE');
+    // Remove id from update data since we're filtering by it
+    const { id, ...updateData } = profileData;
+    result = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select();
+  } else {
+    // Profile doesn't exist - use INSERT
+    console.log('➕ Profile does not exist, using INSERT');
+    // Ensure required fields are present for insert
+    if (!profileData.name) profileData.name = 'User';
+    if (!profileData.voice) profileData.voice = 'Zephyr';
+    if (!profileData.language) profileData.language = 'de-DE';
+    if (profileData.onboarding_completed === undefined) profileData.onboarding_completed = false;
+    
+    result = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select();
+  }
+
+  const { data, error } = result;
 
   if (error) {
     console.error('❌ Error saving profile:', error);
     console.error('   - Error code:', error.code);
     console.error('   - Error message:', error.message);
     console.error('   - Error details:', error.details);
+    console.error('   - Error hint:', error.hint);
+    console.error('   - Profile data attempted:', JSON.stringify(profileData, null, 2));
     throw error;
   }
   
