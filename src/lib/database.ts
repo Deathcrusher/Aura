@@ -113,7 +113,7 @@ const upsertDemoSessionRecord = (
 }
 
 // Profile Operations
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+export async function getUserProfile(userId: string, session?: any): Promise<UserProfile | null> {
   if (!hasSupabase || !supabase) {
     const db = loadDemoDatabase()
     const profile = db.profiles[userId]
@@ -143,41 +143,58 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     };
     
     // Check if user is authenticated FIRST - required for RLS policies
-    // Reduced timeout to 3 seconds
-    console.log('🔍 [getUserProfile] Checking session...');
-    const sessionTimeout = createTimeout<{ data: { session: null }, error: { message: string } }>(
-      3000,
-      { data: { session: null }, error: { message: 'Session check timeout' } }
-    );
+    // Use provided session if available, otherwise try to get it
+    let currentSession = session;
     
-    let sessionResult: { data: { session: any }, error: any };
-    try {
-      sessionResult = await Promise.race([
-        supabase.auth.getSession(),
-        sessionTimeout.promise
-      ]);
-      sessionTimeout.cancel();
-    } catch (error) {
-      sessionTimeout.cancel();
-      console.error('❌ [getUserProfile] Session check failed:', error);
-      return null;
+    if (!currentSession) {
+      console.log('🔍 [getUserProfile] No session provided, checking session...');
+      // Reduced timeout to 3 seconds
+      const sessionTimeout = createTimeout<{ data: { session: null }, error: { message: string } }>(
+        3000,
+        { data: { session: null }, error: { message: 'Session check timeout' } }
+      );
+      
+      let sessionResult: { data: { session: any }, error: any };
+      try {
+        sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          sessionTimeout.promise
+        ]);
+        sessionTimeout.cancel();
+      } catch (error) {
+        sessionTimeout.cancel();
+        console.error('❌ [getUserProfile] Session check failed:', error);
+        return null;
+      }
+      
+      const { data: { session: fetchedSession }, error: sessionError } = sessionResult;
+      currentSession = fetchedSession;
+      
+      // If no session, return null immediately - user needs to sign in
+      if (!currentSession) {
+        console.error('❌ CRITICAL: No active session! User is not authenticated.');
+        console.error('   - Session error:', sessionError);
+        console.error('   - Cannot load profile without authentication');
+        console.error('   - User ID requested:', userId);
+        console.error('   - This usually means the user needs to sign in again');
+        return null;
+      }
+    } else {
+      console.log('✅ [getUserProfile] Using provided session');
     }
     
-    const { data: { session }, error: sessionError } = sessionResult;
-    
-    // If no session, return null immediately - user needs to sign in
-    if (!session) {
-      console.error('❌ CRITICAL: No active session! User is not authenticated.');
-      console.error('   - Session error:', sessionError);
-      console.error('   - Cannot load profile without authentication');
-      console.error('   - User ID requested:', userId);
-      console.error('   - This usually means the user needs to sign in again');
+    // Validate session
+    if (!currentSession || !currentSession.user) {
+      console.error('❌ CRITICAL: Invalid session! Session or user is missing.');
       return null;
     }
 
+    let session = currentSession;
+
     console.log('✅ [getUserProfile] Session found:', {
       userId: session.user.id,
-      expiresAt: session.expires_at
+      expiresAt: session.expires_at,
+      expiresIn: session.expires_at ? Math.max(0, session.expires_at * 1000 - Date.now()) : 'unknown'
     });
 
     // Verify session is not expired

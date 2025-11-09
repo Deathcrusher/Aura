@@ -124,7 +124,7 @@ function App() {
     return invalid.includes(String(key)) ? null : key;
   };
   
-  const { user, loading: authLoading, signIn, signUp, signInWithGoogle, signOut } = useAuth();
+  const { user, session, loading: authLoading, signIn, signUp, signInWithGoogle, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
@@ -330,7 +330,7 @@ function App() {
         });
         
         const profile = await Promise.race([
-          getUserProfile(user.id),
+          getUserProfile(user.id, session),
           timeoutPromise
         ]);
         
@@ -454,7 +454,7 @@ function App() {
       console.log('✅ Profile saved to Supabase successfully');
       
       // Double-check: Reload profile to verify it was saved
-      const savedProfile = await getUserProfile(user.id);
+      const savedProfile = await getUserProfile(user.id, session);
       if (savedProfile) {
         console.log('✅ Verified saved profile from DB:', {
           name: savedProfile.name,
