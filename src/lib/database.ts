@@ -136,12 +136,24 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     // Take the first (most recent) profile if multiple exist
     const profile = profiles[0]
 
-    // Lade zusätzliche Daten
+    // Lade zusätzliche Daten mit Timeout für jede einzelne Funktion
+    const loadWithTimeout = async <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T | null> => {
+      try {
+        const timeoutPromise = new Promise<null>((resolve) => {
+          setTimeout(() => resolve(null), timeoutMs);
+        });
+        return await Promise.race([promise, timeoutPromise]);
+      } catch (error) {
+        console.warn('Error loading data with timeout:', error);
+        return null;
+      }
+    };
+
     const [memory, goals, moodJournal, journal] = await Promise.all([
-      getAuraMemory(userId),
-      getGoals(userId),
-      getMoodEntries(userId),
-      getJournalEntries(userId),
+      loadWithTimeout(getAuraMemory(userId)),
+      loadWithTimeout(getGoals(userId)),
+      loadWithTimeout(getMoodEntries(userId)),
+      loadWithTimeout(getJournalEntries(userId)),
     ])
 
     return {

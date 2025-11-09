@@ -305,6 +305,11 @@ function App() {
 
   // Load user profile when authenticated
   useEffect(() => {
+    // Warte bis Auth-Loading abgeschlossen ist
+    if (authLoading) {
+      return;
+    }
+
     const loadUserProfile = async () => {
       if (!user) {
         setIsLoadingProfile(false);
@@ -314,7 +319,16 @@ function App() {
       try {
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id);
-        const profile = await getUserProfile(user.id);
+        
+        // Timeout für das Profil-Laden (30 Sekunden)
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('Profile loading timeout')), 30000);
+        });
+        
+        const profile = await Promise.race([
+          getUserProfile(user.id),
+          timeoutPromise
+        ]);
         
         if (profile) {
           console.log('✅ Profile loaded from Supabase:', {
@@ -351,7 +365,7 @@ function App() {
     };
 
     loadUserProfile();
-  }, [user]);
+  }, [user, authLoading]);
 
   // Load chat sessions when profile is loaded
   useEffect(() => {
