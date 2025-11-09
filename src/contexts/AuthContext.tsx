@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -117,10 +118,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Auth State Listener (KEINE async Operationen im Callback!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
+
+        // Wenn ein neuer User sich mit OAuth anmeldet, erstelle Profil
+        if (event === 'SIGNED_IN' && session?.user) {
+          try {
+            // Prüfe ob Profil bereits existiert
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', session.user.id)
+              .maybeSingle()
+
+            if (!existingProfile) {
+              // Erstelle Profil für neuen OAuth-User
+              const userName = session.user.user_metadata?.full_name || 
+                             session.user.user_metadata?.name || 
+                             session.user.email?.split('@')[0] || 
+                             'User'
+              
+              await supabase
+                .from('profiles')
+                .insert({
+                  id: session.user.id,
+                  name: userName,
+                  email: session.user.email,
+                  voice: 'Zephyr',
+                  language: 'de-DE',
+                  onboarding_completed: false,
+                })
+
+              // Erstelle Aura Memory nur wenn noch keiner existiert
+              const { data: existingMemory } = await supabase
+                .from('aura_memory')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .limit(1)
+                .maybeSingle()
+              
+              if (!existingMemory) {
+                await supabase
+                  .from('aura_memory')
+                  .insert({
+                    user_id: session.user.id,
+                  })
+              }
+            }
+          } catch (error) {
+            console.error('Fehler beim Erstellen des Profils für OAuth-User:', error)
+          }
+        }
       }
     )
 
@@ -247,6 +297,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const signInWithGoogle = async () => {
+    if (isDemoMode || !supabase) {
+      // Im Demo-Modus: Simuliere Google-Login mit Demo-Account
+      const demoGoogleAccount: DemoAccount = {
+        id: generateDemoId(),
+        email: 'demo@google.com',
+        password: '',
+        name: 'Google User',
+      }
+      const accounts = loadAccounts()
+      const existingAccount = accounts.find(acc => acc.email === demoGoogleAccount.email)
+      if (!existingAccount) {
+        saveAccounts([...accounts, demoGoogleAccount])
+      }
+      setActiveAccount(demoGoogleAccount)
+      setUser(toSupabaseUser(demoGoogleAccount))
+      setSession(null)
+      setLoading(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}`,
+        },
+      })
+      if (error) {
+        console.error('Google OAuth Fehler:', error)
+        throw error
+      }
+    } catch (error) {
+      console.error('Fehler beim Google-Login:', error)
+      throw error
+    }
+  }
+
   const signOut = async () => {
     if (isDemoMode || !supabase) {
       setActiveAccount(null)
@@ -259,7 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )

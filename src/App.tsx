@@ -124,7 +124,7 @@ function App() {
     return invalid.includes(String(key)) ? null : key;
   };
   
-  const { user, loading: authLoading, signIn, signUp, signOut } = useAuth();
+  const { user, loading: authLoading, signIn, signUp, signInWithGoogle, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
@@ -397,6 +397,16 @@ function App() {
       }
     } catch (error: any) {
       setAuthError(error.message || 'Fehler bei der Registrierung');
+    }
+  };
+
+  const handleSignInWithGoogle = async () => {
+    try {
+      setAuthError(null);
+      await signInWithGoogle();
+      // Der Redirect wird automatisch von Supabase gehandhabt
+    } catch (error: any) {
+      setAuthError(error.message || 'Fehler beim Google-Login');
     }
   };
 
@@ -1862,6 +1872,7 @@ function App() {
         <AuthScreen
           onSignIn={handleSignIn}
           onSignUp={handleSignUp}
+          onSignInWithGoogle={handleSignInWithGoogle}
           loading={authLoading}
           error={authError}
           T={T}

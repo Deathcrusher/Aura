@@ -46,6 +46,8 @@ export const deDE = {
       noAccount: 'Noch kein Konto?',
       signUpLink: 'Registrieren',
       loginLink: 'Anmelden',
+      orContinueWith: 'oder weiter mit',
+      signInWithGoogle: 'Mit Google anmelden',
     },
     onboarding: {
       welcomeTitle: 'Willkommen bei Aura',
@@ -274,6 +276,8 @@ export const enUS = {
       noAccount: 'Don\'t have an account?',
       signUpLink: 'Sign Up',
       loginLink: 'Sign In',
+      orContinueWith: 'or continue with',
+      signInWithGoogle: 'Sign in with Google',
     },
     onboarding: {
       welcomeTitle: 'Welcome to Aura',
