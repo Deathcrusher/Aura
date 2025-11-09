@@ -178,20 +178,29 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
     return
   }
 
+  const profileData = {
+    id: userId,
+    name: updates.name,
+    voice: updates.voice,
+    language: updates.language,
+    avatar_url: updates.avatarUrl,
+    onboarding_completed: updates.onboardingCompleted,
+    subscription_plan: updates.subscription?.plan,
+    subscription_expiry_date: updates.subscription?.expiryDate,
+  };
+
+  console.log('💾 Saving profile to Supabase:', profileData);
+
   const { error } = await supabase
     .from('profiles')
-    .upsert({
-      id: userId,
-      name: updates.name,
-      voice: updates.voice,
-      language: updates.language,
-      avatar_url: updates.avatarUrl,
-      onboarding_completed: updates.onboardingCompleted,
-      subscription_plan: updates.subscription?.plan,
-      subscription_expiry_date: updates.subscription?.expiryDate,
-    }, { onConflict: 'id' })
+    .upsert(profileData, { onConflict: 'id' })
 
-  if (error) throw error
+  if (error) {
+    console.error('❌ Error saving profile:', error);
+    throw error;
+  }
+  
+  console.log('✅ Profile saved successfully');
 }
 
 // Aura Memory Operations

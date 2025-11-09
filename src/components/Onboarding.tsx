@@ -37,6 +37,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
         if (step < TOTAL_STEPS - 1) {
             changeStep(step + 1);
         } else {
+            console.log('🎯 Onboarding finished - calling onComplete with profile:', {
+                name: profile.name,
+                voice: profile.voice,
+                language: profile.language,
+                onboardingCompleted: profile.onboardingCompleted
+            });
             onComplete(profile);
         }
     };

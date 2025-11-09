@@ -313,14 +313,20 @@ function App() {
 
       try {
         setIsLoadingProfile(true);
+        console.log('📥 Loading profile for user:', user.id);
         const profile = await getUserProfile(user.id);
         
         if (profile) {
+          console.log('✅ Profile loaded from Supabase:', {
+            name: profile.name,
+            onboardingCompleted: profile.onboardingCompleted
+          });
           setUserProfile({
             ...DEFAULT_PROFILE,
             ...profile,
           });
         } else {
+          console.log('⚠️ No profile found, creating default');
           // Create default profile for new user (best-effort)
           setUserProfile(DEFAULT_PROFILE);
           updateUserProfile(user.id, DEFAULT_PROFILE).catch((e) =>
@@ -328,7 +334,7 @@ function App() {
           );
         }
       } catch (error) {
-        console.error('Error loading profile:', error);
+        console.error('❌ Error loading profile:', error);
         // Fallback to default in UI to avoid onboarding loop
         setUserProfile(DEFAULT_PROFILE);
       } finally {
@@ -394,17 +400,30 @@ function App() {
       onboardingCompleted: true,
     };
 
+    console.log('Onboarding complete - Profile to save:', {
+      name: updatedProfile.name,
+      onboardingCompleted: updatedProfile.onboardingCompleted,
+      userId: user.id
+    });
+
     try {
       // Update UI immediately to let the user proceed
       setUserProfile(updatedProfile);
       // Persist to Supabase - await to ensure it's saved
       await updateUserProfile(user.id, updatedProfile);
-      console.log('Onboarding completed and profile saved:', updatedProfile.name);
+      console.log('✅ Onboarding completed and profile saved to Supabase:', updatedProfile.name);
+      
+      // Verify it was saved by reloading
+      const savedProfile = await getUserProfile(user.id);
+      console.log('✅ Verified saved profile:', {
+        name: savedProfile?.name,
+        onboardingCompleted: savedProfile?.onboardingCompleted
+      });
       
       // Create first session
       await handleNewChat();
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      console.error('❌ Error completing onboarding:', error);
       // Still allow user to proceed even if save fails
     }
   };
