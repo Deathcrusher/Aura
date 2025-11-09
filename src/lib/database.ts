@@ -232,8 +232,24 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
 
     console.log('✅ [getUserProfile] Session verified, loading profile from database...');
 
-    // Note: The session should already be set in the Supabase client via onAuthStateChange
-    // We don't need to set it again here - the client should automatically use it for RLS
+    // CRITICAL: Explicitly set the session on the Supabase client to ensure RLS policies work
+    // Without this, auth.uid() in RLS policies will return null, causing queries to hang or fail
+    try {
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token || '',
+      });
+      if (setSessionError) {
+        console.warn('⚠️ [getUserProfile] Failed to set session on client:', setSessionError);
+        // Continue anyway - the session might already be set
+      } else {
+        console.log('✅ [getUserProfile] Session set on Supabase client for RLS');
+      }
+    } catch (error) {
+      console.warn('⚠️ [getUserProfile] Error setting session:', error);
+      // Continue anyway
+    }
+
     console.log('✅ [getUserProfile] Session available, proceeding with query');
 
     // Select only profile columns explicitly to avoid automatic joins
