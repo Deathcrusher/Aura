@@ -121,8 +121,28 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 
   try {
+    console.log('🔍 [getUserProfile] Starting profile load for user:', userId);
+    
     // Check if user is authenticated FIRST - required for RLS policies
-    let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Add timeout for session check
+    console.log('🔍 [getUserProfile] Checking session...');
+    const sessionCheckPromise = supabase.auth.getSession();
+    const sessionTimeoutPromise = new Promise<{ data: { session: null }, error: { message: string } }>((resolve) => {
+      setTimeout(() => {
+        console.warn('⚠️ [getUserProfile] Session check timeout after 5 seconds');
+        resolve({ data: { session: null }, error: { message: 'Session check timeout' } });
+      }, 5000);
+    });
+    
+    let sessionResult: { data: { session: any }, error: any };
+    try {
+      sessionResult = await Promise.race([sessionCheckPromise, sessionTimeoutPromise]);
+    } catch (error) {
+      console.error('❌ [getUserProfile] Session check failed:', error);
+      return null;
+    }
+    
+    const { data: { session }, error: sessionError } = sessionResult;
     
     // If no session, return null immediately - user needs to sign in
     if (!session) {
@@ -134,16 +154,31 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       return null;
     }
 
+    console.log('✅ [getUserProfile] Session found:', {
+      userId: session.user.id,
+      expiresAt: session.expires_at
+    });
+
     // Verify session is not expired
     if (session.expires_at && session.expires_at * 1000 < Date.now()) {
-      console.warn('⚠️ Session expired, attempting to refresh...');
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshedSession && !refreshError) {
-        session = refreshedSession;
-        console.log('✅ Session refreshed successfully');
-      } else {
-        console.error('❌ Failed to refresh expired session:', refreshError);
-        console.error('   - User needs to sign in again');
+      console.warn('⚠️ [getUserProfile] Session expired, attempting to refresh...');
+      try {
+        const refreshPromise = supabase.auth.refreshSession();
+        const refreshTimeout = new Promise<{ data: { session: null }, error: null }>((resolve) => {
+          setTimeout(() => resolve({ data: { session: null }, error: null }), 5000);
+        });
+        const { data: { session: refreshedSession }, error: refreshError } = await Promise.race([refreshPromise, refreshTimeout]);
+        
+        if (refreshedSession && !refreshError) {
+          session = refreshedSession;
+          console.log('✅ [getUserProfile] Session refreshed successfully');
+        } else {
+          console.error('❌ [getUserProfile] Failed to refresh expired session:', refreshError);
+          console.error('   - User needs to sign in again');
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ [getUserProfile] Error refreshing session:', error);
         return null;
       }
     }
@@ -155,24 +190,38 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       return null;
     }
 
-    console.log('✅ Session verified for profile load:', {
-      sessionUserId: session.user.id,
-      requestedUserId: userId,
-      sessionValid: !!session,
-      sessionExpiresAt: session.expires_at
-    });
+    console.log('✅ [getUserProfile] Session verified, loading profile from database...');
 
     // Select only profile columns explicitly to avoid automatic joins
     // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
-    const { data: profiles, error } = await supabase
+    // Add timeout for database query
+    console.log('🔍 [getUserProfile] Executing database query...');
+    const profileQueryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .order('created_at', { ascending: false })
-      .limit(1)
+      .limit(1);
+    
+    const queryTimeoutPromise = new Promise<{ data: null, error: { message: string } }>((resolve) => {
+      setTimeout(() => {
+        console.warn('⚠️ [getUserProfile] Database query timeout after 10 seconds');
+        resolve({ data: null, error: { message: 'Query timeout' } });
+      }, 10000);
+    });
+    
+    let queryResult: { data: any, error: any };
+    try {
+      queryResult = await Promise.race([profileQueryPromise, queryTimeoutPromise]);
+    } catch (error) {
+      console.error('❌ [getUserProfile] Database query failed:', error);
+      return null;
+    }
+    
+    const { data: profiles, error } = queryResult;
 
     if (error) {
-      console.error('❌ Error loading profile from Supabase:', {
+      console.error('❌ [getUserProfile] Error loading profile from Supabase:', {
         errorCode: error.code,
         errorMessage: error.message,
         errorDetails: error.details,
@@ -184,34 +233,50 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     }
     
     if (!profiles || profiles.length === 0) {
-      console.log('⚠️ No profile found for user:', userId);
+      console.log('⚠️ [getUserProfile] No profile found for user:', userId);
       return null;
     }
     
     // Take the first (most recent) profile if multiple exist
     const profile = profiles[0]
+    console.log('✅ [getUserProfile] Profile loaded from database:', {
+      name: profile.name,
+      onboardingCompleted: profile.onboarding_completed
+    });
 
     // Lade zusätzliche Daten mit Timeout für jede einzelne Funktion
-    const loadWithTimeout = async <T,>(promise: Promise<T>, timeoutMs: number = 10000): Promise<T | null> => {
+    // Reduziere Timeout auf 5 Sekunden und mache es optional
+    const loadWithTimeout = async <T,>(promise: Promise<T>, timeoutMs: number = 5000, label: string): Promise<T | null> => {
       try {
+        console.log(`🔍 [getUserProfile] Loading ${label}...`);
         const timeoutPromise = new Promise<null>((resolve) => {
-          setTimeout(() => resolve(null), timeoutMs);
+          setTimeout(() => {
+            console.warn(`⚠️ [getUserProfile] Timeout loading ${label}`);
+            resolve(null);
+          }, timeoutMs);
         });
-        return await Promise.race([promise, timeoutPromise]);
+        const result = await Promise.race([promise, timeoutPromise]);
+        if (result) {
+          console.log(`✅ [getUserProfile] ${label} loaded successfully`);
+        }
+        return result;
       } catch (error) {
-        console.warn('Error loading data with timeout:', error);
+        console.warn(`⚠️ [getUserProfile] Error loading ${label}:`, error);
         return null;
       }
     };
 
+    console.log('🔍 [getUserProfile] Loading additional data (memory, goals, mood, journal)...');
     const [memory, goals, moodJournal, journal] = await Promise.all([
-      loadWithTimeout(getAuraMemory(userId)),
-      loadWithTimeout(getGoals(userId)),
-      loadWithTimeout(getMoodEntries(userId)),
-      loadWithTimeout(getJournalEntries(userId)),
+      loadWithTimeout(getAuraMemory(userId), 5000, 'memory'),
+      loadWithTimeout(getGoals(userId), 5000, 'goals'),
+      loadWithTimeout(getMoodEntries(userId), 5000, 'moodJournal'),
+      loadWithTimeout(getJournalEntries(userId), 5000, 'journal'),
     ])
+    
+    console.log('✅ [getUserProfile] All data loaded, constructing profile object...');
 
-    return {
+    const userProfile = {
       name: profile.name || 'User',
       voice: profile.voice || 'Zephyr',
       language: profile.language || 'de-DE',
@@ -225,13 +290,25 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       goals: goals || [],
       moodJournal: moodJournal || [],
       journal: journal || [],
-    }
+    };
+    
+    console.log('✅ [getUserProfile] Profile constructed successfully:', {
+      name: userProfile.name,
+      onboardingCompleted: userProfile.onboardingCompleted,
+      hasMemory: !!memory,
+      goalsCount: goals?.length || 0,
+      moodCount: moodJournal?.length || 0,
+      journalCount: journal?.length || 0
+    });
+    
+    return userProfile;
   } catch (error: any) {
-    console.error('Fehler beim Laden des Profils:', error)
+    console.error('❌ [getUserProfile] Fehler beim Laden des Profils:', error)
     console.error('   - Error code:', error?.code)
     console.error('   - Error message:', error?.message)
     console.error('   - Error details:', error?.details)
     console.error('   - Error hint:', error?.hint)
+    console.error('   - Stack:', error?.stack)
     return null
   }
 }
