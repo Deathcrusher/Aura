@@ -322,12 +322,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // IMMER Production-URL verwenden - auch lokal funktioniert das, wenn die Redirect-URL in Supabase konfiguriert ist
       const redirectTo = 'https://aura-two-beta.vercel.app'
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      console.log('🔐 Google OAuth - Using Redirect URL:', redirectTo)
+      console.log('🔐 Current window.location:', typeof window !== 'undefined' ? {
+        origin: window.location.origin,
+        hostname: window.location.hostname,
+        href: window.location.href
+      } : 'SSR')
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectTo,
         },
       })
+      
+      console.log('🔐 OAuth Response:', { data, error })
+      
       if (error) {
         console.error('Google OAuth Fehler:', error)
         // Spezielle Fehlermeldung wenn Provider nicht aktiviert ist
