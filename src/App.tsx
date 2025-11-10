@@ -1820,7 +1820,9 @@ function App() {
   };
 
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
-    if (!activeSession || !user || !text.trim()) return;
+    if (!activeSession || !text.trim()) return;
+
+    console.log('💬 handleSendMessage called:', { text, mode: activeSession.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
 
     try {
       // Add user message
@@ -1831,7 +1833,11 @@ function App() {
       };
 
       lastTranscriptEntryIdRef.current = userEntry.id;
-      await addTranscriptEntryAuto(activeSession.id, userEntry);
+      
+      // Only save to DB if user is logged in
+      if (user) {
+        await addTranscriptEntryAuto(activeSession.id, userEntry);
+      }
       
       setActiveSession(prev => prev ? {
         ...prev,
@@ -1884,7 +1890,10 @@ function App() {
           text: responseText,
         };
 
-        await addTranscriptEntryAuto(activeSession.id, auraEntry);
+        // Only save to DB if user is logged in
+        if (user) {
+          await addTranscriptEntryAuto(activeSession.id, auraEntry);
+        }
         
         setActiveSession(prev => prev ? {
           ...prev,
@@ -1916,7 +1925,10 @@ function App() {
           text: 'Ich verstehe. Erzähle mir mehr darüber. (Hinweis: API-Schlüssel fehlt für vollständige AI-Antworten)',
         };
 
-        await addTranscriptEntryAuto(activeSession.id, auraEntry);
+        // Only save to DB if user is logged in
+        if (user) {
+          await addTranscriptEntryAuto(activeSession.id, auraEntry);
+        }
         
         setActiveSession(prev => prev ? {
           ...prev,
