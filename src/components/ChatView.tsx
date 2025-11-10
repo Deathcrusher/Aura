@@ -4,7 +4,7 @@ import { AuraHumanAvatar, LightbulbIcon, UserIcon } from './Icons';
 
 interface ChatViewProps {
     sessionState: SessionState;
-    activeSession: ChatSession;
+    activeSession: ChatSession | null;
     currentInput: string;
     currentOutput: string;
     activeDistortion: CognitiveDistortion | null;
@@ -52,7 +52,15 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
 
     useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [activeSession.transcript, currentInput, currentOutput]);
+    }, [activeSession?.transcript, currentInput, currentOutput]);
+
+    if (!activeSession) {
+        return (
+            <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0 items-center justify-center">
+                <p className="text-slate-500 dark:text-slate-400">No active session</p>
+            </div>
+        );
+    }
 
     return (
         <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
@@ -80,7 +88,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                     </div>
                 )}
                 
-                {activeSession.transcript.map(entry => {
+                {(activeSession.transcript || []).map(entry => {
                     const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
                     const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;
                     const isUser = entry.speaker === Speaker.USER;

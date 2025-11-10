@@ -779,7 +779,7 @@ function App() {
     content += `====================\n\n`;
 
     content += `TRANSCRIPT\n\n`;
-    session.transcript.forEach(entry => {
+    (session.transcript || []).forEach(entry => {
       const speaker = entry.speaker === Speaker.USER ? userProfile.name : 'Aura';
       content += `[${speaker}]: ${entry.text}\n\n`;
     });
@@ -1543,12 +1543,12 @@ function App() {
                       const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText };
                       lastTranscriptEntryIdRef.current = userEntry.id;
                       await addTranscriptEntryAuto(activeSession.id, userEntry);
-                    setActiveSession(prev => prev ? { ...prev, transcript: [...prev.transcript, userEntry] } : prev);
+                    setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), userEntry] } : prev);
                   }
                   if (auraText) {
                     const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText };
                     await addTranscriptEntryAuto(activeSession.id, auraEntry);
-                    setActiveSession(prev => prev ? { ...prev, transcript: [...prev.transcript, auraEntry] } : prev);
+                    setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), auraEntry] } : prev);
                   }
                 }
               }
@@ -1729,7 +1729,7 @@ function App() {
       
       setActiveSession(prev => prev ? {
         ...prev,
-        transcript: [...prev.transcript, userEntry],
+        transcript: [...(prev.transcript || []), userEntry],
       } : null);
 
       // Generate AI response
@@ -1741,7 +1741,7 @@ function App() {
         const systemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
         
         // Build conversation history
-        const conversationHistory = activeSession.transcript
+        const conversationHistory = (activeSession.transcript || [])
           .slice(-10) // Last 10 messages for context
           .map(entry => ({
             role: entry.speaker === Speaker.USER ? 'user' as const : 'model' as const,
@@ -1781,7 +1781,7 @@ function App() {
         
         setActiveSession(prev => prev ? {
           ...prev,
-          transcript: [...prev.transcript, auraEntry],
+          transcript: [...(prev.transcript || []), auraEntry],
         } : null);
 
         // Speak the response if requested and TTS is supported
@@ -1813,7 +1813,7 @@ function App() {
         
         setActiveSession(prev => prev ? {
           ...prev,
-          transcript: [...prev.transcript, auraEntry],
+          transcript: [...(prev.transcript || []), auraEntry],
         } : null);
 
         setSessionState(SessionState.IDLE);
