@@ -1384,6 +1384,23 @@ function App() {
 
   const handleStartVoiceSession = async () => {
     try {
+      // Ensure we have an active session before starting voice
+      if (!activeSession && user) {
+        console.log('📝 No active session, creating new one...');
+        await handleNewChat();
+        // Wait a bit for session to be set
+        await new Promise(resolve => setTimeout(resolve, 100));
+        if (!activeSession) {
+          console.error('❌ Failed to create session');
+          return;
+        }
+      }
+
+      if (!activeSession) {
+        console.error('❌ Cannot start voice session: no active session and user not available');
+        return;
+      }
+
       // Prepare mic visualization
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -2145,6 +2162,7 @@ function App() {
                 onStartVoiceSession={handleStartVoiceSession}
                 onStopSession={() => handleStopSession()}
                 onSendMessage={(text) => handleSendMessage(text, false)}
+                onNewChat={handleNewChat}
                 textInput={currentInput}
                 setTextInput={setCurrentInput}
               />

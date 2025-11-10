@@ -16,6 +16,7 @@ interface ChatViewProps {
     onStartVoiceSession?: () => void;
     onStopSession?: () => void;
     onSendMessage?: (text: string) => void;
+    onNewChat?: () => void;
     textInput?: string;
     setTextInput?: (text: string) => void;
 }
@@ -71,6 +72,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onStartVoiceSession,
     onStopSession,
     onSendMessage,
+    onNewChat,
     textInput = '',
     setTextInput
 }) => {
@@ -112,15 +114,36 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <p className="text-slate-600 dark:text-slate-400 mb-6">
                         {T.ui.chat?.noSessionSubtitle || 'Starte eine neue Konversation, um mit Aura zu sprechen'}
                     </p>
-                    {onStartVoiceSession && (
-                        <button
-                            onClick={onStartVoiceSession}
-                            className="w-full flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
-                        >
-                            <span className="material-symbols-outlined">mic</span>
-                            <span>{T.ui.chat?.startSession || 'Sitzung starten'}</span>
-                        </button>
-                    )}
+                    <div className="flex flex-col sm:flex-row gap-3 w-full">
+                        {onNewChat && (
+                            <button
+                                onClick={onNewChat}
+                                className="flex-1 flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+                            >
+                                <span className="material-symbols-outlined">chat_bubble</span>
+                                <span>{T.ui.chat?.startTextChat || 'Text-Chat starten'}</span>
+                            </button>
+                        )}
+                        {onStartVoiceSession && (
+                            <button
+                                onClick={async () => {
+                                    // First create session if needed, then start voice
+                                    if (!activeSession && onNewChat) {
+                                        await onNewChat();
+                                        // Small delay to ensure session is set
+                                        await new Promise(resolve => setTimeout(resolve, 200));
+                                    }
+                                    if (onStartVoiceSession) {
+                                        onStartVoiceSession();
+                                    }
+                                }}
+                                className="flex-1 flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-600 text-white shadow-xl shadow-pink-500/30 hover:shadow-2xl hover:shadow-pink-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+                            >
+                                <span className="material-symbols-outlined">mic</span>
+                                <span>{T.ui.chat?.startSession || 'Sprach-Sitzung starten'}</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         );
