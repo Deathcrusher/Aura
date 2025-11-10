@@ -201,7 +201,7 @@ function App() {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   // Navigation state
-  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights'>('chat');
+  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights'>('home');
   // Auth entry state (welcome vs auth)
   const [showAuth, setShowAuth] = useState<boolean>(false);
   const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');
@@ -291,8 +291,13 @@ function App() {
   // Initialize Gemini AI and Voice Services
   useEffect(() => {
     const apiKey = getValidApiKey();
+    console.log('🔑 API Key check:', apiKey ? 'API Key found' : '❌ NO API KEY - AI features will not work!');
     if (apiKey) {
       genAIRef.current = new GoogleGenAI({ apiKey });
+      console.log('✅ Gemini AI initialized successfully');
+    } else {
+      console.warn('⚠️ No valid API key found. Set VITE_API_KEY in .env file');
+      console.warn('⚠️ AI features (text chat, voice chat) will NOT work without an API key!');
     }
 
     // Initialize voice services
@@ -1113,7 +1118,7 @@ function App() {
   };
 
   const handleNewChat = async (mode: ChatMode = ChatMode.TEXT) => {
-    console.log('🚀 handleNewChat called with mode:', mode);
+    console.log('🚀🚀🚀 handleNewChat called with mode:', mode);
     setShowPostSessionSummary(false);
     stopSummaryPlayback();
 
@@ -1135,12 +1140,13 @@ function App() {
         mode,
         startTime: Date.now(),
       };
+      console.log('📝 Created local session:', newSession);
       setSessions(prev => [newSession!, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
       // Switch to chat view AFTER session is set
       setCurrentView('chat');
-      console.log(`✅ Local ${modeLabel} session created and view switched to chat`);
+      console.log(`✅✅✅ Local ${modeLabel} session created and view switched to chat. Active session should be set now.`);
       return;
     }
 

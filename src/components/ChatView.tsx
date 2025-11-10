@@ -84,8 +84,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const isSpeaking = sessionState === SessionState.SPEAKING;
 
     useEffect(() => {
-        console.log('📱 ChatView rendered - activeSession:', activeSession ? `Session ${activeSession.id}` : 'null');
-    }, [activeSession]);
+        console.log('📱 ChatView rendered - activeSession:', activeSession ? {
+            id: activeSession.id,
+            mode: activeSession.mode,
+            hasTranscript: !!activeSession.transcript,
+            transcriptLength: activeSession.transcript?.length || 0
+        } : 'null');
+        console.log('📱 SessionState:', sessionState);
+        console.log('📱 isIdle:', isIdle);
+    }, [activeSession, sessionState, isIdle]);
 
     useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
