@@ -1102,10 +1102,25 @@ function App() {
   };
 
   const handleNewChat = async () => {
-    if (!user) return;
-
+    // Always switch to chat view first
+    setCurrentView('chat');
     setShowPostSessionSummary(false);
     stopSummaryPlayback();
+
+    // If no user, create a local-only session
+    if (!user) {
+      const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newSession: ChatSession = {
+        id: localSessionId,
+        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        transcript: [],
+        startTime: Date.now(),
+      };
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSession(newSession);
+      setSidebarOpen(false);
+      return;
+    }
 
     try {
       const sessionId = await createChatSession(user.id, {
@@ -1124,9 +1139,19 @@ function App() {
       setSessions(prev => [newSession, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
-      setCurrentView('chat');
     } catch (error) {
       console.error('Error creating new chat:', error);
+      // Even if database creation fails, create a local session so user can still chat
+      const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const newSession: ChatSession = {
+        id: localSessionId,
+        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        transcript: [],
+        startTime: Date.now(),
+      };
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSession(newSession);
+      setSidebarOpen(false);
     }
   };
 
@@ -1385,20 +1410,15 @@ function App() {
   const handleStartVoiceSession = async () => {
     try {
       // Ensure we have an active session before starting voice
-      if (!activeSession && user) {
+      if (!activeSession) {
         console.log('📝 No active session, creating new one...');
         await handleNewChat();
         // Wait a bit for session to be set
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         if (!activeSession) {
           console.error('❌ Failed to create session');
           return;
         }
-      }
-
-      if (!activeSession) {
-        console.error('❌ Cannot start voice session: no active session and user not available');
-        return;
       }
 
       // Prepare mic visualization

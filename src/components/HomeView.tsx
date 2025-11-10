@@ -59,7 +59,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* Modern Primary CTA */}
         <div className="mb-6 animate-fade-in-up">
           <button 
-            onClick={onNewChat}
+            onClick={async () => {
+              if (onNewChat) {
+                await onNewChat();
+              }
+            }}
             className="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
           >
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-all">

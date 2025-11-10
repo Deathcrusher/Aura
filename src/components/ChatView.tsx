@@ -117,7 +117,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <div className="flex flex-col sm:flex-row gap-3 w-full">
                         {onNewChat && (
                             <button
-                                onClick={onNewChat}
+                                onClick={async () => {
+                                    if (onNewChat) {
+                                        await onNewChat();
+                                    }
+                                }}
                                 className="flex-1 flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
                             >
                                 <span className="material-symbols-outlined">chat_bubble</span>
