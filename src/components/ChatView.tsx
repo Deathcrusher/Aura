@@ -17,19 +17,24 @@ interface ChatViewProps {
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
     return (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-2xl p-4 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 animate-fade-in">
-            <div className="flex items-start">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/50 rounded-full mr-3 mt-1">
-                    <LightbulbIcon className="w-5 h-5 text-purple-600 dark:text-purple-400"/>
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md p-5 glass rounded-2xl shadow-2xl border border-purple-200/50 dark:border-purple-800/30 animate-scale-in backdrop-blur-xl">
+            <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                    <LightbulbIcon className="w-6 h-6 text-white"/>
                 </div>
-                <div className="flex-1">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200">{T.ui.chat.distortionDetected}</h4>
-                    <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase mb-1">{distortion.type}</p>
-                    <p className="text-sm italic text-slate-600 dark:text-slate-400 mb-2">"{distortion.statement}"</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{T.ui.chat.distortionInfo(distortion.type)}</p>
+                <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-2">{T.ui.chat.distortionDetected}</h4>
+                    <div className="inline-block px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 mb-2">
+                        <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase">{distortion.type}</p>
+                    </div>
+                    <p className="text-sm italic text-slate-700 dark:text-slate-300 mb-3 leading-relaxed">"{distortion.statement}"</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{T.ui.chat.distortionInfo(distortion.type)}</p>
                 </div>
-                <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <button 
+                    onClick={onClose} 
+                    className="p-2 rounded-xl hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all flex-shrink-0"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
         </div>
@@ -63,50 +68,75 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
     }
 
     return (
-        <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
-            {/* Top App Bar */}
-            <div className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between border-b border-white/10 shrink-0">
-                <div className="flex size-12 shrink-0 items-center">
-                    <AuraHumanAvatar className="w-9 h-9" />
+        <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0">
+            {/* Modern Top App Bar */}
+            <div className="flex items-center glass p-5 justify-between border-b border-white/20 dark:border-white/5 shrink-0 backdrop-blur-xl">
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                        <AuraHumanAvatar className="w-7 h-7" />
+                    </div>
+                    <div>
+                        <h2 className="text-slate-900 dark:text-white text-lg font-bold">Aura</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Your AI companion</p>
+                    </div>
                 </div>
-                <h2 className="text-black dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1">Aura</h2>
-                <div className="flex w-12 items-center justify-end">
-                    <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-black dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
-                        <span className="material-symbols-outlined">more_vert</span>
-                    </button>
-                </div>
+                <button className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm">
+                    <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">more_vert</span>
+                </button>
             </div>
 
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Modern Chat History */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
                 {activeSession.summary && (
-                    <div className="mb-3 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 text-sm text-yellow-900 dark:text-yellow-100">
-                        <strong className="block mb-1">{T.ui.chat?.sessionSummaryTitle ?? 'Zusammenfassung'}</strong>
-                        <p>{activeSession.summary}</p>
+                    <div className="mb-4 p-4 rounded-2xl glass border border-yellow-200/50 dark:border-yellow-800/30 card-shadow animate-fade-in-up">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center flex-shrink-0">
+                                <span className="material-symbols-outlined text-white text-lg">lightbulb</span>
+                            </div>
+                            <div className="flex-1">
+                                <strong className="block mb-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                    {T.ui.chat?.sessionSummaryTitle ?? 'Zusammenfassung'}
+                                </strong>
+                                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{activeSession.summary}</p>
+                            </div>
+                        </div>
                     </div>
                 )}
                 
-                {(activeSession.transcript || []).map(entry => {
+                {(activeSession.transcript || []).map((entry, idx) => {
                     const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
                     const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;
                     const isUser = entry.speaker === Speaker.USER;
                     
                     return (
-                        <div key={entry.id} className={`flex items-end gap-3 ${isUser ? 'justify-end' : ''}`}>
-                            {!isUser && <AuraHumanAvatar className="w-10 h-10 shrink-0" />}
-                            <div className="flex flex-1 flex-col gap-1 items-start">
-                                {!isUser && <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px]">Aura</p>}
-                                {isUser && <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px] text-right ml-auto">You</p>}
-                                <div className={`relative text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 ${
+                        <div 
+                            key={entry.id} 
+                            className={`flex items-end gap-3 animate-fade-in-up ${isUser ? 'justify-end' : ''}`}
+                            style={{ animationDelay: `${idx * 0.05}s` }}
+                        >
+                            {!isUser && (
+                                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                    <AuraHumanAvatar className="w-6 h-6" />
+                                </div>
+                            )}
+                            <div className={`flex flex-col gap-1.5 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+                                <p className={`text-xs font-medium px-2 ${isUser ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    {isUser ? 'You' : 'Aura'}
+                                </p>
+                                <div className={`relative group rounded-2xl px-4 py-3 shadow-md transition-all duration-200 ${
                                     isUser 
-                                        ? 'bg-[#6c2bee] text-white rounded-br-none ml-auto' 
-                                        : 'bg-gray-200 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none'
+                                        ? 'bg-gradient-to-br from-purple-600 to-violet-600 text-white rounded-br-md' 
+                                        : 'glass border border-white/20 dark:border-white/5 text-slate-900 dark:text-white rounded-bl-md'
                                 }`}>
-                                    <p>{entry.text}</p>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
                                     {distortion && (
                                         <button
                                             onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
-                                            className={`absolute -bottom-3 -right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full backdrop-blur-sm ${isDistortionActive ? 'bg-purple-200 dark:bg-purple-800' : 'bg-slate-200/50 dark:bg-slate-700/50 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
+                                            className={`absolute -bottom-2 -right-2 p-2 rounded-full backdrop-blur-md transition-all ${
+                                                isDistortionActive 
+                                                    ? 'bg-purple-200 dark:bg-purple-800 shadow-lg scale-110' 
+                                                    : 'bg-white/80 dark:bg-slate-700/80 hover:bg-white dark:hover:bg-slate-600 opacity-0 group-hover:opacity-100'
+                                            }`}
                                             title={T.ui.chat.distortionDetected}
                                         >
                                             <LightbulbIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
@@ -114,34 +144,42 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                                     )}
                                 </div>
                             </div>
-                            {isUser && <UserAvatar profile={userProfile} className="w-10 h-10 shrink-0" />}
+                            {isUser && (
+                                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                    <UserAvatar profile={userProfile} className="w-6 h-6" />
+                                </div>
+                            )}
                         </div>
                     );
                 })}
                 
                 {currentInput && (
-                    <div className="flex items-end gap-3 justify-end">
-                        <div className="flex flex-1 flex-col gap-1 items-end">
-                            <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px] text-right">You</p>
-                            <p className="text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 bg-[#6c2bee]/20 dark:bg-[#6c2bee]/30 text-[#6c2bee] dark:text-violet-200 rounded-br-none italic">
-                                {currentInput}
-                            </p>
+                    <div className="flex items-end gap-3 justify-end animate-fade-in-up">
+                        <div className="flex flex-col gap-1.5 items-end max-w-[75%]">
+                            <p className="text-xs font-medium px-2 text-purple-600 dark:text-purple-400">You</p>
+                            <div className="rounded-2xl rounded-br-md px-4 py-3 bg-gradient-to-br from-purple-500/30 to-violet-500/30 backdrop-blur-sm border border-purple-200/50 dark:border-purple-800/50">
+                                <p className="text-sm text-purple-700 dark:text-purple-300 italic">{currentInput}</p>
+                            </div>
                         </div>
-                        <UserAvatar profile={userProfile} className="w-10 h-10 shrink-0" />
+                        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-md flex-shrink-0">
+                            <UserAvatar profile={userProfile} className="w-6 h-6" />
+                        </div>
                     </div>
                 )}
                 
                 {currentOutput && (
-                    <div className="flex items-end gap-3">
-                        <AuraHumanAvatar className="w-10 h-10 shrink-0" />
-                        <div className="flex flex-1 flex-col gap-1 items-start">
-                            <p className="text-gray-500 dark:text-[#a69db9] text-[13px] font-normal leading-normal max-w-[360px]">Aura</p>
-                            <div className="text-base font-normal leading-normal flex max-w-[360px] rounded-lg px-4 py-3 bg-gray-200 dark:bg-[#2e2839] text-black dark:text-white rounded-bl-none items-center space-x-2">
-                                <p>Aura is typing</p>
-                                <div className="flex space-x-1">
-                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{animationDelay: '-0.3s'}} />
-                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style={{animationDelay: '-0.15s'}} />
-                                    <div className="size-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" />
+                    <div className="flex items-end gap-3 animate-fade-in-up">
+                        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                            <AuraHumanAvatar className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
+                            <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
+                            <div className="rounded-2xl rounded-bl-md px-4 py-3 glass border border-white/20 dark:border-white/5 flex items-center gap-2">
+                                <p className="text-sm text-slate-600 dark:text-slate-400">Aura is typing</p>
+                                <div className="flex gap-1">
+                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                    <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
                                 </div>
                             </div>
                         </div>

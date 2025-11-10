@@ -303,6 +303,9 @@ function App() {
     }
   }, [userProfile.language]);
 
+  // Track previous user ID to detect user changes
+  const previousUserIdRef = useRef<string | null>(null);
+  
   // Optimized profile loading with caching - only depends on user and authLoading
   const loadingProfileRef = useRef(false);
   useEffect(() => {
@@ -313,7 +316,18 @@ function App() {
     const loadUserProfile = async () => {
       if (!user) {
         setIsLoadingProfile(false);
+        previousUserIdRef.current = null;
         return;
+      }
+
+      // Detect if user changed - if so, force refresh
+      const userChanged = previousUserIdRef.current !== user.id;
+      if (userChanged) {
+        console.log('🔄 User changed - forcing profile refresh:', {
+          previous: previousUserIdRef.current,
+          current: user.id
+        });
+        previousUserIdRef.current = user.id;
       }
 
       // Prevent concurrent loads
@@ -325,15 +339,17 @@ function App() {
       try {
         loadingProfileRef.current = true;
         setIsLoadingProfile(true);
-        console.log('📥 Loading profile for user:', user.id);
+        console.log('📥 Loading profile for user:', user.id, userChanged ? '(force refresh)' : '');
 
         // Use optimized profile loading with caching - pass session directly
-        const profile = await getUserProfile(user.id, session);
+        // Force refresh if user changed to ensure we get the latest data
+        const profile = await getUserProfile(user.id, session, userChanged);
         
         if (profile) {
           console.log('✅ Profile loaded successfully:', {
             name: profile.name,
-            onboardingCompleted: profile.onboardingCompleted
+            onboardingCompleted: profile.onboardingCompleted,
+            forceRefresh: userChanged
           });
           
           const mergedProfile = {
@@ -2051,80 +2067,54 @@ function App() {
 
         {/* Main content */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Header */}
-          <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4 shrink-0">
+          {/* Modern Header */}
+          <header className="glass border-b border-white/20 dark:border-white/5 p-5 shrink-0 backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm"
                 >
                   <MenuIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 </button>
-                <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
-                  Aura
-                </h1>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
+                    <span className="text-white text-sm font-bold">A</span>
+                  </div>
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Aura
+                  </h1>
+                </div>
               </div>
               
               <div className="flex items-center gap-2">
                 {/* Navigation buttons */}
-                <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                  <button
-                    onClick={() => setCurrentView('chat')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      currentView === 'chat'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    Chat
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('home')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      currentView === 'home'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    Home
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('journal')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      currentView === 'journal'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    Journal
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('profile')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      currentView === 'profile'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    Profile
-                  </button>
-                  <button
-                    onClick={() => setCurrentView('insights')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                      currentView === 'insights'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                    }`}
-                  >
-                    Insights
-                  </button>
+                <div className="hidden md:flex items-center gap-1 glass rounded-xl p-1 border border-white/20 dark:border-white/5">
+                  {[
+                    { id: 'chat', label: 'Chat' },
+                    { id: 'home', label: 'Home' },
+                    { id: 'journal', label: 'Journal' },
+                    { id: 'profile', label: 'Profile' },
+                    { id: 'insights', label: 'Insights' }
+                  ].map((view) => (
+                    <button
+                      key={view.id}
+                      onClick={() => setCurrentView(view.id as any)}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 ${
+                        currentView === view.id
+                          ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-300 shadow-sm font-semibold'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      {view.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Theme toggle */}
                 <button
                   onClick={handleThemeToggle}
-                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm"
                 >
                   {isDarkMode ? (
                     <SunIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />

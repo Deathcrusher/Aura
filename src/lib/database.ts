@@ -149,7 +149,7 @@ const getSessionSafely = async (maxWaitMs: number = 1000) => {
 }
 
 // Optimized profile loader with caching - uses session directly if provided
-export async function getUserProfile(userId: string, session?: any): Promise<UserProfile | null> {
+export async function getUserProfile(userId: string, session?: any, forceRefresh: boolean = false): Promise<UserProfile | null> {
   if (!hasSupabase || !supabase) {
     const db = loadDemoDatabase()
     const profile = db.profiles[userId]
@@ -157,12 +157,17 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
   }
 
   try {
-    // Check cache first
+    // Check cache first (unless force refresh is requested)
     const cacheKey = userId
-    const cached = profileCache.get(cacheKey)
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      console.log('✅ Using cached profile for user:', userId)
-      return clone(cached.data)
+    if (!forceRefresh) {
+      const cached = profileCache.get(cacheKey)
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        console.log('✅ Using cached profile for user:', userId)
+        return clone(cached.data)
+      }
+    } else {
+      console.log('🔄 Force refresh requested - bypassing cache for user:', userId)
+      profileCache.delete(cacheKey)
     }
 
     console.log('🔍 Loading fresh profile for user:', userId)

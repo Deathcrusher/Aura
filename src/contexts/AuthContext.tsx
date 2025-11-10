@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { clearProfileCache } from '../lib/database'
 
 interface AuthContextType {
   user: User | null
@@ -107,6 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession()
         setSession(session)
         setUser(session?.user ?? null)
+        
+        // CRITICAL: Clear cache when loading existing session to ensure fresh profile load
+        // This ensures that when user opens app on different device, profile is loaded fresh
+        if (session?.user) {
+          console.log('🔄 Initial session loaded - clearing profile cache for:', session.user.id)
+          clearProfileCache(session.user.id)
+        }
       } catch (error) {
         console.error('Fehler beim Laden der Session:', error)
       } finally {
@@ -123,8 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // Wenn ein neuer User sich mit OAuth anmeldet, erstelle Profil
+        // CRITICAL: Clear cache when user signs in to ensure fresh profile load
         if (event === 'SIGNED_IN' && session?.user) {
+          console.log('🔄 User signed in - clearing profile cache for:', session.user.id)
+          clearProfileCache(session.user.id)
+          
           try {
             // Prüfe ob Profil bereits existiert
             const { data: existingProfile } = await supabase
@@ -170,6 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (error) {
             console.error('Fehler beim Erstellen des Profils für OAuth-User:', error)
           }
+        } else if (event === 'SIGNED_OUT') {
+          // Clear cache when user signs out
+          console.log('🔄 User signed out - clearing all profile caches')
+          clearProfileCache()
         }
       }
     )
@@ -287,10 +302,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+      
+      // CRITICAL: Clear cache when user signs in to ensure fresh profile load
+      if (!error && data?.user) {
+        console.log('🔄 User signed in via password - clearing profile cache for:', data.user.id)
+        clearProfileCache(data.user.id)
+      }
+      
       return { error }
     } catch (error) {
       return { error: error as Error }
