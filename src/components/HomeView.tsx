@@ -1,10 +1,10 @@
 import React from 'react';
-import { UserProfile } from '../types';
+import { UserProfile, ChatMode } from '../types';
 import { translations } from '../lib/translations';
 
 interface HomeViewProps {
   userProfile: UserProfile;
-  onNewChat: () => void;
+  onNewChat: (mode: ChatMode) => void;
   onOpenGoals: () => void;
   onOpenMood: () => void;
   onOpenJournal: () => void;
@@ -61,7 +61,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <button 
             onClick={async () => {
               if (onNewChat) {
-                await onNewChat();
+                await onNewChat(ChatMode.TEXT);
               }
             }}
             className="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"

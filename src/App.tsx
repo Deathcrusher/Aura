@@ -18,6 +18,7 @@ import {
   Mood,
   AuraMemory,
   JournalInsights,
+  ChatMode,
 } from './types';
 import {
   getUserProfile,
@@ -211,6 +212,16 @@ function App() {
   useEffect(() => {
     sessionStateRef.current = sessionState;
   }, [sessionState]);
+
+  // Debug: Log view changes
+  useEffect(() => {
+    console.log('🔄 View changed to:', currentView);
+  }, [currentView]);
+
+  // Debug: Log activeSession changes
+  useEffect(() => {
+    console.log('💬 ActiveSession changed:', activeSession ? `Session ${activeSession.id}` : 'null');
+  }, [activeSession]);
 
   useEffect(() => {
     const shouldShowSummary = (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && !isProcessingSession;
@@ -457,7 +468,7 @@ function App() {
       console.log('✅ Profile saved to Supabase successfully');
       
       // Create first session
-      await handleNewChat();
+      await handleNewChat(ChatMode.TEXT);
     } catch (error) {
       console.error('❌ Error completing onboarding:', error);
       // Show error to user
@@ -1101,57 +1112,78 @@ function App() {
     }
   };
 
-  const handleNewChat = async () => {
-    // Always switch to chat view first
-    setCurrentView('chat');
+  const handleNewChat = async (mode: ChatMode = ChatMode.TEXT) => {
+    console.log('🚀 handleNewChat called with mode:', mode);
     setShowPostSessionSummary(false);
     stopSummaryPlayback();
 
+    // Create session FIRST, then switch view
+    let newSession: ChatSession | null = null;
+    const modeLabel = mode === ChatMode.TEXT ? 'Text' : 'Sprache';
+    const title = mode === ChatMode.TEXT 
+      ? `Text-Chat ${new Date().toLocaleDateString('de-DE')}`
+      : `Sprach-Chat ${new Date().toLocaleDateString('de-DE')}`;
+
     // If no user, create a local-only session
     if (!user) {
+      console.log(`👤 No user, creating local ${modeLabel} session`);
       const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newSession: ChatSession = {
+      newSession = {
         id: localSessionId,
-        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        title,
         transcript: [],
+        mode,
         startTime: Date.now(),
       };
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => [newSession!, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
+      // Switch to chat view AFTER session is set
+      setCurrentView('chat');
+      console.log(`✅ Local ${modeLabel} session created and view switched to chat`);
       return;
     }
 
     try {
+      console.log(`💾 Creating ${modeLabel} session in database...`);
       const sessionId = await createChatSession(user.id, {
-        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        title,
         transcript: [],
+        mode,
         startTime: Date.now(),
       });
 
-      const newSession: ChatSession = {
+      newSession = {
         id: sessionId,
-        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        title,
         transcript: [],
+        mode,
         startTime: Date.now(),
       };
 
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => [newSession!, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
+      // Switch to chat view AFTER session is set
+      setCurrentView('chat');
+      console.log(`✅ Database ${modeLabel} session created and view switched to chat`);
     } catch (error) {
-      console.error('Error creating new chat:', error);
+      console.error('❌ Error creating new chat:', error);
       // Even if database creation fails, create a local session so user can still chat
       const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newSession: ChatSession = {
+      newSession = {
         id: localSessionId,
-        title: `Gespräch ${new Date().toLocaleDateString('de-DE')}`,
+        title,
         transcript: [],
+        mode,
         startTime: Date.now(),
       };
-      setSessions(prev => [newSession, ...prev]);
+      setSessions(prev => [newSession!, ...prev]);
       setActiveSession(newSession);
       setSidebarOpen(false);
+      // Switch to chat view AFTER session is set
+      setCurrentView('chat');
+      console.log(`✅ Fallback local ${modeLabel} session created and view switched to chat`);
     }
   };
 
@@ -1411,8 +1443,8 @@ function App() {
     try {
       // Ensure we have an active session before starting voice
       if (!activeSession) {
-        console.log('📝 No active session, creating new one...');
-        await handleNewChat();
+        console.log('📝 No active session, creating new voice session...');
+        await handleNewChat(ChatMode.VOICE);
         // Wait a bit for session to be set
         await new Promise(resolve => setTimeout(resolve, 200));
         if (!activeSession) {
@@ -1989,7 +2021,7 @@ function App() {
               </button>
             </div>
             <button
-              onClick={handleNewChat}
+              onClick={() => handleNewChat(ChatMode.TEXT)}
               className="w-full flex items-center justify-center gap-2 bg-[#6c2bee] text-white px-4 py-2 rounded-lg hover:bg-[#5a22d6] transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
@@ -2094,7 +2126,13 @@ function App() {
                 {T.ui.sidebar.profile}
               </button>
               <button
-                onClick={() => signOut()}
+                onClick={async () => {
+                  try {
+                    await signOut()
+                  } catch (error) {
+                    console.error('Fehler beim Abmelden:', error)
+                  }
+                }}
                 className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
               >
                 <LogoutIcon className="w-3 h-3" />
@@ -2214,7 +2252,13 @@ function App() {
             onProfileChange={handleProfileChange}
             onPreviewVoice={handlePreviewVoiceFromProfile}
             voicePreviewState={voicePreviewState}
-            onLogout={signOut}
+            onLogout={async () => {
+              try {
+                await signOut()
+              } catch (error) {
+                console.error('Fehler beim Abmelden:', error)
+              }
+            }}
             onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
             T={T}
           />
@@ -2276,7 +2320,13 @@ function App() {
                 T={T}
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenSubscription={() => setIsSubscriptionOpen(true)}
-                onLogout={signOut}
+                onLogout={async () => {
+                  try {
+                    await signOut()
+                  } catch (error) {
+                    console.error('Fehler beim Abmelden:', error)
+                  }
+                }}
               />
             )}
             {currentView === 'insights' && renderInsightsView()}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { SessionState, ChatSession, Speaker, CognitiveDistortion, UserProfile } from '../types';
+import { SessionState, ChatSession, Speaker, CognitiveDistortion, UserProfile, ChatMode } from '../types';
 import { AuraHumanAvatar, LightbulbIcon, UserIcon } from './Icons';
 
 interface ChatViewProps {
@@ -16,7 +16,7 @@ interface ChatViewProps {
     onStartVoiceSession?: () => void;
     onStopSession?: () => void;
     onSendMessage?: (text: string) => void;
-    onNewChat?: () => void;
+    onNewChat?: (mode: ChatMode) => void;
     textInput?: string;
     setTextInput?: (text: string) => void;
 }
@@ -84,6 +84,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const isSpeaking = sessionState === SessionState.SPEAKING;
 
     useEffect(() => {
+        console.log('📱 ChatView rendered - activeSession:', activeSession ? `Session ${activeSession.id}` : 'null');
+    }, [activeSession]);
+
+    useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [activeSession?.transcript, currentInput, currentOutput]);
 
@@ -119,7 +123,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             <button
                                 onClick={async () => {
                                     if (onNewChat) {
-                                        await onNewChat();
+                                        await onNewChat(ChatMode.TEXT);
                                     }
                                 }}
                                 className="flex-1 flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
@@ -131,9 +135,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         {onStartVoiceSession && (
                             <button
                                 onClick={async () => {
-                                    // First create session if needed, then start voice
+                                    // First create voice session if needed, then start voice
                                     if (!activeSession && onNewChat) {
-                                        await onNewChat();
+                                        await onNewChat(ChatMode.VOICE);
                                         // Small delay to ensure session is set
                                         await new Promise(resolve => setTimeout(resolve, 200));
                                     }
@@ -278,38 +282,47 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <div className="glass border-t border-white/20 dark:border-white/5 p-4 sm:p-5 shrink-0 backdrop-blur-xl">
                 {isIdle && (
                     <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
-                        {/* Text Input */}
-                        <div className="flex-1 flex items-center gap-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/50 transition-all">
-                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={textInput}
-                                onChange={(e) => setTextInput?.(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
-                                className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
-                                disabled={isProcessing}
-                            />
-                            {textInput.trim() && (
-                                <button
-                                    onClick={handleSend}
+                        {/* Text Input - Show for TEXT mode or if mode is undefined (backward compatibility) */}
+                        {(activeSession?.mode === ChatMode.TEXT || !activeSession?.mode) && (
+                            <div className="flex-1 flex items-center gap-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/50 transition-all">
+                                <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={textInput}
+                                    onChange={(e) => setTextInput?.(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
+                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
                                     disabled={isProcessing}
-                                    className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <span className="material-symbols-outlined text-lg">send</span>
-                                </button>
-                            )}
-                        </div>
+                                />
+                                {textInput.trim() && (
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={isProcessing}
+                                        className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="material-symbols-outlined text-lg">send</span>
+                                    </button>
+                                )}
+                            </div>
+                        )}
                         
-                        {/* Voice Button */}
+                        {/* Voice Button - Show for VOICE mode or as additional option for TEXT mode */}
                         {onStartVoiceSession && (
                             <button
                                 onClick={onStartVoiceSession}
-                                className="flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 font-semibold text-sm sm:text-base whitespace-nowrap"
+                                className={`flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 font-semibold text-sm sm:text-base whitespace-nowrap ${
+                                    activeSession?.mode === ChatMode.VOICE ? 'flex-1' : ''
+                                }`}
                             >
                                 <span className="material-symbols-outlined">mic</span>
-                                <span className="hidden sm:inline">{T.ui.chat?.startVoice || 'Sprache'}</span>
+                                <span className="hidden sm:inline">
+                                    {activeSession?.mode === ChatMode.VOICE 
+                                        ? (T.ui.chat?.startSession || 'Sprach-Sitzung starten')
+                                        : (T.ui.chat?.startVoice || 'Sprache')
+                                    }
+                                </span>
                             </button>
                         )}
                     </div>

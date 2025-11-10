@@ -379,14 +379,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    if (isDemoMode || !supabase) {
+    try {
+      if (isDemoMode || !supabase) {
+        setActiveAccount(null)
+        setUser(null)
+        setSession(null)
+        // Clear cache when signing out in demo mode
+        clearProfileCache()
+        return
+      }
+
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Fehler beim Abmelden:', error)
+        throw error
+      }
+      // Clear cache when signing out
+      clearProfileCache()
+    } catch (error) {
+      console.error('Fehler beim Abmelden:', error)
+      // Even if there's an error, clear local state
       setActiveAccount(null)
       setUser(null)
       setSession(null)
-      return
+      clearProfileCache()
     }
-
-    await supabase.auth.signOut()
   }
 
   return (

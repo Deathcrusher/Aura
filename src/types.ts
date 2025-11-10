@@ -9,6 +9,11 @@ export enum SessionState {
     ERROR = 'error',
 }
 
+export enum ChatMode {
+    TEXT = 'text',
+    VOICE = 'voice',
+}
+
 export enum Speaker {
   USER = 'user',
   AURA = 'aura',
@@ -40,6 +45,7 @@ export interface ChatSession {
   id: string;
   title: string;
   transcript: TranscriptEntry[];
+  mode?: ChatMode; // 'text' or 'voice' - determines the chat interface
   notes?: string; // AI-generated summary of the session for its own memory
   summary?: string; // AI-generated summary for the user
   summaryAudioBase64?: string; // Pre-generated base64 audio for the summary
