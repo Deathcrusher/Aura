@@ -15,6 +15,10 @@ const hasSupabase = Boolean(isSupabaseConfigured && supabase)
 
 const DEMO_STORAGE_KEY = 'aura-demo-database-v1'
 
+// Cache for profile data to avoid repeated expensive queries
+const profileCache = new Map<string, { data: UserProfile; timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 const createDefaultMemory = (): AuraMemory => ({
   keyRelationships: [],
   majorLifeEvents: [],
@@ -112,7 +116,29 @@ const upsertDemoSessionRecord = (
   return session
 }
 
-// Profile Operations
+// Helper function to get session with shorter timeout
+const getSessionSafely = async (maxWaitMs: number = 2000) => {
+  try {
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), maxWaitMs)
+    })
+    
+    const sessionPromise = supabase.auth.getSession()
+    const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
+    
+    if (error) {
+      console.warn('Session check error:', error.message)
+      return null
+    }
+    
+    return session
+  } catch (error) {
+    console.warn('Session check failed:', error)
+    return null
+  }
+}
+
+// Optimized profile loader with caching
 export async function getUserProfile(userId: string, session?: any): Promise<UserProfile | null> {
   if (!hasSupabase || !supabase) {
     const db = loadDemoDatabase()
@@ -121,412 +147,125 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
   }
 
   try {
-    console.log('🔍 [getUserProfile] Starting profile load for user:', userId);
-    
-    // Helper function to create a cancellable timeout
-    const createTimeout = <T>(timeoutMs: number, rejectValue: T): { promise: Promise<T>, cancel: () => void } => {
-      let timeoutId: NodeJS.Timeout | null = null;
-      const promise = new Promise<T>((resolve) => {
-        timeoutId = setTimeout(() => {
-          resolve(rejectValue);
-        }, timeoutMs);
-      });
-      return {
-        promise,
-        cancel: () => {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
-        }
-      };
-    };
-    
-    // Check if user is authenticated FIRST - required for RLS policies
-    // Use provided session if available, otherwise try to get it
-    let currentSession = session;
-    
-    if (!currentSession) {
-      console.log('🔍 [getUserProfile] No session provided, checking session...');
-      // Reduced timeout to 3 seconds
-      const sessionTimeout = createTimeout<{ data: { session: null }, error: { message: string } }>(
-        3000,
-        { data: { session: null }, error: { message: 'Session check timeout' } }
-      );
-      
-      let sessionResult: { data: { session: any }, error: any };
-      try {
-        sessionResult = await Promise.race([
-          supabase.auth.getSession(),
-          sessionTimeout.promise
-        ]);
-        sessionTimeout.cancel();
-      } catch (error) {
-        sessionTimeout.cancel();
-        console.error('❌ [getUserProfile] Session check failed:', error);
-        return null;
-      }
-      
-      const { data: { session: fetchedSession }, error: sessionError } = sessionResult;
-      currentSession = fetchedSession;
-      
-      // If no session, return null immediately - user needs to sign in
-      if (!currentSession) {
-        console.error('❌ CRITICAL: No active session! User is not authenticated.');
-        console.error('   - Session error:', sessionError);
-        console.error('   - Cannot load profile without authentication');
-        console.error('   - User ID requested:', userId);
-        console.error('   - This usually means the user needs to sign in again');
-        return null;
-      }
-    } else {
-      console.log('✅ [getUserProfile] Using provided session');
+    // Check cache first
+    const cacheKey = userId
+    const cached = profileCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      console.log('✅ Using cached profile for user:', userId)
+      return clone(cached.data)
     }
+
+    console.log('🔍 Loading fresh profile for user:', userId)
     
-    // Validate session
+    // Get or validate session quickly
+    let currentSession = session || await getSessionSafely(2000)
+    
     if (!currentSession || !currentSession.user) {
-      console.error('❌ CRITICAL: Invalid session! Session or user is missing.');
-      return null;
+      console.error('❌ No valid session - user needs to sign in')
+      return null
     }
 
-    console.log('✅ [getUserProfile] Session found:', {
-      userId: currentSession.user.id,
-      expiresAt: currentSession.expires_at,
-      expiresIn: currentSession.expires_at ? Math.max(0, currentSession.expires_at * 1000 - Date.now()) : 'unknown'
-    });
-
-    // Verify session is not expired
-    if (currentSession.expires_at && currentSession.expires_at * 1000 < Date.now()) {
-      console.warn('⚠️ [getUserProfile] Session expired, attempting to refresh...');
-      try {
-        const refreshTimeout = createTimeout<{ data: { session: null }, error: null }>(
-          3000,
-          { data: { session: null }, error: null }
-        );
-        const { data: { session: refreshedSession }, error: refreshError } = await Promise.race([
-          supabase.auth.refreshSession(),
-          refreshTimeout.promise
-        ]);
-        refreshTimeout.cancel();
-        
-        if (refreshedSession && !refreshError) {
-          currentSession = refreshedSession;
-          console.log('✅ [getUserProfile] Session refreshed successfully');
-        } else {
-          console.error('❌ [getUserProfile] Failed to refresh expired session:', refreshError);
-          console.error('   - User needs to sign in again');
-          return null;
-        }
-      } catch (error) {
-        console.error('❌ [getUserProfile] Error refreshing session:', error);
-        return null;
-      }
-    }
-
+    // Verify user ID match
     if (currentSession.user.id !== userId) {
-      console.error('❌ CRITICAL: User ID mismatch!');
-      console.error('   - Session user ID:', currentSession.user.id);
-      console.error('   - Requested user ID:', userId);
-      return null;
+      console.error('❌ User ID mismatch')
+      return null
     }
 
-    console.log('✅ [getUserProfile] Session verified, loading profile from database...');
-
-    // CRITICAL: Explicitly set the session on the Supabase client to ensure RLS policies work
-    // Without this, auth.uid() in RLS policies will return null, causing queries to hang or fail
-    try {
-      const { error: setSessionError } = await supabase.auth.setSession({
-        access_token: currentSession.access_token,
-        refresh_token: currentSession.refresh_token || '',
-      });
-      if (setSessionError) {
-        console.warn('⚠️ [getUserProfile] Failed to set session on client:', setSessionError);
-        // Continue anyway - the session might already be set
-      } else {
-        console.log('✅ [getUserProfile] Session set on Supabase client for RLS');
-      }
-    } catch (error) {
-      console.warn('⚠️ [getUserProfile] Error setting session:', error);
-      // Continue anyway
-    }
-
-    console.log('✅ [getUserProfile] Session available, proceeding with query');
-
-    // Select only profile columns explicitly to avoid automatic joins
-    // Supabase makes automatic joins with .select('*') which causes issues when related tables have multiple rows
-    // Reduced timeout to 5 seconds
-    console.log('🔍 [getUserProfile] Executing database query...');
-    console.log('🔍 [getUserProfile] Query details:', {
-      userId,
-      hasSession: !!currentSession,
-      sessionUserId: currentSession?.user?.id
-    });
-    
-    // Create the query promise explicitly with better error handling
-    // Use maybeSingle() for efficiency - it returns a single object or null
-    let queryResolved = false;
-    const queryPromise = supabase
+    // Optimized single query for profile data
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .maybeSingle()
-      .then((result) => {
-        queryResolved = true;
-        console.log('✅ [getUserProfile] Query completed:', {
-          hasData: !!result.data,
-          hasError: !!result.error,
-          profileName: result.data?.name
-        });
-        // Convert single object to array format for compatibility
-        return {
-          data: result.data ? [result.data] : null,
-          error: result.error
-        };
-      })
-      .catch((error) => {
-        queryResolved = true;
-        console.error('❌ [getUserProfile] Query error:', error);
-        return { data: null, error };
-      });
-    
-    const queryTimeout = createTimeout<{ data: null, error: { message: string } }>(
-      5000,
-      { data: null, error: { message: 'Query timeout' } }
-    );
-    
-    let queryResult: { data: any, error: any };
-    try {
-      const raceResult = await Promise.race([queryPromise, queryTimeout.promise]);
-      queryTimeout.cancel();
-
-      const timedOutBeforeCompletion =
-        !queryResolved &&
-        Boolean(raceResult) &&
-        Boolean(raceResult.error) &&
-        raceResult.error.message === 'Query timeout';
-
-      if (timedOutBeforeCompletion) {
-        console.warn('⚠️ [getUserProfile] Query exceeded 5 seconds, waiting for completion...');
-        console.warn('   - This might indicate a transient network issue or RLS policy delay');
-        queryResult = await queryPromise;
-      } else {
-        queryResult = raceResult ?? (await queryPromise);
-      }
-    } catch (error) {
-      queryTimeout.cancel();
-      console.error('❌ [getUserProfile] Database query failed with exception:', error);
-      return null;
-    }
-    
-    const { data: profiles, error } = queryResult;
 
     if (error) {
-      console.error('❌ [getUserProfile] Error loading profile from Supabase:', {
-        errorCode: error.code,
-        errorMessage: error.message,
-        errorDetails: error.details,
-        errorHint: error.hint,
-        userId: userId,
-        hasSession: !!currentSession
-      });
-      throw error;
+      console.error('❌ Profile query error:', error)
+      throw error
     }
-    
-    if (!profiles || profiles.length === 0) {
-      console.log('⚠️ [getUserProfile] No profile found for user:', userId);
-      return null;
+
+    if (!profile) {
+      console.log('⚠️ No profile found for user:', userId)
+      return null
     }
-    
-    // Take the first (most recent) profile if multiple exist
-    const profile = profiles[0]
-    console.log('✅ [getUserProfile] Profile loaded from database:', {
-      name: profile.name,
-      onboardingCompleted: profile.onboarding_completed
-    });
 
-    // Lade zusätzliche Daten mit Timeout für jede einzelne Funktion
-    // Reduced timeout to 3 seconds and make them optional
-    const loadWithTimeout = async <T,>(promise: Promise<T>, timeoutMs: number = 3000, label: string): Promise<T | null> => {
-      const timeout = createTimeout<null>(timeoutMs, null);
-      try {
-        console.log(`🔍 [getUserProfile] Loading ${label}...`);
-        const result = await Promise.race([promise, timeout.promise]);
-        timeout.cancel();
-        if (result) {
-          console.log(`✅ [getUserProfile] ${label} loaded successfully`);
-        } else {
-          console.warn(`⚠️ [getUserProfile] ${label} timed out or returned null`);
-        }
-        return result;
-      } catch (error) {
-        timeout.cancel();
-        console.warn(`⚠️ [getUserProfile] Error loading ${label}:`, error);
-        return null;
-      }
-    };
-
-    console.log('🔍 [getUserProfile] Loading additional data (memory, goals, mood, journal)...');
-    // Load data in parallel but with individual timeouts
-    const [memory, goals, moodJournal, journal] = await Promise.all([
-      loadWithTimeout(getAuraMemory(userId), 3000, 'memory'),
-      loadWithTimeout(getGoals(userId), 3000, 'goals'),
-      loadWithTimeout(getMoodEntries(userId), 3000, 'moodJournal'),
-      loadWithTimeout(getJournalEntries(userId), 3000, 'journal'),
-    ])
-    
-    console.log('✅ [getUserProfile] All data loaded, constructing profile object...');
-
-    const userProfile = {
+    // Construct basic profile immediately
+    const basicProfile: UserProfile = {
       name: profile.name || 'User',
       voice: profile.voice || 'Zephyr',
       language: profile.language || 'de-DE',
       avatarUrl: profile.avatar_url,
-      onboardingCompleted: profile.onboarding_completed === true, // Explicitly check for true
+      onboardingCompleted: profile.onboarding_completed === true,
       subscription: {
         plan: profile.subscription_plan || 'free',
         expiryDate: profile.subscription_expiry_date,
       },
-      memory: memory || createDefaultMemory(),
-      goals: goals || [],
-      moodJournal: moodJournal || [],
-      journal: journal || [],
-    };
+      memory: createDefaultMemory(),
+      goals: [],
+      moodJournal: [],
+      journal: [],
+    }
+
+    // Load additional data in background (non-blocking)
+    loadAdditionalData(userId, basicProfile).catch(error => {
+      console.warn('Background data loading failed:', error)
+    })
+
+    // Cache the result
+    profileCache.set(cacheKey, { data: clone(basicProfile), timestamp: Date.now() })
     
-    console.log('✅ [getUserProfile] Profile constructed successfully:', {
-      name: userProfile.name,
-      onboardingCompleted: userProfile.onboardingCompleted,
-      hasMemory: !!memory,
-      goalsCount: goals?.length || 0,
-      moodCount: moodJournal?.length || 0,
-      journalCount: journal?.length || 0
-    });
-    
-    return userProfile;
+    console.log('✅ Profile loaded successfully (basic data)')
+    return basicProfile
+
   } catch (error: any) {
-    console.error('❌ [getUserProfile] Fehler beim Laden des Profils:', error)
-    console.error('   - Error code:', error?.code)
-    console.error('   - Error message:', error?.message)
-    console.error('   - Error details:', error?.details)
-    console.error('   - Error hint:', error?.hint)
-    console.error('   - Stack:', error?.stack)
+    console.error('❌ Error loading profile:', error)
     return null
   }
 }
 
-export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
-  if (!hasSupabase || !supabase) {
-    const db = loadDemoDatabase()
-    const existing = ensureDemoProfile(db, userId)
-    const updatedProfile: UserProfile = {
-      ...existing,
-      ...updates,
-      memory: updates.memory ? clone(updates.memory) : existing.memory ?? createDefaultMemory(),
-      goals: updates.goals ?? existing.goals ?? [],
-      moodJournal: updates.moodJournal ?? existing.moodJournal ?? [],
-      journal: updates.journal ?? existing.journal ?? [],
-      subscription: updates.subscription ?? existing.subscription ?? { plan: SubscriptionPlan.FREE },
+// Background loading of non-essential data
+const loadAdditionalData = async (userId: string, profile: UserProfile) => {
+  try {
+    console.log('🔄 Loading additional data in background...')
+    
+    // Load data with shorter timeouts and in parallel
+    const [memory, goals, moodJournal, journal] = await Promise.allSettled([
+      getAuraMemory(userId).catch(() => null),
+      getGoals(userId).catch(() => []),
+      getMoodEntries(userId).catch(() => []),
+      getJournalEntries(userId).catch(() => []),
+    ])
+
+    // Update profile with loaded data
+    if (memory.status === 'fulfilled' && memory.value) {
+      profile.memory = memory.value
+    }
+    if (goals.status === 'fulfilled') {
+      profile.goals = goals.value
+    }
+    if (moodJournal.status === 'fulfilled') {
+      profile.moodJournal = moodJournal.value
+    }
+    if (journal.status === 'fulfilled') {
+      profile.journal = journal.value
     }
 
-    db.profiles[userId] = updatedProfile
-    saveDemoDatabase(db)
-    return
-  }
-
-  // Check if user is authenticated FIRST
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (!session) {
-    console.error('❌ CRITICAL: No active session! User is not authenticated.');
-    console.error('   - Session error:', sessionError);
-    console.error('   - Cannot update profile without authentication');
-    throw new Error('User must be authenticated to update profile');
-  }
-
-  if (session.user.id !== userId) {
-    console.error('❌ CRITICAL: User ID mismatch!');
-    console.error('   - Session user ID:', session.user.id);
-    console.error('   - Requested user ID:', userId);
-    throw new Error('User ID mismatch - cannot update another user\'s profile');
-  }
-
-  const profileData: any = {
-    id: userId,
-  };
-
-  // Only include fields that are explicitly provided (not undefined) and not empty strings
-  if (updates.name !== undefined && updates.name !== null && updates.name.trim() !== '') {
-    profileData.name = updates.name.trim();
-  } else if (updates.name === '') {
-    // Don't update name if it's an empty string - keep existing value
-    console.warn('⚠️ Empty name provided, skipping name update');
-  }
-  
-  if (updates.voice !== undefined) profileData.voice = updates.voice;
-  if (updates.language !== undefined) profileData.language = updates.language;
-  if (updates.avatarUrl !== undefined) profileData.avatar_url = updates.avatarUrl;
-  if (updates.onboardingCompleted !== undefined) profileData.onboarding_completed = Boolean(updates.onboardingCompleted);
-  if (updates.subscription?.plan !== undefined) profileData.subscription_plan = updates.subscription.plan;
-  if (updates.subscription?.expiryDate !== undefined) profileData.subscription_expiry_date = updates.subscription.expiryDate;
-
-  console.log('💾 Saving profile to Supabase:', {
-    userId,
-    sessionUserId: session.user.id,
-    profileData,
-    hasSupabase,
-    isSupabaseConfigured,
-    supabaseClientExists: !!supabase
-  });
-
-  // Check if profile exists first
-  const { data: existingProfile, error: checkError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (checkError) {
-    console.error('❌ Error checking existing profile:', checkError);
-    throw checkError;
-  }
-
-  let result;
-  if (existingProfile) {
-    // Profile exists - use UPDATE
-    console.log('📝 Profile exists, using UPDATE');
-    // Remove id from update data since we're filtering by it
-    const { id, ...updateData } = profileData;
-    result = await supabase
-      .from('profiles')
-      .update(updateData)
-      .eq('id', userId)
-      .select();
-  } else {
-    // Profile doesn't exist - use INSERT
-    console.log('➕ Profile does not exist, using INSERT');
-    // Ensure required fields are present for insert
-    if (!profileData.name) profileData.name = 'User';
-    if (!profileData.voice) profileData.voice = 'Zephyr';
-    if (!profileData.language) profileData.language = 'de-DE';
-    if (profileData.onboarding_completed === undefined) profileData.onboarding_completed = false;
+    // Update cache
+    const cacheKey = userId
+    profileCache.set(cacheKey, { data: clone(profile), timestamp: Date.now() })
     
-    result = await supabase
-      .from('profiles')
-      .insert(profileData)
-      .select();
+    console.log('✅ Additional data loaded in background')
+  } catch (error) {
+    console.warn('Background data loading error:', error)
   }
+}
 
-  const { data, error } = result;
-
-  if (error) {
-    console.error('❌ Error saving profile:', error);
-    console.error('   - Error code:', error.code);
-    console.error('   - Error message:', error.message);
-    console.error('   - Error details:', error.details);
-    console.error('   - Error hint:', error.hint);
-    console.error('   - Profile data attempted:', JSON.stringify(profileData, null, 2));
-    throw error;
+// Clear profile cache when needed
+export const clearProfileCache = (userId?: string) => {
+  if (userId) {
+    profileCache.delete(userId)
+  } else {
+    profileCache.clear()
   }
-  
-  console.log('✅ Profile saved successfully:', data);
 }
 
 // Aura Memory Operations
@@ -581,6 +320,9 @@ export async function updateAuraMemory(userId: string, memory: AuraMemory): Prom
     })
 
   if (error) throw error
+  
+  // Clear cache when memory is updated
+  clearProfileCache(userId)
 }
 
 // Goals Operations
@@ -629,6 +371,9 @@ export async function addGoal(userId: string, goal: Omit<Goal, 'id'>): Promise<v
     })
 
   if (error) throw error
+  
+  // Clear cache when goals are updated
+  clearProfileCache(userId)
 }
 
 export async function updateGoal(goalId: string, status: 'active' | 'completed'): Promise<void> {
@@ -739,6 +484,9 @@ export async function addMoodEntry(userId: string, entry: Omit<MoodEntry, 'id'>)
     })
 
   if (error) throw error
+  
+  // Clear cache when mood entries are updated
+  clearProfileCache(userId)
 }
 
 // Journal Entries Operations
@@ -1176,4 +924,123 @@ export async function addCognitiveDistortion(sessionId: string, distortion: Cogn
     })
 
   if (error) throw error
+}
+
+export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
+  if (!hasSupabase || !supabase) {
+    const db = loadDemoDatabase()
+    const existing = ensureDemoProfile(db, userId)
+    const updatedProfile: UserProfile = {
+      ...existing,
+      ...updates,
+      memory: updates.memory ? clone(updates.memory) : existing.memory ?? createDefaultMemory(),
+      goals: updates.goals ?? existing.goals ?? [],
+      moodJournal: updates.moodJournal ?? existing.moodJournal ?? [],
+      journal: updates.journal ?? existing.journal ?? [],
+      subscription: updates.subscription ?? existing.subscription ?? { plan: SubscriptionPlan.FREE },
+    }
+
+    db.profiles[userId] = updatedProfile
+    saveDemoDatabase(db)
+    return
+  }
+
+  // Check if user is authenticated FIRST
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (!session) {
+    console.error('❌ CRITICAL: No active session! User is not authenticated.');
+    console.error('   - Session error:', sessionError);
+    console.error('   - Cannot update profile without authentication');
+    throw new Error('User must be authenticated to update profile');
+  }
+
+  if (session.user.id !== userId) {
+    console.error('❌ CRITICAL: User ID mismatch!');
+    console.error('   - Session user ID:', session.user.id);
+    console.error('   - Requested user ID:', userId);
+    throw new Error('User ID mismatch - cannot update another user\'s profile');
+  }
+
+  const profileData: any = {
+    id: userId,
+  };
+
+  // Only include fields that are explicitly provided (not undefined) and not empty strings
+  if (updates.name !== undefined && updates.name !== null && updates.name.trim() !== '') {
+    profileData.name = updates.name.trim();
+  } else if (updates.name === '') {
+    // Don't update name if it's an empty string - keep existing value
+    console.warn('⚠️ Empty name provided, skipping name update');
+  }
+  
+  if (updates.voice !== undefined) profileData.voice = updates.voice;
+  if (updates.language !== undefined) profileData.language = updates.language;
+  if (updates.avatarUrl !== undefined) profileData.avatar_url = updates.avatarUrl;
+  if (updates.onboardingCompleted !== undefined) profileData.onboarding_completed = Boolean(updates.onboardingCompleted);
+  if (updates.subscription?.plan !== undefined) profileData.subscription_plan = updates.subscription.plan;
+  if (updates.subscription?.expiryDate !== undefined) profileData.subscription_expiry_date = updates.subscription.expiryDate;
+
+  console.log('💾 Saving profile to Supabase:', {
+    userId,
+    sessionUserId: session.user.id,
+    profileData,
+    hasSupabase,
+    isSupabaseConfigured,
+    supabaseClientExists: !!supabase
+  });
+
+  // Check if profile exists first
+  const { data: existingProfile, error: checkError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (checkError) {
+    console.error('❌ Error checking existing profile:', checkError);
+    throw checkError;
+  }
+
+  let result;
+  if (existingProfile) {
+    // Profile exists - use UPDATE
+    console.log('📝 Profile exists, using UPDATE');
+    // Remove id from update data since we're filtering by it
+    const { id, ...updateData } = profileData;
+    result = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select();
+  } else {
+    // Profile doesn't exist - use INSERT
+    console.log('➕ Profile does not exist, using INSERT');
+    // Ensure required fields are present for insert
+    if (!profileData.name) profileData.name = 'User';
+    if (!profileData.voice) profileData.voice = 'Zephyr';
+    if (!profileData.language) profileData.language = 'de-DE';
+    if (profileData.onboarding_completed === undefined) profileData.onboarding_completed = false;
+    
+    result = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select();
+  }
+
+  const { data, error } = result;
+
+  if (error) {
+    console.error('❌ Error saving profile:', error);
+    console.error('   - Error code:', error.code);
+    console.error('   - Error message:', error.message);
+    console.error('   - Error details:', error.details);
+    console.error('   - Error hint:', error.hint);
+    console.error('   - Profile data attempted:', JSON.stringify(profileData, null, 2));
+    throw error;
+  }
+  
+  console.log('✅ Profile saved successfully:', data);
+  
+  // Clear cache when profile is updated
+  clearProfileCache(userId);
 }

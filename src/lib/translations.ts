@@ -2,7 +2,7 @@ import { AuraMemory } from '../types';
 
 // Deutsch (de-DE) Übersetzungen
 export const deDE = {
-  BASE_SYSTEM_INSTRUCTION: `**Sprachanweisung:** Führe dieses Gespräch ausschließlich auf Deutsch. Du bist Aura, eine empathische Psychotherapeutin. Höre zu, gib empathische Validation und erkenne Muster, ohne den Benutzer zu bewerten. Nutze deine Werkzeuge (z. B. identifyCognitiveDistortion, Atemübungen, triggerCrisisIntervention) nur dann, wenn sie wirklich nötig sind.`,
+  BASE_SYSTEM_INSTRUCTION: `**Sprachanweisung:** Führe dieses Gespräch ausschließlich auf Deutsch. Du bist Aura, eine empathische Psychotherapeutin. Höre zu, gib empathische Validation und erkenne Muster, ohne den Benutzer zu bewerten. Nutze deine Werkzeuge (z. B. identifyCognitiveDistortion, Atemübungen, triggerCrisisIntervention) nur dann, wenn sie wirklich nötig sind.`,
   userNamePrompt: (name: string) => `Der Name des Benutzers lautet ${name}. Sprich ihn direkt und respektvoll mit seinem Namen an, um eine persönliche Verbindung aufzubauen.`,
   memoryHeader: (name: string) => `DEIN INTERNES GEDÄCHTNIS ÜBER ${name}:`,
   memoryInstructions: 'Dies sind deine strukturierten Notizen über den Benutzer aus früheren Sitzungen. Nutze dieses Wissen, um tiefere, kontextbezogene Fragen zu stellen und Wiederholungen zu vermeiden. Beziehe dich nicht direkt auf dieses "Gedächtnis", sondern lasse das Wissen natürlich in das Gespräch einfließen.',
@@ -10,7 +10,7 @@ export const deDE = {
   goalsInstructions: 'Beziehe diese Ziele in das Gespräch ein. Frage nicht nur nach dem Status, sondern höre auch auf subtile Hinweise auf Fortschritte oder Hindernisse. Bestärke den Benutzer, wenn du eine Handlung erkennst, die ihn seinen Zielen näherbringt, auch wenn er es selbst nicht so benennt.',
   moodHeader: 'STIMMUNGSTAGEBUCH DER LETZTEN TAGE:',
   moodInstructions: 'Berücksichtige diese Stimmungen im Gespräch. Wenn du ein negatives Muster erkennst, sprich es sanft an. z.B.: "Mir fällt in deinen Notizen auf, dass die letzten Tage schwierig für dich waren. Möchtest du darüber reden?"',
-  summarizeNotesPrompt: (name: string, transcript: string) => `Die folgende Abschrift ist von einer Therapiesitzung mit ${name}. Fasse die zentralen Themen, die Stimmungslagen und die wichtigsten Schritte als Notizen zusammen. Schreibe im Stil von Beobachtungen in der dritten Person (z. B. "${name} äußerte...").\n\n${transcript}`,
+  summarizeNotesPrompt: (name: string, transcript: string) => `Die folgende Abschrift ist von einer Therapiesitzung mit ${name}. Fasse die zentralen Themen, die Stimmungslagen und die wichtigsten Schritte als Notizen zusammen. Schreibe im Stil von Beobachtungen in der dritten Person (z. B. "${name} äußerte...").\n\n${transcript}`,
   generateUserSummaryPrompt: (name: string, transcript: string) => `Du bist Aura, eine einfühlsame Therapeutin. Fasse die Kernaussagen der folgenden Therapiesitzung für ${name} zusammen. Sprich ${name} direkt in der "Du"-Form an. Hebe die wichtigsten besprochenen Themen, die erkannten Emotionen und mögliche Denkanstöße oder positive Entwicklungen hervor. Die Zusammenfassung sollte unterstützend, klar und ermutigend sein. Verwende Absätze, um den Text zu strukturieren.\n\nAbschrift:\n\n${transcript}`,
   updateAuraMemoryPrompt: (memory: AuraMemory, transcript: string) => `Analysiere die folgende Therapiesitzungs-Abschrift und aktualisiere das vorhandene JSON-Gedächtnisprofil für den Benutzer.
         Identifiziere NEUE oder wesentlich aktualisierte Informationen zu:
@@ -29,7 +29,10 @@ export const deDE = {
         ${transcript}`,
   moodTrendPrompt: (transcript: string) => `Analysiere die folgende Transkription. Teile das Gespräch in vier chronologisch gleiche Abschnitte und weise jedem Abschnitt eine Stimmung auf einer Skala von 1 (sehr schlecht) bis 5 (sehr gut) zu. Gib nur ein JSON-Array mit vier Zahlen zurück.\n\nAbschrift:\n${transcript}`,
   wordCloudPrompt: (transcript: string) => `Analysiere die Beiträge des Benutzers und finde die 15 wichtigsten Wörter oder kurzen Phrasen (2-3 Wörter), die zentrale Themen beschreiben. Schließe Füllwörter aus. Gib ein JSON-Array zurück, in dem jedes Objekt einen "text" (Thema) und einen "value" (Wichtigkeit zwischen 10 und 50) enthält.\n\nAbschrift:\n${transcript}`,
-  journalInsightPrompt: (entry: string) => `Du bist Aura, eine reflektierende Therapeutin. Lies diesen Tagebucheintrag aufmerksam. Gib ausschließlich ein JSON-Objekt mit "keyThemes" (2-3 Themen) und "positiveNotes" (Stärken oder Ressourcen) zurück. Keine weiteren Erklärungen.\n\nEintrag:\n"""${entry}"""`,
+  journalInsightPrompt: (entry: string) => `Du bist Aura, eine reflektierende Therapeutin. Lies diesen Tagebucheintrag aufmerksam. Gib ausschließlich ein JSON-Objekt mit "keyThemes" (2-3 Themen) und "positiveNotes" (Stärken oder Ressourcen) zurück. Keine weiteren Erklärungen.
+
+Eintrag:
+"""${entry}"""`,
   smartGoalPrompt: (userInput: string) => `Ein Benutzer hat folgendes Ziel genannt: "${userInput}". Formuliere daraus ein SMARTes Ziel (spezifisch, messbar, erreichbar, relevant, terminiert) in der Ich-Form. Gib nur den Satz zurück.`,
   voicePreviewText: 'Hallo, so klinge ich. Ich hoffe, meine Stimme gefällt dir.',
   ui: {
@@ -87,8 +90,8 @@ export const deDE = {
           'should-statements': 'Du setzt dich mit "Ich sollte"-Aussagen unter Druck.',
           'labeling': 'Du gibst dir selbst negative Etiketten.',
           'personalization': 'Du machst dich für Dinge verantwortlich, die außerhalb deiner Kontrolle liegen.',
-      };
-      return infos[type] || 'Ein kognitives Denkmuster wurde erkannt.';
+        };
+        return infos[type] || 'Ein kognitives Denkmuster wurde erkannt.';
       },
       sessionSummaryTitle: 'Sitzungszusammenfassung',
       sessionSummarySubtitle: 'Aura fasst für dich zusammen, was gerade stattfand.',
@@ -102,6 +105,7 @@ export const deDE = {
       deleteSessionConfirm: (title: string) => `Möchten Sie die Sitzung "${title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
     },
     sidebar: {
+      sessions: 'Gespräche',
       newChat: 'Neues Gespräch',
       history: 'Verlauf',
       goals: 'Ziele',
@@ -110,6 +114,7 @@ export const deDE = {
       profile: 'Profil',
       logout: 'Abmelden',
       insights: 'Einblicke',
+      noSessions: 'Noch keine Gespräche',
     },
     theme: {
       toggle: 'Darstellung wechseln',
@@ -342,6 +347,7 @@ export const enUS = {
       deleteSessionConfirm: (title: string) => `Are you sure you want to delete the session "${title}"? This action cannot be undone.`,
     },
     sidebar: {
+      sessions: 'Sessions',
       newChat: 'New Chat',
       history: 'History',
       goals: 'Goals',
@@ -350,6 +356,7 @@ export const enUS = {
       profile: 'Profile',
       logout: 'Log Out',
       insights: 'Insights',
+      noSessions: 'No sessions yet',
     },
     theme: {
       toggle: 'Toggle appearance',

@@ -303,9 +303,8 @@ function App() {
     }
   }, [userProfile.language]);
 
-  // Load user profile when authenticated
+  // Optimized profile loading with caching
   useEffect(() => {
-    // Warte bis Auth-Loading abgeschlossen ist
     if (authLoading) {
       return;
     }
@@ -320,62 +319,27 @@ function App() {
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id);
 
-        const PROFILE_TIMEOUT_SENTINEL = Symbol('profile-timeout');
-        const profilePromise = getUserProfile(user.id, session);
-
-        let timeoutId: ReturnType<typeof setTimeout> | null = null;
-        const timeoutPromise = new Promise<typeof PROFILE_TIMEOUT_SENTINEL>((resolve) => {
-          timeoutId = setTimeout(() => {
-            console.error('❌ [App] Profile loading timeout after 15 seconds');
-            console.warn('   - Waiting for Supabase response before falling back');
-            resolve(PROFILE_TIMEOUT_SENTINEL);
-          }, 15000);
-        });
-
-        let profile: UserProfile | null | typeof PROFILE_TIMEOUT_SENTINEL = await Promise.race([
-          profilePromise,
-          timeoutPromise,
-        ]);
-
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-
-        if (profile === PROFILE_TIMEOUT_SENTINEL) {
-          console.info('ℹ️ [App] Profile load still pending after 15 seconds, awaiting final response...');
-          profile = await profilePromise;
-        }
+        // Use optimized profile loading with caching
+        const profile = await getUserProfile(user.id, session);
         
         if (profile) {
-          console.log('✅ Profile loaded from Supabase:', {
+          console.log('✅ Profile loaded successfully:', {
             name: profile.name,
             onboardingCompleted: profile.onboardingCompleted
           });
-          // Merge profile with defaults, ensuring onboardingCompleted is properly set
+          
           const mergedProfile = {
             ...DEFAULT_PROFILE,
             ...profile,
-            onboardingCompleted: profile.onboardingCompleted === true, // Force boolean check
+            onboardingCompleted: profile.onboardingCompleted === true,
           };
-          console.log('🔀 Merged profile:', {
-            name: mergedProfile.name,
-            onboardingCompleted: mergedProfile.onboardingCompleted,
-            originalOnboardingCompleted: profile.onboardingCompleted
-          });
           setUserProfile(mergedProfile);
         } else {
-          console.log('⚠️ No profile found, creating default');
-          // Create default profile for new user (best-effort)
+          console.log('⚠️ No profile found, using default');
           setUserProfile(DEFAULT_PROFILE);
-          updateUserProfile(user.id, DEFAULT_PROFILE).catch((e) =>
-            console.warn('Could not persist default profile yet:', e),
-          );
         }
       } catch (error) {
         console.error('❌ Error loading profile:', error);
-        console.error('   - Error details:', error instanceof Error ? error.message : String(error));
-        console.error('   - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         // Fallback to default in UI to avoid onboarding loop
         setUserProfile(DEFAULT_PROFILE);
       } finally {
@@ -384,7 +348,7 @@ function App() {
     };
 
     loadUserProfile();
-  }, [user, authLoading]);
+  }, [user, authLoading, session]);
 
   // Load chat sessions when profile is loaded
   useEffect(() => {
@@ -465,24 +429,6 @@ function App() {
       console.log('💾 Starting to save profile...');
       await updateUserProfile(user.id, updatedProfile);
       console.log('✅ Profile saved to Supabase successfully');
-      
-      // Double-check: Reload profile to verify it was saved
-      const savedProfile = await getUserProfile(user.id, session);
-      if (savedProfile) {
-        console.log('✅ Verified saved profile from DB:', {
-          name: savedProfile.name,
-          onboardingCompleted: savedProfile.onboardingCompleted
-        });
-        
-        // Update state with the verified profile from DB
-        setUserProfile({
-          ...DEFAULT_PROFILE,
-          ...savedProfile,
-          onboardingCompleted: savedProfile.onboardingCompleted === true
-        });
-      } else {
-        console.warn('⚠️ Could not verify saved profile - might not be persisted');
-      }
       
       // Create first session
       await handleNewChat();
@@ -1942,435 +1888,479 @@ function App() {
       <AppFrame>
         {/* Sidebar */}
         <div
-          className={`absolute inset-y-0 left-0 z-30 w-64 bg-[#f6f6f8] dark:bg-[#1d162b] shadow-xl transform transition-transform duration-300 ${
+          className={`absolute inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="flex flex-col h-full">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                {T.ui.sidebar.sessions}
+              </h2>
               <button
-                onClick={handleNewChat}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors"
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <PlusIcon className="w-5 h-5" />
-                <span>{T.ui.sidebar.newChat}</span>
+                <XIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </button>
             </div>
+            <button
+              onClick={handleNewChat}
+              className="w-full flex items-center justify-center gap-2 bg-[#6c2bee] text-white px-4 py-2 rounded-lg hover:bg-[#5a22d6] transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" />
+              {T.ui.sidebar.newChat}
+            </button>
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">
-                {T.ui.sidebar.history}
-              </h3>
+          {/* Session list */}
+          <div className="flex-1 overflow-y-auto p-2">
+            {sessions.length === 0 ? (
+              <div className="text-center text-slate-500 dark:text-slate-400 py-8">
+                <p className="text-sm">{T.ui.sidebar.noSessions}</p>
+              </div>
+            ) : (
               <div className="space-y-2">
-                {sessions.map(session => {
-                  const isEditing = editingSessionId === session.id;
-                  const isActive = activeSession?.id === session.id;
-                  const isRunning = sessionState !== SessionState.IDLE && sessionState !== SessionState.ERROR && isActive;
-                  
-                  return (
-                    <div key={session.id} className="group relative">
-                      {isEditing ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onBlur={handleSaveTitle}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveTitle();
-                              if (e.key === 'Escape') handleCancelEditing();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus
-                            className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-violet-500 text-sm"
-                          />
+                {sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={`p-3 rounded-lg border transition-colors ${
+                      activeSession?.id === session.id
+                        ? 'bg-[#6c2bee]/10 border-[#6c2bee]/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
+                    }`}
+                  >
+                    {editingSessionId === session.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleSaveTitle()}
+                          onBlur={handleSaveTitle}
+                          className="flex-1 bg-transparent border-b border-[#6c2bee] outline-none text-sm"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => handleSelectSession(session.id)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-medium text-slate-800 dark:text-slate-200 text-sm truncate">
+                            {session.title}
+                          </h3>
+                          <div className="flex items-center gap-1 ml-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEditing(session);
+                              }}
+                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
+                            >
+                              <PencilIcon className="w-3 h-3 text-slate-500" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSession(session.id);
+                              }}
+                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
+                            >
+                              <TrashIcon className="w-3 h-3 text-red-500" />
+                            </button>
+                          </div>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => !isRunning && handleSelectSession(session.id)}
-                            disabled={isRunning}
-                            className={`flex-1 text-left px-3 py-2 rounded-lg transition-colors ${
-                              isActive
-                                ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100'
-                                : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            } ${isRunning ? 'opacity-70 cursor-not-allowed' : ''}`}
-                          >
-                            <p className="text-sm truncate">{session.title}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {new Date(session.startTime).toLocaleDateString('de-DE')}
-                            </p>
-                          </button>
-                          {!isRunning && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleExportSession(session.id); }}
-                                className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-                                title={T.ui.chat.exportSession}
-                              >
-                                <DownloadIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleStartEditing(session); }}
-                                className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-                                title={T.ui.chat.renameSession}
-                              >
-                                <PencilIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDeleteSession(session.id); }}
-                                className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600"
-                                title={T.ui.chat.deleteSession}
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {new Date(session.startTime).toLocaleDateString(userProfile.language || 'de-DE')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* User info and controls */}
+          <div className="p-4 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-[#6c2bee] rounded-full flex items-center justify-center">
+                <UserIcon className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                  {userProfile.name}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {userProfile.subscription.plan === SubscriptionPlan.PREMIUM 
+                    ? 'Premium' 
+                    : 'Free'
+                  }
+                </p>
               </div>
             </div>
-
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-              <div className="space-y-2">
-                <button onClick={() => setIsGoalsOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  <GoalsIcon className="w-5 h-5" />
-                  <span>{T.ui.sidebar.goals}</span>
-                </button>
-                <button onClick={() => setIsMoodOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  <HeartIcon className="w-5 h-5" />
-                  <span>{T.ui.sidebar.mood}</span>
-                </button>
-                <button onClick={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  <JournalIcon className="w-5 h-5" />
-                  <span>{T.ui.sidebar.journal}</span>
-                </button>
-                <button onClick={() => setIsProfileOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">
-                  <UserIcon className="w-5 h-5" />
-                  <span>{T.ui.sidebar.profile}</span>
-                </button>
-                <button
-                  onClick={signOut}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400"
-                >
-                  <LogoutIcon className="w-5 h-5" />
-                  <span>{T.ui.sidebar.logout}</span>
-                </button>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setIsProfileOpen(true)}
+                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <UserIcon className="w-3 h-3" />
+                {T.ui.sidebar.profile}
+              </button>
+              <button
+                onClick={() => signOut()}
+                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
+              >
+                <LogoutIcon className="w-3 h-3" />
+                {T.ui.sidebar.logout}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Sidebar backdrop inside frame */}
-        {sidebarOpen && (
-          <div
-            className="absolute inset-0 bg-black/50 z-20"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
         {/* Main content */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-          {/* Top app bar (Stitch style) */}
-          <div className="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10 shrink-0">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-white/10 text-slate-800 dark:text-white/80"
-            >
-              <MenuIcon className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              <img src="/assets/Aura_logo.png" alt="Aura" className="w-7 h-7 rounded" />
-              <h2 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Aura</h2>
-            </div>
-            <button
-              onClick={handleThemeToggle}
-              className="p-2 rounded-lg hover:bg-white/10 text-slate-700 dark:text-white/80"
-            >
-              {isDarkMode ? (
-                <SunIcon className="w-5 h-5" />
-              ) : (
-                <MoonIcon className="w-5 h-5" />
-              )}
-            </button>
-          </div>
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Header */}
+          <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <MenuIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </button>
+                <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
+                  Aura
+                </h1>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Navigation buttons */}
+                <div className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                  <button
+                    onClick={() => setCurrentView('chat')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      currentView === 'chat'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    Chat
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('home')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      currentView === 'home'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    Home
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('journal')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      currentView === 'journal'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    Journal
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('profile')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      currentView === 'profile'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    Profile
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('insights')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      currentView === 'insights'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    }`}
+                  >
+                    Insights
+                  </button>
+                </div>
 
-          {/* Main content view */}
-          <div className="flex-1 overflow-hidden min-h-0">
+                {/* Theme toggle */}
+                <button
+                  onClick={handleThemeToggle}
+                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  {isDarkMode ? (
+                    <SunIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  ) : (
+                    <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </header>
+
+            {currentView === 'chat' && (
+              <ChatView
+                sessionState={sessionState}
+                activeSession={activeSession}
+                currentInput={currentInput}
+                currentOutput={currentOutput}
+                activeDistortion={activeDistortion}
+                setActiveDistortion={setActiveDistortion}
+                inputAnalyserNode={inputAnalyserRef.current}
+                outputAnalyserNode={outputAnalyserRef.current}
+                userProfile={userProfile}
+                T={T}
+              />
+            )}
+          {/* Content area */}
+          <main className="flex-1 overflow-hidden">
+            {currentView === 'chat' && (
+              <ChatView
+                userProfile={userProfile}
+                activeSession={activeSession}
+                sessionState={sessionState}
+                currentInput={currentInput}
+                currentOutput={currentOutput}
+                isProcessingSession={isProcessingSession}
+                showPostSessionSummary={showPostSessionSummary}
+                summaryPlaybackState={summaryPlaybackState}
+                activeDistortion={activeDistortion}
+                T={T}
+                onStartVoiceSession={handleStartVoiceSession}
+                onStopSession={() => handleStopSession(false)}
             {currentView === 'home' && (
               <HomeView
                 userProfile={userProfile}
                 onNewChat={handleNewChat}
                 onOpenGoals={() => setIsGoalsOpen(true)}
                 onOpenMood={() => setIsMoodOpen(true)}
-                onOpenJournal={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }}
+                onOpenJournal={() => setIsJournalOpen(true)}
                 onOpenProfile={() => setIsProfileOpen(true)}
                 T={T}
               />
             )}
-            {currentView === 'chat' && (
-            <>
-              {activeSession ? (
-                <>
-                  {isProcessingSession ? (
-                    <div className="flex-1 flex items-center justify-center p-4">
-                      <div className="text-center">
-                        <div className="w-12 h-12 border-4 border-[#6c2bee] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-slate-600 dark:text-slate-300 text-base">
-                          {T.ui.chat.creatingSummary || 'Zusammenfassung wird erstellt...'}
-                        </p>
-                      </div>
-                    </div>
-                  ) : (showPostSessionSummary || (sessionState === SessionState.IDLE && activeSession?.summary)) && activeSession.summary ? (
-                    <div className="flex-1 flex items-center justify-center p-4">
-                      <SessionSummaryCard 
-                        summary={activeSession.summary} 
-                        T={T} 
-                        onPlay={playSummaryAudio}
-                        playbackState={summaryPlaybackState}
-                        onExport={() => handleExportSession(activeSession.id)}
-                      />
-                    </div>
-                  ) : (
-                    <ChatView
-                      sessionState={sessionState}
-                      activeSession={activeSession}
-                      currentInput={currentInput}
-                      currentOutput={currentOutput}
-                      activeDistortion={activeDistortion}
-                      setActiveDistortion={setActiveDistortion}
-                      inputAnalyserNode={inputAnalyserRef.current}
-                      outputAnalyserNode={outputAnalyserRef.current}
-                      userProfile={userProfile}
-                      T={T}
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center p-4">
-                  <div className="text-center">
-                    <p className="text-slate-600 dark:text-slate-400 mb-4">
-                      Kein aktives Gespräch
-                    </p>
-                    <button
-                      onClick={handleNewChat}
-                      className="px-6 py-3 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors"
-                    >
-                      Neues Gespräch starten
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          {currentView === 'journal' && (
-            <JournalView
-              userProfile={userProfile}
-              onOpenJournal={() => { setEditingJournalEntry(null); setIsJournalOpen(true); }}
-              T={T}
-            />
-          )}
-          {currentView === 'profile' && (
-            <ProfileView
-              userProfile={userProfile}
-              onOpenProfile={() => setIsProfileOpen(true)}
-              onOpenSubscription={() => setIsSubscriptionOpen(true)}
-              onLogout={() => signOut()}
-              T={T}
-            />
-          )}
-          {currentView === 'insights' && renderInsightsView()}
-          </div>
+                onSendMessage={handleSendMessage}
+                onStartEditing={handleStartEditing}
+                onSaveTitle={handleSaveTitle}
+                onCancelEditing={handleCancelEditing}
+                editingSessionId={editingSessionId}
+                editingTitle={editingTitle}
+                onPlaySummaryAudio={playSummaryAudio}
+                onExportSession={handleExportSession}
+                onClearDistortion={() => setActiveDistortion(null)}
+                onDismissSummary={() => setShowPostSessionSummary(false)}
+              />
+            )}
+            {currentView === 'home' && (
+              <HomeView
+                userProfile={userProfile}
+                sessions={sessions}
+                recentSession={sessions[0]}
+                T={T}
+                onNewChat={handleNewChat}
+                onSelectSession={handleSelectSession}
+                onOpenGoals={() => setIsGoalsOpen(true)}
+                onOpenMood={() => setIsMoodOpen(true)}
+                onOpenJournal={() => setIsJournalOpen(true)}
+                onOpenSubscription={() => setIsSubscriptionOpen(true)}
+              />
+            )}
+            {currentView === 'journal' && (
+              <JournalView
+                userProfile={userProfile}
+        {/* Modals */}
+        {isProfileOpen && (
+          <ProfileModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+            profile={userProfile}
+            onProfileChange={handleProfileChange}
+            onPreviewVoice={handlePreviewVoiceFromProfile}
+            voicePreviewState={voicePreviewState}
+            onLogout={signOut}
+            onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+            T={T}
+          />
+        )}
 
-          {/* Controls */}
-          {activeSession && currentView === 'chat' && (
-            <div className="bg-white/60 dark:bg-transparent border-t border-slate-200 dark:border-white/10 p-4 shrink-0">
-              <div className="max-w-3xl mx-auto">
-                {sessionState === SessionState.IDLE ? (
-                  <div className="flex items-center justify-center">
-                    <button
-                      onClick={handleStartVoiceSession}
-                      className="w-full sm:w-auto px-6 py-4 bg-[#6c2bee] text-white rounded-lg hover:bg-[#5a22cc] transition-colors flex items-center justify-center gap-2 shadow-md"
-                      title="Sprachaufnahme starten"
-                    >
-                      <MicrophoneIcon className="w-6 h-6" />
-                      <span className="font-semibold">Sprechen</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {sessionState === SessionState.LISTENING && T.ui.controls.listening}
-                      {sessionState === SessionState.PROCESSING && T.ui.controls.processing}
-                      {sessionState === SessionState.SPEAKING && T.ui.controls.speaking}
-                      {sessionState === SessionState.CONNECTING && T.ui.controls.connecting}
-                    </p>
-                    <button
-                    onClick={() => handleStopSession()}
-                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-                    >
-                      <StopIcon className="w-5 h-5" />
-                      <span>{T.ui.controls.stopSession}</span>
-                    </button>
-                  </div>
-                )}
+        {isGoalsOpen && (
+          <GoalsModal
+            isOpen={isGoalsOpen}
+            onClose={() => setIsGoalsOpen(false)}
+            onSaveGoal={handleSaveGoal}
+            T={T}
+          />
+        )}
+
+        {isMoodOpen && (
+          <MoodJournalModal
+            isOpen={isMoodOpen}
+            onClose={() => setIsMoodOpen(false)}
+            onSaveMood={handleSaveMood}
+            T={T}
+          />
+        )}
+
+        {isJournalOpen && (
+          <JournalModal
+            isOpen={isJournalOpen}
+            onClose={() => {
+              setIsJournalOpen(false);
+              setEditingJournalEntry(null);
+            }}
+            onSave={handleSaveJournal}
+            T={T}
+          />
+        )}
+
+        {isSubscriptionOpen && (
+          <SubscriptionModal
+            isOpen={isSubscriptionOpen}
+            onClose={() => setIsSubscriptionOpen(false)}
+            onUpgrade={handleUpgradeToPremium}
+            T={T}
+          />
+        )}
+                T={T}
+                onNewEntry={() => {
+                  setEditingJournalEntry(null);
+                  setIsJournalOpen(true);
+                }}
+                onEditEntry={(entry) => {
+                  setEditingJournalEntry(entry);
+                  setIsJournalOpen(true);
+                }}
+                onDeleteEntry={handleDeleteJournal}
+              />
+            )}
+            {currentView === 'profile' && (
+              <ProfileView
+                userProfile={userProfile}
+                T={T}
+                onUpdateProfile={handleProfileChange}
+                onPreviewVoice={handlePreviewVoiceFromProfile}
+                onOpenGoals={() => setIsGoalsOpen(true)}
+                onOpenMood={() => setIsMoodOpen(true)}
+                onOpenSubscription={() => setIsSubscriptionOpen(true)}
+              />
+            )}
+            {currentView === 'insights' && renderInsightsView()}
+          </main>
+        </div>
+
+        {/* Modals */}
+        {isProfileOpen && (
+          <ProfileModal
+            isOpen={isProfileOpen}
+            onClose={() => setIsProfileOpen(false)}
+            userProfile={userProfile}
+            onUpdateProfile={handleProfileChange}
+            onPreviewVoice={handlePreviewVoiceFromProfile}
+            T={T}
+          />
+        )}
+
+        {isGoalsOpen && (
+          <GoalsModal
+            isOpen={isGoalsOpen}
+            onClose={() => setIsGoalsOpen(false)}
+            goals={userProfile.goals || []}
+            onSaveGoal={handleSaveGoal}
+            T={T}
+          />
+        )}
+
+        {isMoodOpen && (
+          <MoodJournalModal
+            isOpen={isMoodOpen}
+            onClose={() => setIsMoodOpen(false)}
+            moodEntries={userProfile.moodJournal || []}
+            onSaveMood={handleSaveMood}
+            T={T}
+          />
+        )}
+
+        {isJournalOpen && (
+          <JournalModal
+            isOpen={isJournalOpen}
+            onClose={() => {
+              setIsJournalOpen(false);
+              setEditingJournalEntry(null);
+            }}
+            onSave={handleSaveJournal}
+            editingEntry={editingJournalEntry}
+            T={T}
+          />
+        )}
+
+        {isSubscriptionOpen && (
+          <SubscriptionModal
+            isOpen={isSubscriptionOpen}
+            onClose={() => setIsSubscriptionOpen(false)}
+            onUpgrade={handleUpgradeToPremium}
+            currentPlan={userProfile.subscription.plan}
+            T={T}
+          />
+        )}
+
+        {isExerciseVisible && (
+          <BreathingExercise
+            onComplete={() => setIsExerciseVisible(false)}
+          />
+        )}
+
+        {isCrisisModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangleIcon className="w-6 h-6 text-red-500" />
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                  Krisenhilfe
+                </h3>
+              </div>
+              <p className="text-slate-600 dark:text-slate-300 mb-6">
+                Wenn Sie sich in einer Krise befinden oder Gedanken an Selbstverletzung haben, 
+                wenden Sie sich bitte sofort an professionelle Hilfe.
+              </p>
+              <div className="space-y-3">
+                <a
+                  href="tel:08001110111"
+                  className="block w-full bg-red-500 text-white text-center py-2 px-4 rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Telefonseelsorge: 0800 111 0 111
+                </a>
+                <a
+                  href="https://www.u25-koeln.de/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full bg-slate-500 text-white text-center py-2 px-4 rounded-lg hover:bg-slate-600 transition-colors"
+                >
+                  Online-Beratung besuchen
+                </a>
+                <button
+                  onClick={() => setIsCrisisModalOpen(false)}
+                  className="w-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                  Schließen
+                </button>
               </div>
             </div>
-          )}
-          
-          {/* Bottom Navigation Bar */}
-          <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-t border-slate-200 dark:border-slate-700 shrink-0">
-            <div className="flex justify-around items-center h-20 max-w-md mx-auto">
-              <button
-                onClick={() => setCurrentView('home')}
-                className={`flex flex-col items-center justify-center gap-1 ${
-                  currentView === 'home' ? 'text-[#6c2bee] dark:text-violet-300' : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-1l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                </svg>
-                <span className={`text-xs font-medium ${currentView === 'home' ? 'font-bold' : 'font-medium'}`}>Home</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('chat')}
-                className={`flex flex-col items-center justify-center gap-1 ${
-                  currentView === 'chat' ? 'text-[#6c2bee] dark:text-violet-300' : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                </svg>
-                <span className={`text-xs font-medium ${currentView === 'chat' ? 'font-bold' : 'font-medium'}`}>Chat</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('journal')}
-                className={`flex flex-col items-center justify-center gap-1 ${
-                  currentView === 'journal' ? 'text-[#6c2bee] dark:text-violet-300' : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <span className={`text-xs font-medium ${currentView === 'journal' ? 'font-bold' : 'font-medium'}`}>Journal</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('profile')}
-                className={`flex flex-col items-center justify-center gap-1 ${
-                  currentView === 'profile' ? 'text-[#6c2bee] dark:text-violet-300' : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                </svg>
-                <span className={`text-xs font-medium ${currentView === 'profile' ? 'font-bold' : 'font-medium'}`}>Profil</span>
-              </button>
-            </div>
           </div>
-        </div>
+        )}
       </AppFrame>
-      {/* Modals */}
-      {isExerciseVisible && (
-        <BreathingExercise
-          translations={T.ui.breathingExercise}
-          onFinish={() => setIsExerciseVisible(false)}
-        />
-      )}
-      {isCrisisModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg text-center p-8">
-            <AlertTriangleIcon className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{T.ui.crisisModal.title}</h2>
-            <p className="mt-2 text-slate-600 dark:text-slate-300">{T.ui.crisisModal.text}</p>
-            <div className="mt-6 space-y-3 text-left">
-              <a
-                href={userProfile.language === 'en-US' ? 'tel:911' : 'tel:112'}
-                className="block p-4 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-              >
-                <p className="font-bold text-slate-800 dark:text-slate-100">{T.ui.crisisModal.emergency}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.crisisModal.emergencyDesc}</p>
-              </a>
-              <a
-                href={userProfile.language === 'en-US' ? 'tel:988' : 'tel:08001110111'}
-                className="block p-4 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-              >
-                <p className="font-bold text-slate-800 dark:text-slate-100">{T.ui.crisisModal.helpline}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{T.ui.crisisModal.helplineDesc}</p>
-              </a>
-            </div>
-            <button
-              onClick={() => setIsCrisisModalOpen(false)}
-              className="mt-8 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              {T.ui.crisisModal.close}
-            </button>
-          </div>
-        </div>
-      )}
-      <ProfileModal
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        profile={userProfile}
-        onProfileChange={handleProfileChange}
-        onPreviewVoice={handlePreviewVoiceFromProfile}
-        voicePreviewState={voicePreviewState}
-        onLogout={() => { setIsProfileOpen(false); signOut(); }}
-        onOpenSubscriptionModal={() => { setIsProfileOpen(false); setIsSubscriptionOpen(true); }}
-        T={T}
-      />
-      <GoalsModal
-        isOpen={isGoalsOpen}
-        onClose={() => setIsGoalsOpen(false)}
-        onSave={handleSaveGoal}
-        onSuggestSmartGoal={async (desc: string) => {
-          try {
-            if (!genAIRef.current) return desc;
-            const response = await genAIRef.current.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: [{
-                role: 'user',
-                parts: [{ text: `Formuliere aus folgendem Ziel ein konkretes SMART-Ziel: ${desc}` }]
-              }]
-            });
-            return response.text.trim() || desc;
-          } catch { return desc; }
-        }}
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        T={T}
-      />
-      <MoodJournalModal
-        isOpen={isMoodOpen}
-        onClose={() => setIsMoodOpen(false)}
-        onSave={handleSaveMood}
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        T={T}
-      />
-      <JournalModal
-        isOpen={isJournalOpen}
-        onClose={() => setIsJournalOpen(false)}
-        onSave={handleSaveJournal}
-        onDelete={handleDeleteJournal}
-        entry={editingJournalEntry}
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        T={T}
-      />
-      <SubscriptionModal
-        isOpen={isSubscriptionOpen}
-        onClose={() => setIsSubscriptionOpen(false)}
-        onUpgrade={handleUpgradeToPremium}
-        subscription={userProfile.subscription}
-        currentView={currentView}
-        onNavigate={setCurrentView}
-        T={T}
-      />
     </ErrorBoundary>
   );
 }
 
 export default App;
+  // Main app
+ 
