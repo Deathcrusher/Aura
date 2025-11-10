@@ -74,6 +74,7 @@ import { HomeView } from './components/HomeView';
 import { JournalView } from './components/JournalView';
 import { ProfileView } from './components/ProfileView';
 import { BreathingExercise } from './components/BreathingExercise';
+import { BottomNavigation } from './components/BottomNavigation';
 import {
   SpeechRecognitionService,
   TextToSpeechService,
@@ -2127,7 +2128,7 @@ function App() {
           </header>
 
           {/* Content area */}
-          <main className="flex-1 overflow-y-auto min-h-0">
+          <main className="flex-1 overflow-y-auto min-h-0 pb-20">
             {currentView === 'chat' && (
               <ChatView
                 userProfile={userProfile}
@@ -2283,6 +2284,12 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Modern Bottom Navigation */}
+        <BottomNavigation 
+          currentView={currentView} 
+          onNavigate={setCurrentView}
+        />
       </AppFrame>
     </ErrorBoundary>
   );
