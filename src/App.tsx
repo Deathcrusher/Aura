@@ -2030,9 +2030,9 @@ function App() {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Header */}
-          <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4">
+          <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button

@@ -188,9 +188,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
             />
             
             {/* Content Container */}
-            <div className="relative z-10 w-full max-w-md h-full flex flex-col">
+            <div className="relative z-10 w-full max-w-md h-full flex flex-col overflow-hidden">
                 {/* Progress Indicators */}
-                <div className="flex items-center justify-center gap-3 py-5">
+                <div className="flex items-center justify-center gap-3 py-5 shrink-0">
                     {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
                         <div 
                             key={i} 
@@ -203,15 +203,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ defaultProfile, onComple
                     ))}
                 </div>
 
-                {/* Content - takes remaining space */}
-                <div className="flex-grow flex flex-col justify-center pt-16">
-                    <div className={`transition-opacity duration-300 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+                {/* Content - scrollable area */}
+                <div className="flex-1 overflow-y-auto px-4 py-8 min-h-0">
+                    <div className={`transition-opacity duration-300 ${isFadingOut ? 'opacity-0' : 'opacity-100'} text-center`}>
                         {renderStepContent()}
                     </div>
                 </div>
                 
-                {/* Buttons */}
-                <div className="flex flex-col items-stretch gap-3 px-4 py-8">
+                {/* Buttons - fixed at bottom */}
+                <div className="flex flex-col items-stretch gap-3 px-4 py-6 shrink-0 bg-[#f6f6f8] dark:bg-[#161022] border-t border-slate-200 dark:border-slate-700">
                     <button 
                         onClick={nextStep} 
                         disabled={step === 1 && (!profile.name || profile.name === 'User')}
