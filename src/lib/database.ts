@@ -180,7 +180,7 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
     }
 
     // Optimized single query for profile data with timeout and better error handling
-    // Use Promise.race with timeout for proper cancellation
+    // RLS policies are optimized with (select auth.uid()) for better performance
     const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
@@ -191,9 +191,9 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       setTimeout(() => {
         resolve({ 
           data: null, 
-          error: { message: 'Query timeout after 3 seconds', code: 'TIMEOUT' } 
+          error: { message: 'Query timeout after 10 seconds', code: 'TIMEOUT' } 
         })
-      }, 3000) // 3 second timeout
+      }, 10000) // 10 second timeout (increased after RLS optimization)
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
@@ -204,7 +204,7 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       console.error('❌ Profile query error:', error)
       // Don't throw - return null to allow fallback
       if (error.code === 'TIMEOUT') {
-        console.error('❌ Profile query timed out after 3 seconds')
+        console.error('❌ Profile query timed out - check network connection')
       } else if (error.code === 'PGRST116' || error.message?.includes('JWT')) {
         console.warn('⚠️ Auth error - session may be expired')
       }
@@ -262,12 +262,12 @@ const loadAdditionalData = async (userId: string, profile: UserProfile) => {
       ])
     }
     
-    // Load data with shorter timeouts and in parallel
+    // Load data with timeouts and in parallel (increased after RLS optimization)
     const [memory, goals, moodJournal, journal] = await Promise.allSettled([
-      withTimeout(getAuraMemory(userId).catch(() => null), 3000),
-      withTimeout(getGoals(userId).catch(() => []), 3000),
-      withTimeout(getMoodEntries(userId).catch(() => []), 3000),
-      withTimeout(getJournalEntries(userId).catch(() => []), 3000),
+      withTimeout(getAuraMemory(userId).catch(() => null), 5000),
+      withTimeout(getGoals(userId).catch(() => []), 5000),
+      withTimeout(getMoodEntries(userId).catch(() => []), 5000),
+      withTimeout(getJournalEntries(userId).catch(() => []), 5000),
     ])
 
     // Update profile with loaded data
