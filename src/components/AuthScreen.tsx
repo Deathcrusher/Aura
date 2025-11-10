@@ -34,16 +34,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#f6f6f8] dark:bg-[#161022] font-['Manrope']">
-            {/* Subtle gradient overlays */}
-            <div className="absolute top-0 left-0 w-96 h-96 bg-[#6c2bee]/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#6c2bee]/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
             
-            <div className="relative z-10 w-full max-w-sm mx-auto text-center">
+            <div className="relative z-10 w-full max-w-sm mx-auto text-center px-4">
                 <AuraHumanAvatar className="w-24 h-24 mx-auto mb-6" />
-                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
                     {isSignUp ? T.ui.auth.signUpTitle : T.ui.auth.loginTitle}
                 </h1>
-                <p className="mt-2 text-slate-600 dark:text-slate-300">
+                <p className="mt-2 text-gray-600 dark:text-gray-300">
                     {isSignUp ? T.ui.auth.signUpSubtitle : T.ui.auth.loginSubtitle}
                 </p>
 
@@ -59,7 +56,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee] text-slate-900 dark:text-white"
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]/50 text-gray-900 dark:text-white"
                             placeholder={T.ui.auth.emailPlaceholder}
                             required
                             disabled={loading}
@@ -70,7 +67,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 rounded-lg border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee] text-slate-900 dark:text-white"
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]/50 text-gray-900 dark:text-white"
                             placeholder={T.ui.auth.passwordPlaceholder}
                             required
                             disabled={loading}
@@ -78,7 +75,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     </div>
                     <button
                         type="submit"
-                        className="w-full px-8 py-3 bg-[#6c2bee] text-white rounded-lg font-semibold hover:bg-[#5a22cc] transition-colors shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed"
+                        className="w-full px-8 py-3 bg-[#6c2bee] text-white rounded-lg font-bold leading-normal tracking-[0.015em] shadow-lg shadow-[#6c2bee]/40 hover:bg-[#6c2bee]/90 transition-all disabled:bg-slate-400 disabled:cursor-not-allowed"
                         disabled={loading}
                     >
                         {loading ? 'Lädt...' : (isSignUp ? T.ui.auth.signUpButton : T.ui.auth.loginButton)}
@@ -100,7 +97,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     <button
                         onClick={onSignInWithGoogle}
                         disabled={loading}
-                        className="mt-4 w-full px-8 py-3 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-lg border border-slate-300 dark:border-slate-600 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        className="mt-4 w-full px-8 py-3 bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors shadow-lg border border-gray-300 dark:border-gray-600 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -116,7 +113,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     <span className="text-slate-600 dark:text-slate-400">
                         {isSignUp ? T.ui.auth.haveAccount : T.ui.auth.noAccount}
                     </span>
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-[#483d8b] dark:text-violet-300 hover:underline ml-1" disabled={loading}>
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-gray-700 dark:text-gray-300 hover:underline ml-1" disabled={loading}>
                         {isSignUp ? T.ui.auth.loginLink : T.ui.auth.signUpLink}
                     </button>
                 </p>

@@ -1164,6 +1164,26 @@ function App() {
     }
   };
 
+  const handleSuggestSmartGoal = async (description: string): Promise<string> => {
+    if (!genAIRef.current) {
+      return description; // Fallback to original if no AI
+    }
+    try {
+      const translationBundle = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{
+          role: 'user',
+          parts: [{ text: translationBundle.smartGoalPrompt(description) }],
+        }],
+      });
+      return response.text.trim();
+    } catch (error) {
+      console.error('Error suggesting smart goal:', error);
+      return description; // Fallback to original on error
+    }
+  };
+
   const handleSaveMood = async (mood: Mood, note?: string) => {
     if (!user) return;
     try {
@@ -2125,13 +2145,11 @@ function App() {
                 sessionState={sessionState}
                 currentInput={currentInput}
                 currentOutput={currentOutput}
-                isProcessingSession={isProcessingSession}
-                showPostSessionSummary={showPostSessionSummary}
-                summaryPlaybackState={summaryPlaybackState}
                 activeDistortion={activeDistortion}
+                setActiveDistortion={setActiveDistortion}
+                inputAnalyserNode={inputAnalyserRef.current}
+                outputAnalyserNode={outputAnalyserRef.current}
                 T={T}
-                onStartVoiceSession={handleStartVoiceSession}
-                onStopSession={() => handleStopSession(false)}
               />
             )}
             {currentView === 'home' && (
@@ -2171,7 +2189,10 @@ function App() {
           <GoalsModal
             isOpen={isGoalsOpen}
             onClose={() => setIsGoalsOpen(false)}
-            onSaveGoal={handleSaveGoal}
+            onSave={handleSaveGoal}
+            onSuggestSmartGoal={handleSuggestSmartGoal}
+            currentView={currentView}
+            onNavigate={setCurrentView}
             T={T}
           />
         )}
@@ -2180,7 +2201,9 @@ function App() {
           <MoodJournalModal
             isOpen={isMoodOpen}
             onClose={() => setIsMoodOpen(false)}
-            onSaveMood={handleSaveMood}
+            onSave={handleSaveMood}
+            currentView={currentView}
+            onNavigate={setCurrentView}
             T={T}
           />
         )}
@@ -2193,6 +2216,10 @@ function App() {
               setEditingJournalEntry(null);
             }}
             onSave={handleSaveJournal}
+            onDelete={handleDeleteJournal}
+            entry={editingJournalEntry}
+            currentView={currentView}
+            onNavigate={setCurrentView}
             T={T}
           />
         )}
@@ -2202,6 +2229,9 @@ function App() {
             isOpen={isSubscriptionOpen}
             onClose={() => setIsSubscriptionOpen(false)}
             onUpgrade={handleUpgradeToPremium}
+            subscription={userProfile.subscription}
+            currentView={currentView}
+            onNavigate={setCurrentView}
             T={T}
           />
         )}
@@ -2209,75 +2239,19 @@ function App() {
               <ProfileView
                 userProfile={userProfile}
                 T={T}
-                onUpdateProfile={handleProfileChange}
-                onPreviewVoice={handlePreviewVoiceFromProfile}
-                onOpenGoals={() => setIsGoalsOpen(true)}
-                onOpenMood={() => setIsMoodOpen(true)}
+                onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenSubscription={() => setIsSubscriptionOpen(true)}
+                onLogout={signOut}
               />
             )}
             {currentView === 'insights' && renderInsightsView()}
           </main>
         </div>
 
-        {/* Modals */}
-        {isProfileOpen && (
-          <ProfileModal
-            isOpen={isProfileOpen}
-            onClose={() => setIsProfileOpen(false)}
-            userProfile={userProfile}
-            onUpdateProfile={handleProfileChange}
-            onPreviewVoice={handlePreviewVoiceFromProfile}
-            T={T}
-          />
-        )}
-
-        {isGoalsOpen && (
-          <GoalsModal
-            isOpen={isGoalsOpen}
-            onClose={() => setIsGoalsOpen(false)}
-            goals={userProfile.goals || []}
-            onSaveGoal={handleSaveGoal}
-            T={T}
-          />
-        )}
-
-        {isMoodOpen && (
-          <MoodJournalModal
-            isOpen={isMoodOpen}
-            onClose={() => setIsMoodOpen(false)}
-            moodEntries={userProfile.moodJournal || []}
-            onSaveMood={handleSaveMood}
-            T={T}
-          />
-        )}
-
-        {isJournalOpen && (
-          <JournalModal
-            isOpen={isJournalOpen}
-            onClose={() => {
-              setIsJournalOpen(false);
-              setEditingJournalEntry(null);
-            }}
-            onSave={handleSaveJournal}
-            editingEntry={editingJournalEntry}
-            T={T}
-          />
-        )}
-
-        {isSubscriptionOpen && (
-          <SubscriptionModal
-            isOpen={isSubscriptionOpen}
-            onClose={() => setIsSubscriptionOpen(false)}
-            onUpgrade={handleUpgradeToPremium}
-            currentPlan={userProfile.subscription.plan}
-            T={T}
-          />
-        )}
-
         {isExerciseVisible && (
           <BreathingExercise
-            onComplete={() => setIsExerciseVisible(false)}
+            onFinish={() => setIsExerciseVisible(false)}
+            translations={T.ui.breathingExercise}
           />
         )}
 
@@ -2325,5 +2299,3 @@ function App() {
 }
 
 export default App;
-  // Main app
- 
