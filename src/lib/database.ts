@@ -172,20 +172,43 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
 
     console.log('🔍 Loading fresh profile for user:', userId)
     
-    // Use provided session or get it quickly (reduced timeout)
+    // CRITICAL: Ensure we have a valid session before querying
+    // The Supabase client should automatically use the session, but we need to ensure it's loaded
     let currentSession = session
     if (!currentSession) {
-      currentSession = await getSessionSafely(1000)
+      console.log('⏳ No session provided, fetching session...')
+      currentSession = await getSessionSafely(3000) // Increased timeout for session fetch
     }
     
-    // If no session provided and we couldn't get one, try one more time with shorter timeout
     if (!currentSession) {
-      console.warn('⚠️ No session available, trying direct query...')
-      // Continue anyway - Supabase RLS will handle auth
+      console.error('❌ CRITICAL: No session available for profile query!')
+      console.error('   - User ID:', userId)
+      console.error('   - This will cause RLS to block the query')
+      // Try to get session one more time with longer timeout
+      const { data: { session: retrySession }, error: sessionError } = await supabase.auth.getSession()
+      if (retrySession) {
+        console.log('✅ Got session on retry')
+        currentSession = retrySession
+      } else {
+        console.error('❌ Still no session after retry:', sessionError)
+        return null
+      }
+    } else {
+      console.log('✅ Session available for profile query:', {
+        userId: currentSession.user.id,
+        expiresAt: new Date(currentSession.expires_at! * 1000).toISOString()
+      })
     }
 
+    // CRITICAL: The Supabase client automatically uses the session from localStorage
+    // But we need to ensure the session is properly loaded before querying
+    // The session should be automatically included in the Authorization header
+    
     // Optimized single query for profile data with timeout and better error handling
-    // RLS policies are optimized with (select auth.uid()) for better performance
+    // RLS policies are now optimized with direct auth.uid() for better performance
+    console.log('📤 Executing profile query with session...')
+    
+    // Create the query - Supabase client will automatically use the session
     const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
@@ -196,9 +219,9 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
       setTimeout(() => {
         resolve({ 
           data: null, 
-          error: { message: 'Query timeout after 10 seconds', code: 'TIMEOUT' } 
+          error: { message: 'Query timeout after 8 seconds', code: 'TIMEOUT' } 
         })
-      }, 10000) // 10 second timeout (increased after RLS optimization)
+      }, 8000) // Reduced timeout to 8 seconds - should be fast with optimized RLS
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
