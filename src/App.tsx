@@ -2116,22 +2116,8 @@ function App() {
             </div>
           </header>
 
-            {currentView === 'chat' && (
-              <ChatView
-                sessionState={sessionState}
-                activeSession={activeSession}
-                currentInput={currentInput}
-                currentOutput={currentOutput}
-                activeDistortion={activeDistortion}
-                setActiveDistortion={setActiveDistortion}
-                inputAnalyserNode={inputAnalyserRef.current}
-                outputAnalyserNode={outputAnalyserRef.current}
-                userProfile={userProfile}
-                T={T}
-              />
-            )}
           {/* Content area */}
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto min-h-0">
             {currentView === 'chat' && (
               <ChatView
                 userProfile={userProfile}
