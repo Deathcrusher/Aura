@@ -179,29 +179,36 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       // Continue anyway - Supabase RLS will handle auth
     }
 
-    // Optimized single query for profile data with timeout
+    // Optimized single query for profile data with timeout and better error handling
+    // Use Promise.race with timeout for proper cancellation
     const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .maybeSingle()
 
-    const timeoutPromise = new Promise<null>((resolve) => {
-      setTimeout(() => resolve(null), 5000) // 5 second timeout
+    const timeoutPromise = new Promise<{ data: null; error: { message: string; code: string } }>((resolve) => {
+      setTimeout(() => {
+        resolve({ 
+          data: null, 
+          error: { message: 'Query timeout after 3 seconds', code: 'TIMEOUT' } 
+        })
+      }, 3000) // 3 second timeout
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
-
-    if (!result || !('data' in result)) {
-      console.error('❌ Profile query timed out')
-      return null
-    }
-
-    const { data: profile, error } = result as any
+    
+    const { data: profile, error } = result
 
     if (error) {
       console.error('❌ Profile query error:', error)
-      throw error
+      // Don't throw - return null to allow fallback
+      if (error.code === 'TIMEOUT') {
+        console.error('❌ Profile query timed out after 3 seconds')
+      } else if (error.code === 'PGRST116' || error.message?.includes('JWT')) {
+        console.warn('⚠️ Auth error - session may be expired')
+      }
+      return null
     }
 
     if (!profile) {
@@ -236,9 +243,8 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
     
     console.log('✅ Profile loaded successfully (basic data)')
     return basicProfile
-
   } catch (error: any) {
-    console.error('❌ Error loading profile:', error)
+    console.error('❌ Outer error loading profile:', error)
     return null
   }
 }
