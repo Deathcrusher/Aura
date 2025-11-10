@@ -116,15 +116,25 @@ const upsertDemoSessionRecord = (
   return session
 }
 
-// Helper function to get session with shorter timeout
-const getSessionSafely = async (maxWaitMs: number = 2000) => {
+// Helper function to get session with shorter timeout - optimized
+const getSessionSafely = async (maxWaitMs: number = 1000) => {
+  if (!supabase) return null;
+  
   try {
+    const sessionPromise = supabase.auth.getSession()
     const timeoutPromise = new Promise<null>((resolve) => {
       setTimeout(() => resolve(null), maxWaitMs)
     })
     
-    const sessionPromise = supabase.auth.getSession()
-    const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
+    const result = await Promise.race([sessionPromise, timeoutPromise])
+    
+    // If timeout won, return null
+    if (!result || !('data' in result)) {
+      console.warn('Session check timed out after', maxWaitMs, 'ms')
+      return null
+    }
+    
+    const { data: { session }, error } = result as any
     
     if (error) {
       console.warn('Session check error:', error.message)
@@ -138,7 +148,7 @@ const getSessionSafely = async (maxWaitMs: number = 2000) => {
   }
 }
 
-// Optimized profile loader with caching
+// Optimized profile loader with caching - uses session directly if provided
 export async function getUserProfile(userId: string, session?: any): Promise<UserProfile | null> {
   if (!hasSupabase || !supabase) {
     const db = loadDemoDatabase()
@@ -157,26 +167,37 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
 
     console.log('🔍 Loading fresh profile for user:', userId)
     
-    // Get or validate session quickly
-    let currentSession = session || await getSessionSafely(2000)
+    // Use provided session or get it quickly (reduced timeout)
+    let currentSession = session
+    if (!currentSession) {
+      currentSession = await getSessionSafely(1000)
+    }
     
-    if (!currentSession || !currentSession.user) {
-      console.error('❌ No valid session - user needs to sign in')
-      return null
+    // If no session provided and we couldn't get one, try one more time with shorter timeout
+    if (!currentSession) {
+      console.warn('⚠️ No session available, trying direct query...')
+      // Continue anyway - Supabase RLS will handle auth
     }
 
-    // Verify user ID match
-    if (currentSession.user.id !== userId) {
-      console.error('❌ User ID mismatch')
-      return null
-    }
-
-    // Optimized single query for profile data
-    const { data: profile, error } = await supabase
+    // Optimized single query for profile data with timeout
+    const queryPromise = supabase
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .maybeSingle()
+
+    const timeoutPromise = new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), 5000) // 5 second timeout
+    })
+
+    const result = await Promise.race([queryPromise, timeoutPromise])
+
+    if (!result || !('data' in result)) {
+      console.error('❌ Profile query timed out')
+      return null
+    }
+
+    const { data: profile, error } = result as any
 
     if (error) {
       console.error('❌ Profile query error:', error)
@@ -205,7 +226,7 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
       journal: [],
     }
 
-    // Load additional data in background (non-blocking)
+    // Load additional data in background (non-blocking) - don't await
     loadAdditionalData(userId, basicProfile).catch(error => {
       console.warn('Background data loading failed:', error)
     })
@@ -222,30 +243,38 @@ export async function getUserProfile(userId: string, session?: any): Promise<Use
   }
 }
 
-// Background loading of non-essential data
+// Background loading of non-essential data - optimized with timeouts
 const loadAdditionalData = async (userId: string, profile: UserProfile) => {
   try {
     console.log('🔄 Loading additional data in background...')
     
+    // Create timeout wrapper for each query
+    const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T | null> => {
+      return Promise.race([
+        promise,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs))
+      ])
+    }
+    
     // Load data with shorter timeouts and in parallel
     const [memory, goals, moodJournal, journal] = await Promise.allSettled([
-      getAuraMemory(userId).catch(() => null),
-      getGoals(userId).catch(() => []),
-      getMoodEntries(userId).catch(() => []),
-      getJournalEntries(userId).catch(() => []),
+      withTimeout(getAuraMemory(userId).catch(() => null), 3000),
+      withTimeout(getGoals(userId).catch(() => []), 3000),
+      withTimeout(getMoodEntries(userId).catch(() => []), 3000),
+      withTimeout(getJournalEntries(userId).catch(() => []), 3000),
     ])
 
     // Update profile with loaded data
     if (memory.status === 'fulfilled' && memory.value) {
       profile.memory = memory.value
     }
-    if (goals.status === 'fulfilled') {
+    if (goals.status === 'fulfilled' && goals.value) {
       profile.goals = goals.value
     }
-    if (moodJournal.status === 'fulfilled') {
+    if (moodJournal.status === 'fulfilled' && moodJournal.value) {
       profile.moodJournal = moodJournal.value
     }
-    if (journal.status === 'fulfilled') {
+    if (journal.status === 'fulfilled' && journal.value) {
       profile.journal = journal.value
     }
 

@@ -303,7 +303,8 @@ function App() {
     }
   }, [userProfile.language]);
 
-  // Optimized profile loading with caching
+  // Optimized profile loading with caching - only depends on user and authLoading
+  const loadingProfileRef = useRef(false);
   useEffect(() => {
     if (authLoading) {
       return;
@@ -315,11 +316,18 @@ function App() {
         return;
       }
 
+      // Prevent concurrent loads
+      if (loadingProfileRef.current) {
+        console.log('⏸️ Profile load already in progress, skipping...');
+        return;
+      }
+
       try {
+        loadingProfileRef.current = true;
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id);
 
-        // Use optimized profile loading with caching
+        // Use optimized profile loading with caching - pass session directly
         const profile = await getUserProfile(user.id, session);
         
         if (profile) {
@@ -344,11 +352,12 @@ function App() {
         setUserProfile(DEFAULT_PROFILE);
       } finally {
         setIsLoadingProfile(false);
+        loadingProfileRef.current = false;
       }
     };
 
     loadUserProfile();
-  }, [user, authLoading, session]);
+  }, [user, authLoading, session]); // session included but guarded against concurrent loads
 
   // Load chat sessions when profile is loaded
   useEffect(() => {
