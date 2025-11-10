@@ -1785,9 +1785,10 @@ function App() {
             parts: [{ text: entry.text }]
           }));
 
-        // Use the new SDK format for text generation with full context
+        // Use gemini-2.5-pro for text chat (better quality for therapy conversations)
+        // Keep gemini-2.5-flash-native-audio-preview-09-2025 for voice sessions
         const response = await genAIRef.current.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.5-pro',
           contents: [
             {
               role: 'user',
@@ -1801,7 +1802,7 @@ function App() {
           ],
           config: {
             systemInstruction: systemInstruction,
-            thinkingConfig: { thinkingBudget: 0 } // Turn off thinking for faster responses
+            thinkingConfig: { thinkingBudget: 32768 } // Allow thinking for better therapy responses
           }
         });
         
@@ -2141,6 +2142,11 @@ function App() {
                 inputAnalyserNode={inputAnalyserRef.current}
                 outputAnalyserNode={outputAnalyserRef.current}
                 T={T}
+                onStartVoiceSession={handleStartVoiceSession}
+                onStopSession={() => handleStopSession()}
+                onSendMessage={(text) => handleSendMessage(text, false)}
+                textInput={currentInput}
+                setTextInput={setCurrentInput}
               />
             )}
             {currentView === 'home' && (

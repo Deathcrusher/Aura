@@ -13,6 +13,11 @@ interface ChatViewProps {
     outputAnalyserNode: AnalyserNode | null;
     userProfile: UserProfile;
     T: any;
+    onStartVoiceSession?: () => void;
+    onStopSession?: () => void;
+    onSendMessage?: (text: string) => void;
+    textInput?: string;
+    setTextInput?: (text: string) => void;
 }
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
@@ -52,17 +57,71 @@ const UserAvatar: React.FC<{ profile: UserProfile, className?: string }> = ({ pr
     );
 };
 
-export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession, currentInput, currentOutput, activeDistortion, setActiveDistortion, inputAnalyserNode, outputAnalyserNode, userProfile, T }) => {
+export const ChatView: React.FC<ChatViewProps> = ({ 
+    sessionState, 
+    activeSession, 
+    currentInput, 
+    currentOutput, 
+    activeDistortion, 
+    setActiveDistortion, 
+    inputAnalyserNode, 
+    outputAnalyserNode, 
+    userProfile, 
+    T,
+    onStartVoiceSession,
+    onStopSession,
+    onSendMessage,
+    textInput = '',
+    setTextInput
+}) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const isIdle = sessionState === SessionState.IDLE;
+    const isListening = sessionState === SessionState.LISTENING || sessionState === SessionState.USER_SPEAKING;
+    const isProcessing = sessionState === SessionState.PROCESSING;
+    const isSpeaking = sessionState === SessionState.SPEAKING;
 
     useEffect(() => {
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [activeSession?.transcript, currentInput, currentOutput]);
 
+    const handleSend = () => {
+        if (textInput.trim() && onSendMessage) {
+            onSendMessage(textInput.trim());
+            if (setTextInput) setTextInput('');
+        }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
     if (!activeSession) {
         return (
-            <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0 items-center justify-center">
-                <p className="text-slate-500 dark:text-slate-400">No active session</p>
+            <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0 items-center justify-center p-6">
+                <div className="text-center max-w-sm">
+                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mx-auto mb-4">
+                        <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                        {T.ui.chat?.noSessionTitle || 'Keine aktive Sitzung'}
+                    </h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-6">
+                        {T.ui.chat?.noSessionSubtitle || 'Starte eine neue Konversation, um mit Aura zu sprechen'}
+                    </p>
+                    {onStartVoiceSession && (
+                        <button
+                            onClick={onStartVoiceSession}
+                            className="w-full flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+                        >
+                            <span className="material-symbols-outlined">mic</span>
+                            <span>{T.ui.chat?.startSession || 'Sitzung starten'}</span>
+                        </button>
+                    )}
+                </div>
             </div>
         );
     }
@@ -186,6 +245,89 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionState, activeSession,
                     </div>
                 )}
                 <div ref={transcriptEndRef} />
+            </div>
+
+            {/* Modern Input Area */}
+            <div className="glass border-t border-white/20 dark:border-white/5 p-4 sm:p-5 shrink-0 backdrop-blur-xl">
+                {isIdle && (
+                    <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
+                        {/* Text Input */}
+                        <div className="flex-1 flex items-center gap-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-white/40 dark:border-white/10 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/50 transition-all">
+                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={textInput}
+                                onChange={(e) => setTextInput?.(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
+                                className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
+                                disabled={isProcessing}
+                            />
+                            {textInput.trim() && (
+                                <button
+                                    onClick={handleSend}
+                                    disabled={isProcessing}
+                                    className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <span className="material-symbols-outlined text-lg">send</span>
+                                </button>
+                            )}
+                        </div>
+                        
+                        {/* Voice Button */}
+                        {onStartVoiceSession && (
+                            <button
+                                onClick={onStartVoiceSession}
+                                className="flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 active:scale-95 font-semibold text-sm sm:text-base whitespace-nowrap"
+                            >
+                                <span className="material-symbols-outlined">mic</span>
+                                <span className="hidden sm:inline">{T.ui.chat?.startVoice || 'Sprache'}</span>
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Active Session Controls */}
+                {(isListening || isProcessing || isSpeaking) && (
+                    <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto">
+                        <div className="flex items-center gap-3 flex-1">
+                            {isListening && (
+                                <>
+                                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {T.ui.chat?.listening || 'Höre zu...'}
+                                    </span>
+                                </>
+                            )}
+                            {isProcessing && (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {T.ui.chat?.processing || 'Verarbeite...'}
+                                    </span>
+                                </>
+                            )}
+                            {isSpeaking && (
+                                <>
+                                    <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {T.ui.chat?.speaking || 'Aura spricht...'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        {onStopSession && (
+                            <button
+                                onClick={onStopSession}
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-all duration-200"
+                            >
+                                <span className="material-symbols-outlined text-lg">stop</span>
+                                <span className="text-sm font-medium">{T.ui.chat?.stop || 'Stoppen'}</span>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             {activeDistortion && (
