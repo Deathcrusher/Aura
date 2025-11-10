@@ -2137,6 +2137,8 @@ function App() {
                 T={T}
                 onStartVoiceSession={handleStartVoiceSession}
                 onStopSession={() => handleStopSession(false)}
+              />
+            )}
             {currentView === 'home' && (
               <HomeView
                 userProfile={userProfile}
@@ -2148,35 +2150,13 @@ function App() {
                 T={T}
               />
             )}
-                onSendMessage={handleSendMessage}
-                onStartEditing={handleStartEditing}
-                onSaveTitle={handleSaveTitle}
-                onCancelEditing={handleCancelEditing}
-                editingSessionId={editingSessionId}
-                editingTitle={editingTitle}
-                onPlaySummaryAudio={playSummaryAudio}
-                onExportSession={handleExportSession}
-                onClearDistortion={() => setActiveDistortion(null)}
-                onDismissSummary={() => setShowPostSessionSummary(false)}
-              />
-            )}
-            {currentView === 'home' && (
-              <HomeView
-                userProfile={userProfile}
-                sessions={sessions}
-                recentSession={sessions[0]}
-                T={T}
-                onNewChat={handleNewChat}
-                onSelectSession={handleSelectSession}
-                onOpenGoals={() => setIsGoalsOpen(true)}
-                onOpenMood={() => setIsMoodOpen(true)}
-                onOpenJournal={() => setIsJournalOpen(true)}
-                onOpenSubscription={() => setIsSubscriptionOpen(true)}
-              />
-            )}
             {currentView === 'journal' && (
               <JournalView
                 userProfile={userProfile}
+                onOpenJournal={() => setIsJournalOpen(true)}
+                T={T}
+              />
+            )}
         {/* Modals */}
         {isProfileOpen && (
           <ProfileModal
@@ -2230,18 +2210,6 @@ function App() {
             T={T}
           />
         )}
-                T={T}
-                onNewEntry={() => {
-                  setEditingJournalEntry(null);
-                  setIsJournalOpen(true);
-                }}
-                onEditEntry={(entry) => {
-                  setEditingJournalEntry(entry);
-                  setIsJournalOpen(true);
-                }}
-                onDeleteEntry={handleDeleteJournal}
-              />
-            )}
             {currentView === 'profile' && (
               <ProfileView
                 userProfile={userProfile}
