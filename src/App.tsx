@@ -188,6 +188,7 @@ function App() {
   const summaryAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const summaryAudioContextRef = useRef<AudioContext | null>(null);
   const summaryAudioCacheRef = useRef<Record<string, string>>({});
+  const pendingTranscriptQueueRef = useRef<Record<string, TranscriptEntry[]>>({});
   const pendingSessionPromisesRef = useRef<Record<string, Promise<string | null>>>({});
   const activeSessionRef = useRef<ChatSession | null>(null);
   // Modals & UI states
@@ -1245,6 +1246,18 @@ function App() {
         if (activeSessionRef.current && activeSessionRef.current.id === localId) {
           activeSessionRef.current = { ...activeSessionRef.current, id: sessionId };
         }
+
+        const queuedEntries = pendingTranscriptQueueRef.current[localId];
+        if (sessionId && queuedEntries?.length) {
+          for (const entry of queuedEntries) {
+            try {
+              await addTranscriptEntryAuto(sessionId, entry);
+            } catch (queueError) {
+              console.warn('Failed to flush queued transcript entry:', queueError);
+            }
+          }
+          delete pendingTranscriptQueueRef.current[localId];
+        }
         return sessionId;
       } catch (error) {
         console.error('❌ Error creating new chat:', error);
@@ -1904,28 +1917,20 @@ function App() {
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
     if (!activeSession || !text.trim()) return;
 
-    let session = activeSession;
-
-    if (user && session.id.startsWith('local-')) {
-      const pendingPersist = pendingSessionPromisesRef.current[session.id];
-      if (pendingPersist) {
-        try {
-          await pendingPersist;
-          session = activeSessionRef.current ?? session;
-        } catch (persistError) {
-          console.warn('Session persistence failed; continuing locally.', persistError);
-        }
-      }
-    }
-
-    if (!session) {
-      console.warn('No active session available to send a message.');
-      return;
-    }
+    const session = activeSession;
+    const isLocalSession = session.id.startsWith('local-');
+    const pendingPersistPromise = isLocalSession
+      ? pendingSessionPromisesRef.current[session.id]
+      : undefined;
 
     const trimmedText = text.trim();
 
-    console.log('💬 handleSendMessage called:', { text: trimmedText, mode: session.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
+    console.log('💬 handleSendMessage called:', {
+      text: trimmedText,
+      mode: session.mode,
+      hasUser: !!user,
+      hasGenAI: !!genAIRef.current,
+    });
 
     const userEntry: TranscriptEntry = {
       id: crypto.randomUUID(),
@@ -1938,10 +1943,12 @@ function App() {
     lastTranscriptEntryIdRef.current = userEntry.id;
 
     try {
-      if (user && !session.id.startsWith('local-')) {
-        await addTranscriptEntryAuto(session.id, userEntry);
-      } else if (user && session.id.startsWith('local-')) {
-        console.warn('Session not yet persisted; skipping transcript save until ID is available.');
+      if (user) {
+        if (isLocalSession) {
+          (pendingTranscriptQueueRef.current[session.id] ||= []).push(userEntry);
+        } else {
+          await addTranscriptEntryAuto(session.id, userEntry);
+        }
       }
 
       setActiveSession(prev =>
@@ -1951,6 +1958,13 @@ function App() {
               transcript: [...(prev.transcript || []), userEntry],
             }
           : null,
+      );
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === session.id
+            ? { ...s, transcript: [...(s.transcript || []), userEntry] }
+            : s,
+        ),
       );
 
       setSessionState(SessionState.PROCESSING);
@@ -1971,8 +1985,12 @@ function App() {
           text: fallbackText,
         };
 
-        if (user && !session.id.startsWith('local-')) {
-          await addTranscriptEntryAuto(session.id, auraFallback);
+        if (user) {
+          if (isLocalSession) {
+            (pendingTranscriptQueueRef.current[session.id] ||= []).push(auraFallback);
+          } else {
+            await addTranscriptEntryAuto(session.id, auraFallback);
+          }
         }
 
         setActiveSession(prev =>
@@ -1982,6 +2000,13 @@ function App() {
                 transcript: [...(prev.transcript || []), auraFallback],
               }
             : null,
+        );
+        setSessions(prev =>
+          prev.map(s =>
+            s.id === session.id
+              ? { ...s, transcript: [...(s.transcript || []), auraFallback] }
+              : s,
+          ),
         );
         setSessionState(SessionState.IDLE);
         return;
@@ -2016,8 +2041,12 @@ function App() {
         text: responseText,
       };
 
-      if (user && !session.id.startsWith('local-')) {
-        await addTranscriptEntryAuto(session.id, auraEntry);
+      if (user) {
+        if (isLocalSession) {
+          (pendingTranscriptQueueRef.current[session.id] ||= []).push(auraEntry);
+        } else {
+          await addTranscriptEntryAuto(session.id, auraEntry);
+        }
       }
 
       const updatedTranscript = [...transcriptWithUser, auraEntry];
@@ -2030,8 +2059,13 @@ function App() {
             }
           : null,
       );
-
-      setCurrentInput('');
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === session.id
+            ? { ...s, transcript: [...(s.transcript || []), auraEntry] }
+            : s,
+        ),
+      );
 
       if (speakResponse && ttsServiceRef.current?.isSupported()) {
         setSessionState(SessionState.SPEAKING);
@@ -2046,8 +2080,22 @@ function App() {
         setSessionState(SessionState.IDLE);
       }
 
-      const sessionSnapshot: ChatSession = { ...session, transcript: updatedTranscript };
-      generateAndStoreSummary(sessionSnapshot, userProfile.language);
+      const scheduleSummary = (sessionId: string) => {
+        const sessionSnapshot: ChatSession = { ...session, id: sessionId, transcript: updatedTranscript };
+        generateAndStoreSummary(sessionSnapshot, userProfile.language);
+      };
+
+      if (isLocalSession && pendingPersistPromise) {
+        pendingPersistPromise
+          ?.then(resolvedId => {
+            if (resolvedId) {
+              scheduleSummary(resolvedId);
+            }
+          })
+          .catch(err => console.warn('Delayed summary generation failed:', err));
+      } else {
+        scheduleSummary(session.id);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setSessionState(SessionState.ERROR);
