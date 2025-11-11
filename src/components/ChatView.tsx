@@ -288,58 +288,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Modern Input Area */}
-            <div className="sticky bottom-24 z-20 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5">
-                {isIdle && (
-                    <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
-                        {/* Text Input - Show for TEXT mode or if mode is undefined (backward compatibility) */}
-                        {(activeSession?.mode === ChatMode.TEXT || !activeSession?.mode) && (
-                            <div className="flex-1 flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
-                                <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={textInput}
-                                    onChange={(e) => setTextInput?.(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
-                                    className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
-                                    disabled={isProcessing}
-                                />
-                                {textInput.trim() && (
-                                    <button
-                                        onClick={handleSend}
-                                        disabled={isProcessing}
-                                        className="p-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        <span className="material-symbols-outlined text-lg">send</span>
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                        
-                        {/* Voice Button - Show for VOICE mode or as additional option for TEXT mode */}
-                        {onStartVoiceSession && (
-                            <button
-                                onClick={onStartVoiceSession}
-                                className={`flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-purple-600 text-white shadow hover:bg-purple-700 transition-all font-semibold text-sm sm:text-base whitespace-nowrap ${
-                                    activeSession?.mode === ChatMode.VOICE ? 'flex-1' : ''
-                                }`}
-                            >
-                                <span className="material-symbols-outlined">mic</span>
-                                <span className="hidden sm:inline">
-                                    {activeSession?.mode === ChatMode.VOICE 
-                                        ? (T.ui.chat?.startSession || 'Sprach-Sitzung starten')
-                                        : (T.ui.chat?.startVoice || 'Sprache')
-                                    }
-                                </span>
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Active Session Controls */}
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5">
                 {(isListening || isProcessing || isSpeaking) && (
-                    <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto">
+                    <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
                         <div className="flex items-center gap-3 flex-1">
                             {isListening && (
                                 <>
@@ -377,6 +328,53 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         )}
                     </div>
                 )}
+
+                <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
+                    {/* Text Input */}
+                    {(activeSession?.mode === ChatMode.TEXT || !activeSession?.mode) && (
+                        <div className="flex-1 flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
+                            <input
+                                ref={inputRef}
+                                type="text"
+                                value={textInput}
+                                onChange={(e) => setTextInput?.(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
+                                className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
+                                disabled={isProcessing}
+                            />
+                            {textInput.trim() && (
+                                <button
+                                    onClick={handleSend}
+                                    disabled={isProcessing}
+                                    className="p-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <span className="material-symbols-outlined text-lg">send</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Voice Button */}
+                    {onStartVoiceSession && (
+                        <button
+                            onClick={isIdle ? onStartVoiceSession : undefined}
+                            disabled={!isIdle}
+                            className={`flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-purple-600 text-white shadow hover:bg-purple-700 transition-all font-semibold text-sm sm:text-base whitespace-nowrap ${
+                                activeSession?.mode === ChatMode.VOICE ? 'flex-1' : ''
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                            <span className="material-symbols-outlined">mic</span>
+                            <span className="hidden sm:inline">
+                                {activeSession?.mode === ChatMode.VOICE 
+                                    ? (T.ui.chat?.startSession || 'Sprach-Sitzung starten')
+                                    : (T.ui.chat?.startVoice || 'Sprache')
+                                }
+                            </span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             {activeDistortion && (
