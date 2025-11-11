@@ -115,6 +115,8 @@ const DEFAULT_PROFILE: UserProfile = {
   },
 };
 
+const MAX_CHAT_HISTORY_MESSAGES = 12;
+
 function App() {
   // Helper to validate API key (avoid placeholders)
   const getValidApiKey = () => {
@@ -516,6 +518,74 @@ function App() {
       .slice(1)
       .map(entry => `${entry.speaker === Speaker.USER ? 'User' : 'Aura'}: ${entry.text}`)
       .join('\n');
+  };
+
+  const transcriptToContents = (transcript: TranscriptEntry[]) => {
+    return transcript.map(entry => ({
+      role: entry.speaker === Speaker.USER ? 'user' as const : 'model' as const,
+      parts: [{ text: entry.text }],
+    }));
+  };
+
+  const extractTextFromResponse = async (response: any): Promise<string> => {
+    if (!response) {
+      return '';
+    }
+
+    const normalize = async (value: unknown, context: unknown = response): Promise<string> => {
+      if (typeof value === 'string') {
+        return value;
+      }
+      if (typeof value === 'function') {
+        try {
+          const result = value.call(context ?? response);
+          return result instanceof Promise ? (await result) ?? '' : result ?? '';
+        } catch {
+          return '';
+        }
+      }
+      return '';
+    };
+
+    const directText = await normalize((response as any).text, response);
+    if (directText) {
+      return directText.trim();
+    }
+
+    const outputText = await normalize((response as any).output_text, response);
+    if (outputText) {
+      return outputText.trim();
+    }
+
+    if ((response as any).response) {
+      const nested = await normalize((response as any).response.text, (response as any).response);
+      if (nested) {
+        return nested.trim();
+      }
+    }
+
+    const candidates =
+      (response as any).candidates ||
+      (response as any).response?.candidates ||
+      [];
+
+    if (Array.isArray(candidates)) {
+      for (const candidate of candidates) {
+        const parts = candidate?.content?.parts;
+        if (Array.isArray(parts)) {
+          const text = parts
+            .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+          if (text) {
+            return text;
+          }
+        }
+      }
+    }
+
+    return '';
   };
 
   // Build comprehensive system instruction with memory, goals, and mood
@@ -1828,121 +1898,133 @@ function App() {
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
     if (!activeSession || !text.trim()) return;
 
-    console.log('💬 handleSendMessage called:', { text, mode: activeSession.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
+    const trimmedText = text.trim();
+
+    console.log('💬 handleSendMessage called:', { text: trimmedText, mode: activeSession.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
+
+    const userEntry: TranscriptEntry = {
+      id: crypto.randomUUID(),
+      speaker: Speaker.USER,
+      text: trimmedText,
+    };
+
+    const transcriptWithUser = [...(activeSession.transcript || []), userEntry];
+
+    lastTranscriptEntryIdRef.current = userEntry.id;
 
     try {
-      // Add user message
-      const userEntry: TranscriptEntry = {
-        id: crypto.randomUUID(),
-        speaker: Speaker.USER,
-        text: text.trim(),
-      };
-
-      lastTranscriptEntryIdRef.current = userEntry.id;
-      
-      // Only save to DB if user is logged in
       if (user) {
         await addTranscriptEntryAuto(activeSession.id, userEntry);
       }
-      
-      setActiveSession(prev => prev ? {
-        ...prev,
-        transcript: [...(prev.transcript || []), userEntry],
-      } : null);
 
-      // Generate AI response
+      setActiveSession(prev =>
+        prev
+          ? {
+              ...prev,
+              transcript: [...(prev.transcript || []), userEntry],
+            }
+          : null,
+      );
+
       setSessionState(SessionState.PROCESSING);
       setCurrentOutput('');
 
-      if (genAIRef.current) {
-        // Build comprehensive system instruction with memory, goals, and mood
-        const systemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
-        
-        // Build conversation history
-        const conversationHistory = (activeSession.transcript || [])
-          .slice(-10) // Last 10 messages for context
-          .map(entry => ({
-            role: entry.speaker === Speaker.USER ? 'user' as const : 'model' as const,
-            parts: [{ text: entry.text }]
-          }));
+      if (!genAIRef.current) {
+        const chatCopy = T.ui.chat as Record<string, unknown> | undefined;
+        const fallbackText =
+          (typeof chatCopy?.missingApiKeyResponse === 'string'
+            ? (chatCopy.missingApiKeyResponse as string)
+            : null) ||
+          'Ich verstehe dich. Bitte richte einen gültigen API-Schlüssel ein, damit ich dir vollständig antworten kann.';
 
-        // Use gemini-2.5-pro for text chat (better quality for therapy conversations)
-        // Keep gemini-2.5-flash-native-audio-preview-09-2025 for voice sessions
-        const response = await genAIRef.current.models.generateContent({
-          model: 'gemini-2.5-pro',
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: systemInstruction }]
-            },
-            ...conversationHistory,
-            {
-              role: 'user',
-              parts: [{ text: text }]
-            }
-          ],
-          config: {
-            systemInstruction: systemInstruction,
-            thinkingConfig: { thinkingBudget: 32768 } // Allow thinking for better therapy responses
-          }
-        });
-        
-        const responseText = response.text.trim();
-
-        // Add AI response
-        const auraEntry: TranscriptEntry = {
+        const auraFallback: TranscriptEntry = {
           id: crypto.randomUUID(),
           speaker: Speaker.AURA,
-          text: responseText,
+          text: fallbackText,
         };
 
-        // Only save to DB if user is logged in
         if (user) {
-          await addTranscriptEntryAuto(activeSession.id, auraEntry);
-        }
-        
-        setActiveSession(prev => prev ? {
-          ...prev,
-          transcript: [...(prev.transcript || []), auraEntry],
-        } : null);
-
-        // Speak the response if requested and TTS is supported
-        if (speakResponse && ttsServiceRef.current?.isSupported()) {
-          setSessionState(SessionState.SPEAKING);
-          try {
-            await ttsServiceRef.current.speak(responseText, userProfile.language);
-          } catch (error) {
-            console.error('TTS error:', error);
-          }
-          setSessionState(SessionState.IDLE);
-        } else {
-          setSessionState(SessionState.IDLE);
+          await addTranscriptEntryAuto(activeSession.id, auraFallback);
         }
 
-        // Update session summary asynchronously (best-effort)
-        if (activeSession) {
-          generateAndStoreSummary(activeSession, userProfile.language);
+        setActiveSession(prev =>
+          prev
+            ? {
+                ...prev,
+                transcript: [...(prev.transcript || []), auraFallback],
+              }
+            : null,
+        );
+        setCurrentInput('');
+        setSessionState(SessionState.IDLE);
+        return;
+      }
+
+      const systemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
+      const historyContents = transcriptToContents(transcriptWithUser).slice(-MAX_CHAT_HISTORY_MESSAGES);
+
+      const response = await genAIRef.current.models.generateContent({
+        model: 'gemini-2.5-pro',
+        contents: historyContents,
+        config: {
+          systemInstruction,
+          thinkingConfig: { thinkingBudget: 32768 },
+        },
+      });
+
+      let responseText = (await extractTextFromResponse(response)).trim();
+
+      if (!responseText) {
+        const chatCopy = T.ui.chat as Record<string, unknown> | undefined;
+        responseText =
+          (typeof chatCopy?.fallbackResponse === 'string'
+            ? (chatCopy.fallbackResponse as string)
+            : null) ||
+          'Ich habe dich gehört. Magst du noch etwas genauer erzählen, damit ich besser helfen kann?';
+      }
+
+      const auraEntry: TranscriptEntry = {
+        id: crypto.randomUUID(),
+        speaker: Speaker.AURA,
+        text: responseText,
+      };
+
+      if (user) {
+        await addTranscriptEntryAuto(activeSession.id, auraEntry);
+      }
+
+      const updatedTranscript = [...transcriptWithUser, auraEntry];
+
+      setActiveSession(prev =>
+        prev
+          ? {
+              ...prev,
+              transcript: [...(prev.transcript || []), auraEntry],
+            }
+          : null,
+      );
+
+      setCurrentInput('');
+
+      if (speakResponse && ttsServiceRef.current?.isSupported()) {
+        setSessionState(SessionState.SPEAKING);
+        try {
+          await ttsServiceRef.current.speak(responseText, userProfile.language);
+        } catch (error) {
+          console.error('TTS error:', error);
+        } finally {
+          setSessionState(SessionState.IDLE);
         }
       } else {
-        // Fallback response when Gemini is not configured
-        const auraEntry: TranscriptEntry = {
-          id: crypto.randomUUID(),
-          speaker: Speaker.AURA,
-          text: 'Ich verstehe. Erzähle mir mehr darüber. (Hinweis: API-Schlüssel fehlt für vollständige AI-Antworten)',
-        };
-
-        // Only save to DB if user is logged in
-        if (user) {
-          await addTranscriptEntryAuto(activeSession.id, auraEntry);
-        }
-        
-        setActiveSession(prev => prev ? {
-          ...prev,
-          transcript: [...(prev.transcript || []), auraEntry],
-        } : null);
-
         setSessionState(SessionState.IDLE);
-        // No API -> skip AI summary
+      }
+
+      if (activeSession) {
+        const sessionSnapshot: ChatSession = {
+          ...activeSession,
+          transcript: updatedTranscript,
+        };
+        generateAndStoreSummary(sessionSnapshot, userProfile.language);
       }
     } catch (error) {
       console.error('Error sending message:', error);
