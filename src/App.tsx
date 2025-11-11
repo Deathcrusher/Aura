@@ -187,6 +187,8 @@ function App() {
   const summaryAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const summaryAudioContextRef = useRef<AudioContext | null>(null);
   const summaryAudioCacheRef = useRef<Record<string, string>>({});
+  const pendingSessionPromisesRef = useRef<Record<string, Promise<string | null>>>({});
+  const activeSessionRef = useRef<ChatSession | null>(null);
   // Modals & UI states
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isGoalsOpen, setIsGoalsOpen] = useState(false);
@@ -223,6 +225,7 @@ function App() {
   // Debug: Log activeSession changes
   useEffect(() => {
     console.log('💬 ActiveSession changed:', activeSession ? `Session ${activeSession.id}` : 'null');
+    activeSessionRef.current = activeSession;
   }, [activeSession]);
 
   useEffect(() => {
@@ -1187,80 +1190,82 @@ function App() {
     }
   };
 
-  const handleNewChat = async (mode: ChatMode = ChatMode.TEXT) => {
+  const handleNewChat = async (mode: ChatMode = ChatMode.TEXT): Promise<ChatSession> => {
     console.log('🚀🚀🚀 handleNewChat called with mode:', mode);
     setShowPostSessionSummary(false);
     stopSummaryPlayback();
 
-    // Create session FIRST, then switch view
-    let newSession: ChatSession | null = null;
     const modeLabel = mode === ChatMode.TEXT ? 'Text' : 'Sprache';
-    const title = mode === ChatMode.TEXT 
-      ? `Text-Chat ${new Date().toLocaleDateString('de-DE')}`
-      : `Sprach-Chat ${new Date().toLocaleDateString('de-DE')}`;
+    const title =
+      mode === ChatMode.TEXT
+        ? `Text-Chat ${new Date().toLocaleDateString('de-DE')}`
+        : `Sprach-Chat ${new Date().toLocaleDateString('de-DE')}`;
+    const startTime = Date.now();
+    const localId = `local-${startTime}-${Math.random().toString(36).slice(2, 11)}`;
 
-    // If no user, create a local-only session
+    const optimisticSession: ChatSession = {
+      id: localId,
+      title,
+      transcript: [],
+      mode,
+      startTime,
+    };
+
+    setSessions(prev => [optimisticSession, ...prev]);
+    setActiveSession(optimisticSession);
+    activeSessionRef.current = optimisticSession;
+    setSidebarOpen(false);
+    setCurrentView('chat');
+    setSessionState(SessionState.IDLE);
+
     if (!user) {
-      console.log(`👤 No user, creating local ${modeLabel} session`);
-      const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      newSession = {
-        id: localSessionId,
-        title,
-        transcript: [],
-        mode,
-        startTime: Date.now(),
-      };
-      console.log('📝 Created local session:', newSession);
-      setSessions(prev => [newSession!, ...prev]);
-      setActiveSession(newSession);
-      setSidebarOpen(false);
-      // Switch to chat view AFTER session is set
-      setCurrentView('chat');
-      console.log(`✅✅✅ Local ${modeLabel} session created and view switched to chat. Active session should be set now.`);
-      return;
+      console.log(`👤 No user, using local ${modeLabel} session`);
+      return optimisticSession;
     }
 
-    try {
-      console.log(`💾 Creating ${modeLabel} session in database...`);
-      const sessionId = await createChatSession(user.id, {
-        title,
-        transcript: [],
-        mode,
-        startTime: Date.now(),
-      });
+    console.log(`💾 Creating ${modeLabel} session in database...`);
+    const persistPromise = (async () => {
+      try {
+        const sessionId = await createChatSession(user.id, {
+          title,
+          transcript: [],
+          mode,
+          startTime,
+        });
 
-      newSession = {
-        id: sessionId,
-        title,
-        transcript: [],
-        mode,
-        startTime: Date.now(),
-      };
+        setSessions(prev =>
+          prev.map(session =>
+            session.id === localId ? { ...session, id: sessionId } : session,
+          ),
+        );
+        setActiveSession(prev =>
+          prev && prev.id === localId ? { ...prev, id: sessionId } : prev,
+        );
+        if (activeSessionRef.current && activeSessionRef.current.id === localId) {
+          activeSessionRef.current = { ...activeSessionRef.current, id: sessionId };
+        }
+        return sessionId;
+      } catch (error) {
+        console.error('❌ Error creating new chat:', error);
+        return null;
+      } finally {
+        delete pendingSessionPromisesRef.current[localId];
+      }
+    })();
 
-      setSessions(prev => [newSession!, ...prev]);
-      setActiveSession(newSession);
-      setSidebarOpen(false);
-      // Switch to chat view AFTER session is set
-      setCurrentView('chat');
-      console.log(`✅ Database ${modeLabel} session created and view switched to chat`);
-    } catch (error) {
-      console.error('❌ Error creating new chat:', error);
-      // Even if database creation fails, create a local session so user can still chat
-      const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      newSession = {
-        id: localSessionId,
-        title,
-        transcript: [],
-        mode,
-        startTime: Date.now(),
-      };
-      setSessions(prev => [newSession!, ...prev]);
-      setActiveSession(newSession);
-      setSidebarOpen(false);
-      // Switch to chat view AFTER session is set
-      setCurrentView('chat');
-      console.log(`✅ Fallback local ${modeLabel} session created and view switched to chat`);
-    }
+    pendingSessionPromisesRef.current[localId] = persistPromise;
+    const persistedId = await persistPromise;
+
+    const resolvedSession =
+      (persistedId &&
+        activeSessionRef.current &&
+        activeSessionRef.current.id === persistedId &&
+        activeSessionRef.current) ||
+      (activeSessionRef.current && activeSessionRef.current.id === localId
+        ? activeSessionRef.current
+        : null);
+
+    return resolvedSession || optimisticSession;
   };
 
   const handleSelectSession = async (sessionId: string) => {
@@ -1898,9 +1903,28 @@ function App() {
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
     if (!activeSession || !text.trim()) return;
 
+    let session = activeSession;
+
+    if (user && session.id.startsWith('local-')) {
+      const pendingPersist = pendingSessionPromisesRef.current[session.id];
+      if (pendingPersist) {
+        try {
+          await pendingPersist;
+          session = activeSessionRef.current ?? session;
+        } catch (persistError) {
+          console.warn('Session persistence failed; continuing locally.', persistError);
+        }
+      }
+    }
+
+    if (!session) {
+      console.warn('No active session available to send a message.');
+      return;
+    }
+
     const trimmedText = text.trim();
 
-    console.log('💬 handleSendMessage called:', { text: trimmedText, mode: activeSession.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
+    console.log('💬 handleSendMessage called:', { text: trimmedText, mode: session.mode, hasUser: !!user, hasGenAI: !!genAIRef.current });
 
     const userEntry: TranscriptEntry = {
       id: crypto.randomUUID(),
@@ -1908,13 +1932,15 @@ function App() {
       text: trimmedText,
     };
 
-    const transcriptWithUser = [...(activeSession.transcript || []), userEntry];
+    const transcriptWithUser = [...(session.transcript || []), userEntry];
 
     lastTranscriptEntryIdRef.current = userEntry.id;
 
     try {
-      if (user) {
-        await addTranscriptEntryAuto(activeSession.id, userEntry);
+      if (user && !session.id.startsWith('local-')) {
+        await addTranscriptEntryAuto(session.id, userEntry);
+      } else if (user && session.id.startsWith('local-')) {
+        console.warn('Session not yet persisted; skipping transcript save until ID is available.');
       }
 
       setActiveSession(prev =>
@@ -1943,8 +1969,8 @@ function App() {
           text: fallbackText,
         };
 
-        if (user) {
-          await addTranscriptEntryAuto(activeSession.id, auraFallback);
+        if (user && !session.id.startsWith('local-')) {
+          await addTranscriptEntryAuto(session.id, auraFallback);
         }
 
         setActiveSession(prev =>
@@ -1989,8 +2015,8 @@ function App() {
         text: responseText,
       };
 
-      if (user) {
-        await addTranscriptEntryAuto(activeSession.id, auraEntry);
+      if (user && !session.id.startsWith('local-')) {
+        await addTranscriptEntryAuto(session.id, auraEntry);
       }
 
       const updatedTranscript = [...transcriptWithUser, auraEntry];
@@ -2019,13 +2045,8 @@ function App() {
         setSessionState(SessionState.IDLE);
       }
 
-      if (activeSession) {
-        const sessionSnapshot: ChatSession = {
-          ...activeSession,
-          transcript: updatedTranscript,
-        };
-        generateAndStoreSummary(sessionSnapshot, userProfile.language);
-      }
+      const sessionSnapshot: ChatSession = { ...session, transcript: updatedTranscript };
+      generateAndStoreSummary(sessionSnapshot, userProfile.language);
     } catch (error) {
       console.error('Error sending message:', error);
       setSessionState(SessionState.ERROR);
