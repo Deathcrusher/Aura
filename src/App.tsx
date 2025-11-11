@@ -135,6 +135,7 @@ function App() {
   const [sessionState, setSessionState] = useState<SessionState>(SessionState.IDLE);
   const [currentInput, setCurrentInput] = useState('');
   const [currentOutput, setCurrentOutput] = useState('');
+  const [textInputDraft, setTextInputDraft] = useState('');
   const [activeDistortion, setActiveDistortion] = useState<CognitiveDistortion | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -1954,6 +1955,7 @@ function App() {
 
       setSessionState(SessionState.PROCESSING);
       setCurrentOutput('');
+      setCurrentInput('');
 
       if (!genAIRef.current) {
         const chatCopy = T.ui.chat as Record<string, unknown> | undefined;
@@ -1981,7 +1983,6 @@ function App() {
               }
             : null,
         );
-        setCurrentInput('');
         setSessionState(SessionState.IDLE);
         return;
       }
@@ -2342,8 +2343,8 @@ function App() {
                 onStopSession={() => handleStopSession()}
                 onSendMessage={(text) => handleSendMessage(text, false)}
                 onNewChat={handleNewChat}
-                textInput={currentInput}
-                setTextInput={setCurrentInput}
+                textInput={textInputDraft}
+                setTextInput={setTextInputDraft}
               />
             )}
             {currentView === 'home' && (
