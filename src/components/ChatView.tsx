@@ -183,7 +183,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Modern Chat History */}
-            <div className="flex-1 overflow-y-auto px-5 py-6">
+            <div className="flex-1 overflow-y-auto px-5 pt-6 pb-36">
                 <div className="flex flex-col justify-end gap-5 min-h-full">
                     {activeSession.summary && (
                         <div className="p-4 rounded-xl bg-white dark:bg-slate-900/80 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm">
@@ -288,7 +288,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Modern Input Area */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shrink-0">
+            <div className="sticky bottom-24 z-20 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5">
                 {isIdle && (
                     <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
                         {/* Text Input - Show for TEXT mode or if mode is undefined (backward compatibility) */}
