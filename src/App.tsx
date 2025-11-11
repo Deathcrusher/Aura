@@ -2374,7 +2374,7 @@ function App() {
           </header>
 
           {/* Content area */}
-          <main className="flex-1 overflow-y-auto min-h-0 pb-20">
+          <main className={`flex-1 min-h-0 pb-28 ${currentView === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
             {currentView === 'chat' && (
               <ChatView
                 userProfile={userProfile}
