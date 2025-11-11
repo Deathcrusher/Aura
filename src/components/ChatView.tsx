@@ -165,26 +165,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
 
     return (
-        <div className="relative flex flex-1 w-full flex-col bg-slate-50 dark:bg-slate-950 overflow-hidden min-h-0">
-            {/* Modern Top App Bar */}
-            <div className="flex items-center glass p-5 justify-between border-b border-white/20 dark:border-white/5 shrink-0 backdrop-blur-xl">
-                <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                        <AuraHumanAvatar className="w-7 h-7" />
-                    </div>
-                    <div>
-                        <h2 className="text-slate-900 dark:text-white text-lg font-bold">Aura</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Your AI companion</p>
-                    </div>
+        <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
+            {/* Header - fixed */}
+            <div className="flex items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
+                    <AuraHumanAvatar className="w-6 h-6" />
                 </div>
-                <button className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm">
-                    <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">more_vert</span>
-                </button>
+                <div>
+                    <h2 className="text-slate-900 dark:text-white font-bold">Aura</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Your AI companion</p>
+                </div>
             </div>
 
-            {/* Modern Chat History */}
-            <div className="flex-1 overflow-y-auto px-5 pt-6 pb-36">
-                <div className="flex flex-col justify-end gap-5 min-h-full">
+            {/* Messages - scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
+                <div className="flex flex-col justify-end gap-4 min-h-full">
                     {activeSession.summary && (
                         <div className="p-4 rounded-xl bg-white dark:bg-slate-900/80 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm">
                             <div className="flex items-start gap-3">
@@ -287,8 +282,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
             </div>
 
-            {/* Modern Input Area */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-4 sm:p-5">
+            {/* Input Area - fixed bottom */}
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shrink-0">
                 {(isListening || isProcessing || isSpeaking) && (
                     <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
                         <div className="flex items-center gap-3 flex-1">
