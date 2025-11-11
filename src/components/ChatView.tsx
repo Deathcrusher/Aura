@@ -324,10 +324,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3 max-w-4xl mx-auto">
-                    {/* Text Input */}
+                <div className="max-w-4xl mx-auto">
+                    {/* Voice Mode - Full Width Input */}
+                    {activeSession?.mode === ChatMode.VOICE && (
+                        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3">
+                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">mic</span>
+                            <div className="flex-1 text-sm text-slate-600 dark:text-slate-400">
+                                {T.ui.chat?.voiceModeActive || 'Sprachmodus aktiv'}
+                            </div>
+                            {onStartVoiceSession && (
+                                <button
+                                    onClick={isIdle ? onStartVoiceSession : undefined}
+                                    disabled={!isIdle}
+                                    className="p-2.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                                    title={T.ui.chat?.startVoice || 'Sprache starten'}
+                                >
+                                    <span className="material-symbols-outlined text-xl">mic</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Text Mode - Input with integrated buttons */}
                     {(activeSession?.mode === ChatMode.TEXT || !activeSession?.mode) && (
-                        <div className="flex-1 flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
                             <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
                             <input
                                 ref={inputRef}
@@ -339,35 +359,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
                                 disabled={isProcessing}
                             />
-                            {textInput.trim() && (
-                                <button
-                                    onClick={handleSend}
-                                    disabled={isProcessing}
-                                    className="p-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <span className="material-symbols-outlined text-lg">send</span>
-                                </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {onStartVoiceSession && (
+                                    <button
+                                        onClick={isIdle ? onStartVoiceSession : undefined}
+                                        disabled={!isIdle}
+                                        className="p-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title={T.ui.chat?.startVoice || 'Sprache'}
+                                    >
+                                        <span className="material-symbols-outlined text-lg">mic</span>
+                                    </button>
+                                )}
+                                {textInput.trim() && (
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={isProcessing}
+                                        className="p-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                                        title={T.ui.chat?.send || 'Senden'}
+                                    >
+                                        <span className="material-symbols-outlined text-lg">send</span>
+                                    </button>
+                                )}
+                            </div>
                         </div>
-                    )}
-                    
-                    {/* Voice Button */}
-                    {onStartVoiceSession && (
-                        <button
-                            onClick={isIdle ? onStartVoiceSession : undefined}
-                            disabled={!isIdle}
-                            className={`flex items-center justify-center gap-2 sm:gap-3 rounded-2xl h-12 sm:h-auto px-6 bg-purple-600 text-white shadow hover:bg-purple-700 transition-all font-semibold text-sm sm:text-base whitespace-nowrap ${
-                                activeSession?.mode === ChatMode.VOICE ? 'flex-1' : ''
-                            } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                            <span className="material-symbols-outlined">mic</span>
-                            <span className="hidden sm:inline">
-                                {activeSession?.mode === ChatMode.VOICE 
-                                    ? (T.ui.chat?.startSession || 'Sprach-Sitzung starten')
-                                    : (T.ui.chat?.startVoice || 'Sprache')
-                                }
-                            </span>
-                        </button>
                     )}
                 </div>
             </div>
