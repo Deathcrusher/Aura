@@ -77,7 +77,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTextInput
 }) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const isIdle = sessionState === SessionState.IDLE;
     const isListening = sessionState === SessionState.LISTENING || sessionState === SessionState.USER_SPEAKING;
     const isProcessing = sessionState === SessionState.PROCESSING;
@@ -98,6 +98,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
         transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [activeSession?.transcript, currentInput, currentOutput]);
 
+    useEffect(() => {
+        if (!inputRef.current) return;
+        const textarea = inputRef.current;
+        textarea.style.height = 'auto';
+        const nextHeight = Math.min(textarea.scrollHeight, 160);
+        textarea.style.height = `${nextHeight}px`;
+    }, [textInput]);
+
     const handleSend = () => {
         if (textInput.trim() && onSendMessage) {
             onSendMessage(textInput.trim());
@@ -105,7 +113,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -324,65 +332,62 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                 )}
 
-                <div className="max-w-4xl mx-auto">
-                    {/* Voice Mode - Full Width Input */}
+                <div className="max-w-4xl mx-auto space-y-3">
                     {activeSession?.mode === ChatMode.VOICE && (
-                        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3">
-                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">mic</span>
-                            <div className="flex-1 text-sm text-slate-600 dark:text-slate-400">
-                                {T.ui.chat?.voiceModeActive || 'Sprachmodus aktiv'}
+                        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-purple-200/60 dark:border-purple-700/60 bg-purple-50/70 dark:bg-purple-950/20 px-4 py-2.5">
+                            <div className="flex items-center gap-2 text-sm font-medium text-purple-800 dark:text-purple-200">
+                                <span className="material-symbols-outlined text-base">mic</span>
+                                <span>{T.ui.chat?.voiceModeActive || 'Sprachmodus aktiv'}</span>
                             </div>
-                            {onStartVoiceSession && (
+                            {onNewChat && (
                                 <button
-                                    onClick={isIdle ? onStartVoiceSession : undefined}
-                                    disabled={!isIdle}
-                                    className="p-2.5 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                                    title={T.ui.chat?.startVoice || 'Sprache starten'}
+                                    onClick={() => onNewChat(ChatMode.TEXT)}
+                                    className="ml-auto text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/70 text-purple-700 dark:text-purple-300 hover:bg-white dark:hover:bg-slate-800 transition-all"
                                 >
-                                    <span className="material-symbols-outlined text-xl">mic</span>
+                                    {T.ui.chat?.switchToText || 'Text-Chat starten'}
                                 </button>
                             )}
                         </div>
                     )}
 
-                    {/* Text Mode - Input with integrated buttons */}
-                    {(activeSession?.mode === ChatMode.TEXT || !activeSession?.mode) && (
-                        <div className="flex items-center gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
-                            <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">edit</span>
-                            <input
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="flex-1 flex items-start gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                            <span className="material-symbols-outlined mt-1 text-slate-400 dark:text-slate-500">edit</span>
+                            <textarea
                                 ref={inputRef}
-                                type="text"
                                 value={textInput}
                                 onChange={(e) => setTextInput?.(e.target.value)}
-                                onKeyPress={handleKeyPress}
+                                onKeyDown={handleKeyDown}
                                 placeholder={T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht..."}
-                                className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base"
+                                rows={1}
+                                className="w-full bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed"
                                 disabled={isProcessing}
                             />
-                            <div className="flex items-center gap-2">
-                                {onStartVoiceSession && (
-                                    <button
-                                        onClick={isIdle ? onStartVoiceSession : undefined}
-                                        disabled={!isIdle}
-                                        className="p-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                        title={T.ui.chat?.startVoice || 'Sprache'}
-                                    >
-                                        <span className="material-symbols-outlined text-lg">mic</span>
-                                    </button>
-                                )}
-                                {textInput.trim() && (
-                                    <button
-                                        onClick={handleSend}
-                                        disabled={isProcessing}
-                                        className="p-2 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-                                        title={T.ui.chat?.send || 'Senden'}
-                                    >
-                                        <span className="material-symbols-outlined text-lg">send</span>
-                                    </button>
-                                )}
-                            </div>
                         </div>
-                    )}
+                        <div className="flex items-stretch gap-2 sm:flex-col sm:w-auto sm:min-w-[120px]">
+                            {onStartVoiceSession && (
+                                <button
+                                    onClick={isIdle ? onStartVoiceSession : undefined}
+                                    disabled={!isIdle}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl px-4 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={T.ui.chat?.startVoice || 'Sprache'}
+                                >
+                                    <span className="material-symbols-outlined text-lg">mic</span>
+                                    <span className="hidden sm:inline text-sm">
+                                        {isIdle ? (T.ui.chat?.startVoice || 'Sprache') : (T.ui.chat?.listening || 'Aktiv')}
+                                    </span>
+                                </button>
+                            )}
+                            <button
+                                onClick={handleSend}
+                                disabled={!textInput.trim() || isProcessing}
+                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl px-5 py-3 bg-purple-600 text-white font-semibold shadow-lg shadow-purple-500/30 hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="material-symbols-outlined text-lg">send</span>
+                                <span className="hidden sm:inline text-sm">{T.ui.chat?.send || 'Senden'}</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
