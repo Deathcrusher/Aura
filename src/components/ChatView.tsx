@@ -19,6 +19,9 @@ interface ChatViewProps {
     onNewChat?: (mode: ChatMode) => void;
     textInput?: string;
     setTextInput?: (text: string) => void;
+    onOpenSessions?: () => void;
+    onShowSummary?: () => void;
+    hasSummary?: boolean;
 }
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
@@ -74,7 +77,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onSendMessage,
     onNewChat,
     textInput = '',
-    setTextInput
+    setTextInput,
+    onOpenSessions,
+    onShowSummary,
+    hasSummary = false,
 }) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -175,14 +181,34 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return (
         <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
             {/* Header - fixed */}
-            <div className="flex items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
-                    <AuraHumanAvatar className="w-6 h-6" />
+            <div className="flex flex-wrap items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {onOpenSessions && (
+                        <button
+                            onClick={onOpenSessions}
+                            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-semibold"
+                        >
+                            <span className="material-symbols-outlined text-base">arrow_back</span>
+                            <span className="hidden sm:inline">{T.ui.chat?.backToSessions || 'Zurück'}</span>
+                        </button>
+                    )}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                        <AuraHumanAvatar className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-slate-900 dark:text-white font-bold leading-tight truncate">Aura</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{T.ui.chat?.assistantSubtitle || 'Your AI companion'}</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 className="text-slate-900 dark:text-white font-bold">Aura</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Your AI companion</p>
-                </div>
+                {hasSummary && onShowSummary && (
+                    <button
+                        onClick={onShowSummary}
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-200/40 dark:border-purple-800/40 hover:bg-purple-600/20 transition-all text-sm font-semibold"
+                    >
+                        <span className="material-symbols-outlined text-base">summarize</span>
+                        <span>{T.ui.chat?.viewSummary || 'Zusammenfassung'}</span>
+                    </button>
+                )}
             </div>
 
             {/* Messages - scrollable */}

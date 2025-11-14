@@ -203,6 +203,7 @@ function App() {
   const [voicePreviewState, setVoicePreviewState] = useState<{ id: string; status: 'loading' | 'playing' } | null>(null);
   const [isProcessingSession, setIsProcessingSession] = useState(false);
   const [showPostSessionSummary, setShowPostSessionSummary] = useState(false);
+  const [isSummaryPanelOpen, setIsSummaryPanelOpen] = useState(false);
   const [summaryPlaybackState, setSummaryPlaybackState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -235,7 +236,17 @@ function App() {
     if (!shouldShowSummary) {
       stopSummaryPlayback();
     }
+    if (showPostSessionSummary && activeSession?.summary) {
+      setIsSummaryPanelOpen(true);
+    }
   }, [showPostSessionSummary, sessionState, activeSession?.summary, isProcessingSession]);
+
+  useEffect(() => {
+    if (!activeSession?.summary) {
+      setIsSummaryPanelOpen(false);
+      stopSummaryPlayback();
+    }
+  }, [activeSession?.summary]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -873,6 +884,18 @@ function App() {
       console.error("Failed to play summary audio:", e);
       setSummaryPlaybackState('idle');
     }
+  };
+
+  const handleOpenSummaryPanel = () => {
+    if (!activeSession?.summary) return;
+    setIsSummaryPanelOpen(true);
+    setShowPostSessionSummary(false);
+  };
+
+  const handleCloseSummaryPanel = () => {
+    setIsSummaryPanelOpen(false);
+    setShowPostSessionSummary(false);
+    stopSummaryPlayback();
   };
 
   const handleExportSession = (sessionId: string) => {
@@ -2393,6 +2416,9 @@ function App() {
                 onNewChat={handleNewChat}
                 textInput={textInputDraft}
                 setTextInput={setTextInputDraft}
+                onOpenSessions={() => setSidebarOpen(true)}
+                onShowSummary={activeSession?.summary ? handleOpenSummaryPanel : undefined}
+                hasSummary={Boolean(activeSession?.summary)}
               />
             )}
             {currentView === 'home' && (
@@ -2545,6 +2571,42 @@ function App() {
                   Schließen
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {isSummaryPanelOpen && activeSession?.summary && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+            <div className="relative w-full max-w-2xl">
+              <button
+                onClick={handleCloseSummaryPanel}
+                className="absolute -top-3 -right-3 z-10 p-2 rounded-full bg-white dark:bg-slate-900 shadow-lg hover:scale-105 transition-all"
+                aria-label={T.ui.chat?.backToChat || 'Zurück zum Chat'}
+              >
+                <span className="material-symbols-outlined text-slate-600 dark:text-slate-300">close</span>
+              </button>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <button
+                  onClick={handleCloseSummaryPanel}
+                  className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">arrow_back</span>
+                  <span>{T.ui.chat?.backToChat || 'Zurück zum Chat'}</span>
+                </button>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {new Date(activeSession.startTime).toLocaleString(userProfile.language || 'de-DE', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </p>
+              </div>
+              <SessionSummaryCard
+                summary={activeSession.summary}
+                T={T}
+                onPlay={playSummaryAudio}
+                playbackState={summaryPlaybackState}
+                onExport={() => handleExportSession(activeSession.id)}
+              />
             </div>
           </div>
         )}
