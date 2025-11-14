@@ -4,7 +4,7 @@ import { translations } from '../lib/translations';
 
 interface JournalViewProps {
   userProfile: UserProfile;
-  onOpenJournal: () => void;
+  onOpenJournal: (entry?: JournalEntry | null) => void;
   T: typeof translations['de-DE'];
 }
 
@@ -23,7 +23,10 @@ export const JournalView: React.FC<JournalViewProps> = ({
         <div className="flex size-12 shrink-0 items-center" />
         <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">My Journal</h1>
         <div className="flex w-12 items-center justify-end">
-          <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-slate-900 dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0">
+          <button 
+            onClick={() => onOpenJournal()} 
+            className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-slate-900 dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0"
+          >
             <span className="material-symbols-outlined">settings</span>
           </button>
         </div>
@@ -120,7 +123,19 @@ export const JournalView: React.FC<JournalViewProps> = ({
               Recent Entries
             </h3>
             {journalEntries.slice(0, 5).map((entry) => (
-              <div key={entry.id} className="bg-white dark:bg-[#1e182d] p-4 rounded-xl shadow-sm">
+              <div 
+                key={entry.id} 
+                onClick={() => onOpenJournal(entry)} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onOpenJournal(entry);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                className="bg-white dark:bg-[#1e182d] p-4 rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              >
                 <p className="text-sm text-slate-500 dark:text-[#a69db9] mb-2">
                   {new Date(entry.createdAt).toLocaleDateString('en-US', {
                     weekday: 'long',

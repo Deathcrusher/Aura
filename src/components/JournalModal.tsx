@@ -40,7 +40,11 @@ export const JournalModal: React.FC<JournalModalProps> = ({ isOpen, onClose, onS
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center animate-fade-in" onClick={onClose}>
             <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl m-4 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10">
-                  <button className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#6c2bee]/20 text-[#6c2bee] dark:text-violet-300">
+                  <button 
+                    onClick={onClose}
+                    className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#6c2bee]/20 text-[#6c2bee] dark:text-violet-300"
+                    aria-label={T.ui.cancel}
+                  >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
@@ -96,7 +100,25 @@ export const JournalModal: React.FC<JournalModalProps> = ({ isOpen, onClose, onS
                         </div>
                     )}
                 </div>
-
+                <div className="px-6 pb-6 flex flex-col gap-3">
+                  <button
+                    onClick={handleSave}
+                    disabled={!content.trim()}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl h-12 px-6 bg-[#6c2bee] text-white shadow-lg shadow-[#6c2bee]/30 hover:bg-[#5a22d6] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  >
+                    <span className="material-symbols-outlined text-base">save</span>
+                    <span>{T.ui.journalModal.save}</span>
+                  </button>
+                  {entry && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl h-12 px-6 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-500/20 transition-all duration-200 font-semibold"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                      <span>{T.ui.journalModal.delete}</span>
+                    </button>
+                  )}
+                </div>
 
                 {/* Bottom Navigation Bar */}
                 <div className="sticky bottom-0 w-full max-w-2xl mx-auto rounded-b-2xl overflow-hidden mt-auto">

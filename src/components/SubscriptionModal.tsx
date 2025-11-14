@@ -36,7 +36,11 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center animate-fade-in" onClick={onClose}>
             <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg m-4" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 justify-between sticky top-0 z-10 border-b border-white/10">
-                  <button className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#6c2bee]/20 text-[#6c2bee] dark:text-violet-300">
+                  <button 
+                    onClick={onClose}
+                    className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#6c2bee]/20 text-[#6c2bee] dark:text-violet-300"
+                    aria-label={T.ui.cancel}
+                  >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
@@ -76,6 +80,22 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div className="px-6 pb-6">
+                  <button
+                    onClick={isPremium ? onClose : onUpgrade}
+                    disabled={isPremium}
+                    className="w-full flex items-center justify-center gap-2 rounded-2xl h-12 px-6 bg-[#6c2bee] text-white shadow-lg shadow-[#6c2bee]/30 hover:bg-[#5a22d6] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  >
+                    <span className="material-symbols-outlined text-base">workspace_premium</span>
+                    <span>{isPremium ? T.ui.subscription.manage : T.ui.subscription.upgradeButton}</span>
+                  </button>
+                  {!isPremium && (
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 text-center">
+                      {T.ui.subscription.checkout}
+                    </p>
+                  )}
                 </div>
 
                 {/* Bottom Navigation Bar */}

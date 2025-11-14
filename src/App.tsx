@@ -207,6 +207,10 @@ function App() {
   const [summaryPlaybackState, setSummaryPlaybackState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const openJournalModal = (entry?: JournalEntry | null) => {
+    setEditingJournalEntry(entry ?? null);
+    setIsJournalOpen(true);
+  };
   // Navigation state
   const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights'>('home');
   // Auth entry state (welcome vs auth)
@@ -2427,15 +2431,17 @@ function App() {
                 onNewChat={handleNewChat}
                 onOpenGoals={() => setIsGoalsOpen(true)}
                 onOpenMood={() => setIsMoodOpen(true)}
-                onOpenJournal={() => setIsJournalOpen(true)}
+                onOpenJournal={openJournalModal}
                 onOpenProfile={() => setIsProfileOpen(true)}
+                onStartBreathingExercise={() => setIsExerciseVisible(true)}
+                onOpenInsights={() => setCurrentView('insights')}
                 T={T}
               />
             )}
             {currentView === 'journal' && (
               <JournalView
                 userProfile={userProfile}
-                onOpenJournal={() => setIsJournalOpen(true)}
+                onOpenJournal={openJournalModal}
                 T={T}
               />
             )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserProfile, ChatMode } from '../types';
+import { UserProfile, ChatMode, JournalEntry } from '../types';
 import { translations } from '../lib/translations';
 
 interface HomeViewProps {
@@ -7,8 +7,10 @@ interface HomeViewProps {
   onNewChat: (mode: ChatMode) => void;
   onOpenGoals: () => void;
   onOpenMood: () => void;
-  onOpenJournal: () => void;
+  onOpenJournal: (entry?: JournalEntry | null) => void;
   onOpenProfile: () => void;
+  onStartBreathingExercise: () => void;
+  onOpenInsights: () => void;
   T: typeof translations['de-DE'];
 }
 
@@ -19,6 +21,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenMood,
   onOpenJournal,
   onOpenProfile,
+  onStartBreathingExercise,
+  onOpenInsights,
   T
 }) => {
   const todayMoodEntry = userProfile.moodJournal?.[0] || null;
@@ -118,10 +122,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <h3 className="text-slate-900 dark:text-white text-lg font-bold mb-3">Quick Tools</h3>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Breathing', icon: 'self_improvement', color: 'from-purple-500 to-pink-500', onClick: onOpenMood },
-              { label: 'Journal', icon: 'edit_note', color: 'from-blue-500 to-cyan-500', onClick: onOpenJournal },
+              { label: 'Breathing', icon: 'self_improvement', color: 'from-purple-500 to-pink-500', onClick: onStartBreathingExercise },
+              { label: 'Journal', icon: 'edit_note', color: 'from-blue-500 to-cyan-500', onClick: () => onOpenJournal() },
               { label: 'Goals', icon: 'aod', color: 'from-violet-500 to-purple-500', onClick: onOpenGoals },
-              { label: 'Progress', icon: 'trending_up', color: 'from-pink-500 to-rose-500', onClick: () => {} }
+              { label: 'Progress', icon: 'trending_up', color: 'from-pink-500 to-rose-500', onClick: onOpenInsights }
             ].map((tool) => (
               <button
                 key={tool.label}
@@ -145,6 +149,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
               recentJournalEntries.slice(0, 3).map((entry, idx) => (
                 <div 
                   key={entry.id} 
+                  onClick={() => onOpenJournal(entry)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onOpenJournal(entry);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   className="flex items-start gap-4 rounded-2xl glass p-4 border border-white/20 dark:border-white/5 hover:scale-[1.02] transition-all duration-200 card-shadow cursor-pointer"
                 >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0">

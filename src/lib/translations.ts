@@ -257,6 +257,7 @@ Eintrag:
       positiveNotes: 'Positive Aspekte',
       insightsLoading: 'Einblicke werden vorbereitet...',
       save: 'Eintrag speichern',
+      delete: 'Eintrag löschen',
     },
     moodModal: {
       title: 'Stimmung protokollieren',
@@ -523,6 +524,7 @@ export const enUS = {
       positiveNotes: 'Positive notes',
       insightsLoading: 'Insights are being prepared...',
       save: 'Save entry',
+      delete: 'Delete entry',
     },
     moodModal: {
       title: 'Log your mood',
