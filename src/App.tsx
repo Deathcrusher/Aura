@@ -1607,6 +1607,11 @@ function App() {
         const ai = new GoogleGenAI({ apiKey });
         const dynamicSystemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
 
+        // Convert existing transcript to history format for Live API
+        const existingHistory = activeSession?.transcript 
+          ? transcriptToContents(activeSession.transcript).slice(-MAX_CHAT_HISTORY_MESSAGES)
+          : [];
+
         sessionPromiseRef.current = ai.live.connect({
           // Use the official live model id from the SDK docs
           // Use the same model id that worked in the previous project for maximum compatibility
@@ -1628,8 +1633,26 @@ function App() {
             }],
           },
           callbacks: {
-            onopen: () => {
+            onopen: async () => {
               setSessionState(SessionState.LISTENING);
+              
+              // Send existing conversation history to Live API to maintain context
+              if (existingHistory.length > 0 && sessionPromiseRef.current) {
+                try {
+                  const session = await sessionPromiseRef.current;
+                  // Send history as client content turns (without turnComplete to establish context)
+                  if (session && typeof (session as any).sendClientContent === 'function') {
+                    (session as any).sendClientContent({
+                      turns: existingHistory,
+                      turnComplete: false,
+                    });
+                    console.log('📚 Sent conversation history to Live API:', existingHistory.length, 'turns');
+                  }
+                } catch (err) {
+                  console.warn('Failed to send history to Live API:', err);
+                  // Continue anyway - Live API will work without history
+                }
+              }
               // Guard: if live session receives no input/response, fallback to local STT
               liveHadActivityRef.current = false;
               if (liveActivityTimerRef.current) {
@@ -1943,6 +1966,35 @@ function App() {
 
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
     if (!activeSession || !text.trim()) return;
+
+    // If a voice session is active, stop it before sending text message
+    // This ensures clean context switching between voice and text modes
+    if (sessionPromiseRef.current && (sessionState === SessionState.LISTENING || sessionState === SessionState.USER_SPEAKING || sessionState === SessionState.SPEAKING)) {
+      console.log('🔄 Stopping voice session to switch to text mode');
+      try {
+        const s = await sessionPromiseRef.current;
+        if (s && typeof (s as any).close === 'function') {
+          (s as any).close();
+        }
+      } catch (err) {
+        console.warn('Error closing voice session:', err);
+      }
+      sessionPromiseRef.current = null;
+      // Clean up audio contexts
+      if (inputAudioContextRef.current) {
+        try { await inputAudioContextRef.current.close(); } catch {}
+        inputAudioContextRef.current = null;
+      }
+      if (outputAudioContextRef.current) {
+        try { await outputAudioContextRef.current.close(); } catch {}
+        outputAudioContextRef.current = null;
+      }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
+      }
+      setSessionState(SessionState.IDLE);
+    }
 
     const session = activeSession;
     const isLocalSession = session.id.startsWith('local-');

@@ -389,16 +389,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Clear local state immediately for better UX
+      setActiveAccount(null)
+      setUser(null)
+      setSession(null)
+      clearProfileCache()
+
       const { error } = await supabase.auth.signOut()
       if (error) {
         console.error('Fehler beim Abmelden:', error)
-        throw error
+        // State already cleared above, so we just log the error
       }
-      // Clear cache when signing out
-      clearProfileCache()
     } catch (error) {
       console.error('Fehler beim Abmelden:', error)
-      // Even if there's an error, clear local state
+      // Even if there's an error, ensure local state is cleared
       setActiveAccount(null)
       setUser(null)
       setSession(null)
