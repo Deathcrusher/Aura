@@ -224,18 +224,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
                                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
                                     }`}
+                                    onClickCapture={(e) => {
+                                        // In der Capture-Phase prüfen und stoppen, wenn es ein Button-Klick ist
+                                        const target = e.target as HTMLElement;
+                                        
+                                        // Prüfe, ob das Target selbst ein Button ist oder innerhalb eines Buttons liegt
+                                        const isButton = target.tagName === 'BUTTON' ||
+                                                       target.closest('button') !== null || 
+                                                       target.closest('[role="button"]') !== null;
+                                        
+                                        // Prüfe, ob das Target ein Input ist oder innerhalb eines Inputs liegt
+                                        const isInput = target.tagName === 'INPUT' ||
+                                                      target.closest('input') !== null;
+                                        
+                                        // Prüfe, ob das Target innerhalb eines interaktiven Containers liegt (mit data-Attribut)
+                                        const isInInteractiveContainer = target.closest('[data-interactive="true"]') !== null;
+                                        
+                                        const isInteractive = isButton || isInput || isInInteractiveContainer;
+                                        
+                                        if (isInteractive || editingSessionId === session.id) {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            return;
+                                        }
+                                    }}
                                     onClick={(e) => {
                                         // Nicht ausführen, wenn im Bearbeitungsmodus
                                         if (editingSessionId === session.id) {
                                             return;
                                         }
-                                        // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
+                                        // Prüfe nochmal, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        if (target.closest('button') || 
-                                            target.closest('[role="button"]') || 
-                                            target.closest('input') ||
-                                            target.tagName === 'BUTTON' ||
-                                            target.tagName === 'INPUT') {
+                                        const isButton = target.closest('button') !== null || 
+                                                       target.closest('[role="button"]') !== null ||
+                                                       target.tagName === 'BUTTON';
+                                        const isInput = target.closest('input') !== null ||
+                                                      target.tagName === 'INPUT';
+                                        
+                                        if (isButton || isInput) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
                                             return;
                                         }
                                         if (onSelectSession) {
@@ -304,6 +332,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             />
                                             <div 
                                                 className="flex items-center gap-1" 
+                                                data-interactive="true"
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     e.stopPropagation();
@@ -315,6 +344,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             >
                                                 <button
                                                     type="button"
+                                                    onClickCapture={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -339,6 +371,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 </button>
                                                 <button
                                                     type="button"
+                                                    onClickCapture={(e) => {
+                                                        e.stopPropagation();
+                                                    }}
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -371,6 +406,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 </h3>
                                                 <div 
                                                     className="flex items-center gap-2 ml-2" 
+                                                    data-interactive="true"
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -387,6 +423,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                     {onStartEditing && (
                                                         <button
                                                             type="button"
+                                                            onClickCapture={(e) => {
+                                                                e.stopPropagation();
+                                                            }}
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
@@ -411,6 +450,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                     {onDeleteSession && (
                                                         <button
                                                             type="button"
+                                                            onClickCapture={(e) => {
+                                                                e.stopPropagation();
+                                                            }}
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
