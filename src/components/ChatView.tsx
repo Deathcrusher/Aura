@@ -227,19 +227,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     onClick={(e) => {
                                         // Nicht ausführen, wenn im Bearbeitungsmodus
                                         if (editingSessionId === session.id) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
                                             return;
                                         }
-                                        // Prüfe, ob der Klick auf einen Button war
+                                        // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        if (target.closest('button') || target.closest('[role="button"]')) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
+                                        if (target.closest('button') || 
+                                            target.closest('[role="button"]') || 
+                                            target.closest('input') ||
+                                            target.tagName === 'BUTTON' ||
+                                            target.tagName === 'INPUT') {
                                             return;
                                         }
-                                        e.preventDefault();
-                                        e.stopPropagation();
                                         if (onSelectSession) {
                                             console.log('📱 Selecting session:', session.id);
                                             onSelectSession(session.id);
@@ -249,9 +247,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         }
                                     }}
                                     onMouseDown={(e) => {
-                                        // Prüfe, ob der Klick auf einen Button war
+                                        // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        if (target.closest('button') || target.closest('[role="button"]') || editingSessionId === session.id) {
+                                        if (target.closest('button') || 
+                                            target.closest('[role="button"]') || 
+                                            target.closest('input') ||
+                                            target.tagName === 'BUTTON' ||
+                                            target.tagName === 'INPUT' ||
+                                            editingSessionId === session.id) {
                                             e.preventDefault();
                                             e.stopPropagation();
                                         }
@@ -268,6 +271,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                             }}
+                                            onMouseUp={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}
                                         >
                                             <input
                                                 type="text"
@@ -275,15 +282,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 onChange={(e) => onEditingTitleChange?.(e.target.value)}
                                                 onKeyPress={(e) => {
                                                     if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
                                                         onSaveTitle?.();
                                                     } else if (e.key === 'Escape') {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
                                                         onCancelEditing?.();
                                                     }
+                                                }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
                                                 }}
                                                 className="flex-1 bg-transparent border-b-2 border-purple-600 outline-none text-sm font-medium text-slate-900 dark:text-white px-2 py-1"
                                                 autoFocus
                                             />
-                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                            <div 
+                                                className="flex items-center gap-1" 
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                }}
+                                            >
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
@@ -296,6 +325,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                         return false;
                                                     }}
                                                     onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onMouseUp={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                     }}
@@ -316,6 +349,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                         return false;
                                                     }}
                                                     onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
+                                                    onMouseUp={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                     }}
@@ -342,6 +379,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                     }}
+                                                    onMouseUp={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
                                                 >
                                                     {onStartEditing && (
                                                         <button
@@ -351,8 +392,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                                 e.stopPropagation();
                                                                 console.log('✏️ Edit button clicked for session:', session.id);
                                                                 onStartEditing(session);
+                                                                return false;
                                                             }}
                                                             onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                            }}
+                                                            onMouseUp={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
                                                             }}
@@ -369,8 +415,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
                                                                 setDeleteConfirmSessionId(session.id);
+                                                                return false;
                                                             }}
                                                             onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                            }}
+                                                            onMouseUp={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
                                                             }}
