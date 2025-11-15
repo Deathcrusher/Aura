@@ -172,6 +172,7 @@ function App() {
   const [isRecordingFallback, setIsRecordingFallback] = useState(false);
   // Realtime (Gemini live) session refs
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
+  const resolvedSessionRef = useRef<any | null>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -1490,6 +1491,7 @@ function App() {
           }
         } catch {}
         sessionPromiseRef.current = null;
+        resolvedSessionRef.current = null;
       }
 
       // Stop any scheduled/playing output audio
@@ -1694,13 +1696,23 @@ function App() {
             onopen: async () => {
               setSessionState(SessionState.LISTENING);
               
+              // Resolve and cache the session object
+              try {
+                const session = await sessionPromiseRef.current;
+                resolvedSessionRef.current = session;
+                console.log('✅ Live session resolved and cached');
+              } catch (err) {
+                console.error('❌ Failed to resolve session:', err);
+                setSessionState(SessionState.ERROR);
+                return;
+              }
+              
               // Send existing conversation history to Live API to maintain context
-              if (existingHistory.length > 0 && sessionPromiseRef.current) {
+              if (existingHistory.length > 0 && resolvedSessionRef.current) {
                 try {
-                  const session = await sessionPromiseRef.current;
                   // Send history as client content turns (without turnComplete to establish context)
-                  if (session && typeof (session as any).sendClientContent === 'function') {
-                    (session as any).sendClientContent({
+                  if (resolvedSessionRef.current && typeof (resolvedSessionRef.current as any).sendClientContent === 'function') {
+                    (resolvedSessionRef.current as any).sendClientContent({
                       turns: existingHistory,
                       turnComplete: false,
                     });
@@ -1755,47 +1767,143 @@ function App() {
                 }
               }, 5000);
 
-              mediaStreamSourceRef.current = inputAudioContextRef.current!.createMediaStreamSource(micStreamRef.current!);
-              scriptProcessorRef.current = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
-              scriptProcessorRef.current.onaudioprocess = (e) => {
-                const inputData = e.inputBuffer.getChannelData(0);
-                // Send PCM audio chunk to Gemini Live. Try v1.27 shape first, then 1.28 fallback.
-                const payload: any = createBlob(inputData);
-                sessionPromiseRef.current?.then((s: any) => {
-                  try {
-                    s.sendRealtimeInput({ media: payload });
-                  } catch (err1) {
-                    try {
-                      s.sendRealtimeInput({ inlineData: payload });
-                    } catch (err2) {
-                      // Swallow to avoid flooding logs per audio frame
+              // Ensure mic stream is ready before setting up audio processing
+              if (!micStreamRef.current || !inputAudioContextRef.current) {
+                console.error('❌ Mic stream or audio context not ready');
+                setSessionState(SessionState.ERROR);
+                return;
+              }
+
+              // Check if mic stream tracks are active
+              const audioTracks = micStreamRef.current.getAudioTracks();
+              if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') {
+                console.error('❌ No active audio tracks in mic stream');
+                setSessionState(SessionState.ERROR);
+                return;
+              }
+
+              try {
+                // Resume audio context if suspended (required by some browsers)
+                if (inputAudioContextRef.current.state === 'suspended') {
+                  await inputAudioContextRef.current.resume();
+                }
+
+                mediaStreamSourceRef.current = inputAudioContextRef.current.createMediaStreamSource(micStreamRef.current);
+                
+                // Try to create ScriptProcessor (deprecated but still works in most browsers)
+                // If it fails, we'll fall back to a different approach
+                try {
+                  scriptProcessorRef.current = inputAudioContextRef.current.createScriptProcessor(4096, 1, 1);
+                  let audioChunkCount = 0;
+                  scriptProcessorRef.current.onaudioprocess = (e) => {
+                    audioChunkCount++;
+                    // Log first few chunks to verify audio is being processed
+                    if (audioChunkCount <= 3) {
+                      console.log(`🎤 Audio chunk ${audioChunkCount} processed`);
                     }
-                  }
-                });
-
-                // Simple VAD-like RMS monitor
-                const VAD_THRESHOLD = 0.01;
-                const SILENCE_DELAY = 800;
-                const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
-
-                if (rms > VAD_THRESHOLD) {
-                  if (sessionStateRef.current !== SessionState.USER_SPEAKING) {
-                    setSessionState(SessionState.USER_SPEAKING);
-                  }
-                } else {
-                  if (sessionStateRef.current === SessionState.USER_SPEAKING) {
-                    // revert to listening after a moment of silence
-                    setTimeout(() => {
-                      if (sessionStateRef.current === SessionState.USER_SPEAKING) {
-                        setSessionState(SessionState.LISTENING);
+                    
+                    const inputData = e.inputBuffer.getChannelData(0);
+                    // Send PCM audio chunk to Gemini Live using the correct format per official docs
+                    // Format: { audio: { data: base64String, mimeType: "audio/pcm;rate=16000" } }
+                    const payload: any = createBlob(inputData);
+                    
+                    // Use cached resolved session instead of promise chain
+                    const session = resolvedSessionRef.current;
+                    if (session && typeof session.sendRealtimeInput === 'function') {
+                      try {
+                        // Use the correct format according to official Gemini Live API docs
+                        session.sendRealtimeInput({
+                          audio: {
+                            data: payload.data,
+                            mimeType: payload.mimeType
+                          }
+                        });
+                        // Log first successful send
+                        if (audioChunkCount === 1) {
+                          console.log('✅ First audio chunk sent successfully (native audio format)');
+                        }
+                      } catch (err1) {
+                        // Fallback: try alternative format if the primary fails
+                        try {
+                          session.sendRealtimeInput({ 
+                            audio: payload 
+                          });
+                          if (audioChunkCount === 1) {
+                            console.log('✅ First audio chunk sent (alternative format)');
+                          }
+                        } catch (err2) {
+                          // Only log first few errors to avoid flooding
+                          if (audioChunkCount <= 3) {
+                            console.warn('Audio send error:', err2);
+                          }
+                        }
                       }
-                    }, SILENCE_DELAY);
+                    } else {
+                      // Session not ready yet - this shouldn't happen if onopen completed
+                      if (audioChunkCount <= 3) {
+                        console.warn('⚠️ Session not ready for audio send, chunk:', audioChunkCount);
+                      }
+                    }
+
+                    // Simple VAD-like RMS monitor
+                    const VAD_THRESHOLD = 0.01;
+                    const SILENCE_DELAY = 800;
+                    const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
+
+                    if (rms > VAD_THRESHOLD) {
+                      if (sessionStateRef.current !== SessionState.USER_SPEAKING) {
+                        setSessionState(SessionState.USER_SPEAKING);
+                      }
+                    } else {
+                      if (sessionStateRef.current === SessionState.USER_SPEAKING) {
+                        // revert to listening after a moment of silence
+                        setTimeout(() => {
+                          if (sessionStateRef.current === SessionState.USER_SPEAKING) {
+                            setSessionState(SessionState.LISTENING);
+                          }
+                        }, SILENCE_DELAY);
+                      }
+                    }
+                  };
+                  mediaStreamSourceRef.current.connect(inputAnalyserRef.current!);
+                  inputAnalyserRef.current!.connect(scriptProcessorRef.current);
+                  scriptProcessorRef.current.connect(inputAudioContextRef.current!.destination);
+                  console.log('✅ Audio processing pipeline connected successfully');
+                } catch (scriptProcessorError) {
+                  console.error('❌ Failed to create ScriptProcessor:', scriptProcessorError);
+                  // Fallback: Try using AudioWorklet or MediaRecorder approach
+                  console.warn('⚠️ Falling back to alternative audio capture method');
+                  setSessionState(SessionState.ERROR);
+                  // Trigger fallback to local STT
+                  if (speechRecognitionRef.current?.isSupported()) {
+                    setSessionState(SessionState.LISTENING);
+                    recognitionGotResultRef.current = false;
+                    speechRecognitionRef.current.start(
+                      (transcript) => {
+                        recognitionGotResultRef.current = true;
+                        setCurrentInput(transcript);
+                        handleSendMessage(transcript, true);
+                      },
+                      async () => {
+                        if (!recognitionGotResultRef.current) {
+                          try {
+                            if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                            await voiceRecorderRef.current.start();
+                            setIsRecordingFallback(true);
+                            setSessionState(SessionState.LISTENING);
+                          } catch (e) {
+                            console.warn('Fallback recorder failed:', e);
+                            setSessionState(SessionState.ERROR);
+                          }
+                        }
+                      }
+                    );
                   }
                 }
-              };
-              mediaStreamSourceRef.current.connect(inputAnalyserRef.current!);
-              inputAnalyserRef.current!.connect(scriptProcessorRef.current);
-              scriptProcessorRef.current.connect(inputAudioContextRef.current!.destination);
+              } catch (audioSetupError) {
+                console.error('❌ Audio setup failed:', audioSetupError);
+                setSessionState(SessionState.ERROR);
+              }
             },
             onmessage: async (message: any) => {
               const inputT = message?.serverContent?.inputTranscription?.text;
@@ -1817,11 +1925,15 @@ function App() {
               }
 
               // Streamed audio from model
-              const base64Audio = message?.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+              // Audio can come in two formats per docs:
+              // 1. message.data (base64 string) - direct audio data
+              // 2. message.serverContent.modelTurn.parts[0].inlineData.data - nested format
+              const base64Audio = message?.data || message?.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
               if (base64Audio && outputAudioContextRef.current && outputAnalyserRef.current) {
                 try {
                   liveHadActivityRef.current = true;
                   if (liveActivityTimerRef.current) { clearTimeout(liveActivityTimerRef.current); liveActivityTimerRef.current = null; }
+                  // Decode base64 audio data (24kHz, 16-bit, mono PCM per docs)
                   const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
                   const source = outputAudioContextRef.current.createBufferSource();
                   source.buffer = audioBuffer;
@@ -2038,6 +2150,7 @@ function App() {
         console.warn('Error closing voice session:', err);
       }
       sessionPromiseRef.current = null;
+      resolvedSessionRef.current = null;
       // Clean up audio contexts
       if (inputAudioContextRef.current) {
         try { await inputAudioContextRef.current.close(); } catch {}
