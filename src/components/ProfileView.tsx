@@ -7,6 +7,7 @@ interface ProfileViewProps {
   onOpenProfile: () => void;
   onOpenSubscription?: () => void;
   onOpenPrivacy?: () => void;
+  onOpenFAQ?: () => void;
   onLogout?: () => void;
   T: typeof translations['de-DE'];
 }
@@ -16,6 +17,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenProfile,
   onOpenSubscription,
   onOpenPrivacy,
+  onOpenFAQ,
   onLogout,
   T
 }) => {
@@ -28,6 +30,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
         <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.dataPrivacy || 'Daten & Datenschutzrichtlinie'}
+        </p>
+      </div>
+      <div className="shrink-0">
+        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </div>
+  );
+  const faqCard = (
+    <div className="flex items-center gap-4 px-4 py-3.5">
+      <div className="flex flex-1 items-center gap-4">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+          <span className="material-symbols-outlined text-2xl">help</span>
+        </div>
+        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+          {T.ui.profileView?.faq || 'FAQ'}
         </p>
       </div>
       <div className="shrink-0">
@@ -155,21 +174,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {T.ui.profileView?.helpSupport || 'Hilfe & Support'}
           </h2>
           <div className="mx-2 overflow-hidden rounded-xl bg-white dark:bg-slate-900/40">
-            <div className="flex items-center gap-4 px-4 py-3.5">
-              <div className="flex flex-1 items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <span className="material-symbols-outlined text-2xl">quiz</span>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  {T.ui.profileView?.faq || 'FAQ'}
-                </p>
-              </div>
-              <div className="shrink-0">
-                <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
+            {onOpenFAQ ? (
+              <button
+                type="button"
+                onClick={onOpenFAQ}
+                className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c2bee]"
+              >
+                {faqCard}
+              </button>
+            ) : (
+              faqCard
+            )}
             <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
             <div className="flex items-center gap-4 px-4 py-3.5">
               <div className="flex flex-1 items-center gap-4">

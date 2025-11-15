@@ -280,6 +280,35 @@ Eintrag:
       contactEmail: 'privacy@aura.app',
       backButton: 'Zurück zum Profil',
     },
+    faqView: {
+      title: 'Häufig gestellte Fragen',
+      intro:
+        'Antworten zu Funktionalität, Sicherheit und Nutzung von Aura findest du hier. Wenn du weitere Fragen hast, schreibe einfach unseren Support an.',
+      updated: 'Zuletzt aktualisiert: 15. November 2025',
+      questionList: [
+        {
+          question: 'Wie behandelt Aura meine gespeicherten Daten?',
+          answer:
+            'Alle deine Eingaben, Sprachaufzeichnungen und Journaleinträge werden verschlüsselt gespeichert und stehen nur dir sowie deinem Aura-Profil zur Verfügung.',
+        },
+        {
+          question: 'Wie nutzt Aura meine Stimmungseinträge?',
+          answer:
+            'Aura analysiert deine Stimmung, Ziele und Gesprächshistorie, um Antworten sowie Einblicke zu personalisieren, ohne Daten an Dritte weiterzugeben.',
+        },
+        {
+          question: 'Was passiert nach dem Premium-Abo?',
+          answer:
+            'Deine Historie bleibt erhalten. Bei Kündigung wirst du zurück in den Free-Status geführt, Premium-Einblicke sind dann deaktiviert.',
+        },
+        {
+          question: 'Wie schützt Aura meine Daten?',
+          answer:
+            'Wir setzen TLS, verschlüsselte Speicherung und rollenbasierte Zugriffsberechtigungen ein, ergänzt durch regelmäßige Sicherheitsprüfungen.',
+        },
+      ],
+      backButton: 'Zurück zum Profil',
+    },
     voiceDescriptions: {
       Zephyr: 'Sanfte, beruhigende Stimme mit warmer Klangfarbe.',
       Puck: 'Energiegeladene Stimme mit freundlicher Klarheit.',
@@ -590,6 +619,35 @@ export const enUS = {
       sectionContactBody: 'For privacy questions, access requests, or objections, email',
       contactButton: 'Send email',
       contactEmail: 'privacy@aura.app',
+      backButton: 'Back to profile',
+    },
+    faqView: {
+      title: 'Frequently Asked Questions',
+      intro:
+        'Find answers about how Aura works, keeps data secure, and helps you grow. Reach out to support if you still have questions.',
+      updated: 'Last updated: November 15, 2025',
+      questionList: [
+        {
+          question: 'How does Aura handle my stored data?',
+          answer:
+            'All inputs, voice snippets, and journal entries are encrypted and accessible only to you and Aura.',
+        },
+        {
+          question: 'How are my moods used?',
+          answer:
+            'Aura uses your mood logs, goals, and history to personalize responses and insights while keeping data private.',
+        },
+        {
+          question: 'What happens after cancelling a Premium plan?',
+          answer:
+            'Your history stays intact. After cancellation you revert to the Free plan, and Premium insights are disabled.',
+        },
+        {
+          question: 'How is Aura secured?',
+          answer:
+            'We leverage TLS, encrypted storage, and role-based access controls plus ongoing security reviews.',
+        },
+      ],
       backButton: 'Back to profile',
     },
     voiceDescriptions: {
