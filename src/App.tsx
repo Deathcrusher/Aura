@@ -2586,42 +2586,8 @@ function App() {
       <AppFrame>
         {/* Main content */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          {/* Modern Header */}
-          <header className="glass border-b border-white/20 dark:border-white/5 p-5 shrink-0 backdrop-blur-xl">
-            <div className="flex justify-center">
-              <nav
-                aria-label="App navigation"
-                className="hidden md:flex items-center gap-1 glass rounded-xl p-1 border border-white/20 dark:border-white/5"
-              >
-                {[
-                  { id: 'chat', label: 'Chat' },
-                  { id: 'home', label: 'Home' },
-                  { id: 'journal', label: 'Journal' },
-                  { id: 'profile', label: 'Profile' },
-                  { id: 'insights', label: 'Insights' },
-                ].map((view) => (
-                  <button
-                    key={view.id}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCurrentView(view.id as any);
-                    }}
-                    className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 cursor-pointer ${
-                      currentView === view.id
-                        ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-300 shadow-sm font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
-                    }`}
-                  >
-                    {view.label}
-                  </button>
-                ))}
-              </nav>
-            </div>
-          </header>
-
           {/* Content area */}
-          <main className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <main className="flex-1 flex flex-col overflow-hidden min-h-0 pt-3">
             {currentView === 'chat' && (
               <ChatView
                 userProfile={userProfile}
