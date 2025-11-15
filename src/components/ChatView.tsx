@@ -224,30 +224,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
                                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
                                     }`}
-                                    onClickCapture={(e) => {
-                                        // In der Capture-Phase prüfen und stoppen, wenn es ein Button-Klick ist
-                                        const target = e.target as HTMLElement;
-                                        
-                                        // Prüfe, ob das Target selbst ein Button ist oder innerhalb eines Buttons liegt
-                                        const isButton = target.tagName === 'BUTTON' ||
-                                                       target.closest('button') !== null || 
-                                                       target.closest('[role="button"]') !== null;
-                                        
-                                        // Prüfe, ob das Target ein Input ist oder innerhalb eines Inputs liegt
-                                        const isInput = target.tagName === 'INPUT' ||
-                                                      target.closest('input') !== null;
-                                        
-                                        // Prüfe, ob das Target innerhalb eines interaktiven Containers liegt (mit data-Attribut)
-                                        const isInInteractiveContainer = target.closest('[data-interactive="true"]') !== null;
-                                        
-                                        const isInteractive = isButton || isInput || isInInteractiveContainer;
-                                        
-                                        if (isInteractive || editingSessionId === session.id) {
-                                            // Nur stopPropagation, NICHT preventDefault, damit die Buttons ihre Handler ausführen können
-                                            e.stopPropagation();
-                                            return;
-                                        }
-                                    }}
                                     onClick={(e) => {
                                         // Nicht ausführen, wenn im Bearbeitungsmodus
                                         if (editingSessionId === session.id) {
@@ -255,14 +231,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         }
                                         // Prüfe nochmal, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        const isButton = target.closest('button') !== null || 
-                                                       target.closest('[role="button"]') !== null ||
-                                                       target.tagName === 'BUTTON';
-                                        const isInput = target.closest('input') !== null ||
-                                                      target.tagName === 'INPUT';
+                                        const isButton = target.closest('button') !== null;
+                                        const isRoleButton = target.closest('[role="button"]') !== null;
+                                        const isInput = target.closest('input, textarea, select') !== null;
+                                        const isInteractiveContainer = target.closest('[data-interactive="true"]') !== null;
                                         
-                                        if (isButton || isInput) {
-                                            // Nur stopPropagation, damit die Buttons ihre Handler ausführen können
+                                        if (isButton || isRoleButton || isInput || isInteractiveContainer) {
+                                            // Event wurde auf einem interaktiven Element ausgelöst -> nicht Session wechseln
                                             e.stopPropagation();
                                             return;
                                         }
@@ -279,9 +254,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         const target = e.target as HTMLElement;
                                         if (target.closest('button') || 
                                             target.closest('[role="button"]') || 
-                                            target.closest('input') ||
-                                            target.tagName === 'BUTTON' ||
-                                            target.tagName === 'INPUT' ||
+                        target.closest('input, textarea, select') ||
+                                            target.closest('[data-interactive="true"]') ||
                                             editingSessionId === session.id) {
                                             e.preventDefault();
                                             e.stopPropagation();
