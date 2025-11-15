@@ -243,8 +243,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         const isInteractive = isButton || isInput || isInInteractiveContainer;
                                         
                                         if (isInteractive || editingSessionId === session.id) {
+                                            // Nur stopPropagation, NICHT preventDefault, damit die Buttons ihre Handler ausführen können
                                             e.stopPropagation();
-                                            e.preventDefault();
                                             return;
                                         }
                                     }}
@@ -262,7 +262,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                       target.tagName === 'INPUT';
                                         
                                         if (isButton || isInput) {
-                                            e.preventDefault();
+                                            // Nur stopPropagation, damit die Buttons ihre Handler ausführen können
                                             e.stopPropagation();
                                             return;
                                         }

@@ -1641,11 +1641,14 @@ function App() {
           audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } as MediaTrackConstraints,
         });
         micStreamRef.current = stream;
+        console.log('✅ Microphone access granted');
         if (audioVisualizationRef.current) {
           inputAnalyserRef.current = await audioVisualizationRef.current.createFromStream(stream);
         }
       } catch (err) {
-        console.warn('Mic visualization unavailable:', err);
+        console.error('❌ Failed to get microphone access:', err);
+        // Don't fail completely - we'll use fallback in onopen
+        micStreamRef.current = null;
       }
 
       // Prefer realtime Gemini live streaming when a valid API key is available
@@ -1703,7 +1706,32 @@ function App() {
                 console.log('✅ Live session resolved and cached');
               } catch (err) {
                 console.error('❌ Failed to resolve session:', err);
-                setSessionState(SessionState.ERROR);
+                // Keep LISTENING state and use fallback instead of ERROR
+                setSessionState(SessionState.LISTENING);
+                // Trigger fallback to local STT
+                if (speechRecognitionRef.current?.isSupported()) {
+                  recognitionGotResultRef.current = false;
+                  speechRecognitionRef.current.start(
+                    (transcript) => {
+                      recognitionGotResultRef.current = true;
+                      setCurrentInput(transcript);
+                      handleSendMessage(transcript, true);
+                    },
+                    async () => {
+                      if (!recognitionGotResultRef.current) {
+                        try {
+                          if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                          await voiceRecorderRef.current.start();
+                          setIsRecordingFallback(true);
+                          setSessionState(SessionState.LISTENING);
+                        } catch (e) {
+                          console.warn('Fallback recorder failed:', e);
+                          setSessionState(SessionState.ERROR);
+                        }
+                      }
+                    }
+                  );
+                }
                 return;
               }
               
@@ -1769,16 +1797,66 @@ function App() {
 
               // Ensure mic stream is ready before setting up audio processing
               if (!micStreamRef.current || !inputAudioContextRef.current) {
-                console.error('❌ Mic stream or audio context not ready');
-                setSessionState(SessionState.ERROR);
+                console.error('❌ Mic stream or audio context not ready, falling back to local STT');
+                // Don't set to ERROR, keep LISTENING and use fallback
+                setSessionState(SessionState.LISTENING);
+                // Trigger fallback to local STT
+                if (speechRecognitionRef.current?.isSupported()) {
+                  recognitionGotResultRef.current = false;
+                  speechRecognitionRef.current.start(
+                    (transcript) => {
+                      recognitionGotResultRef.current = true;
+                      setCurrentInput(transcript);
+                      handleSendMessage(transcript, true);
+                    },
+                    async () => {
+                      if (!recognitionGotResultRef.current) {
+                        try {
+                          if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                          await voiceRecorderRef.current.start();
+                          setIsRecordingFallback(true);
+                          setSessionState(SessionState.LISTENING);
+                        } catch (e) {
+                          console.warn('Fallback recorder failed:', e);
+                          setSessionState(SessionState.ERROR);
+                        }
+                      }
+                    }
+                  );
+                }
                 return;
               }
 
               // Check if mic stream tracks are active
               const audioTracks = micStreamRef.current.getAudioTracks();
               if (audioTracks.length === 0 || audioTracks[0].readyState !== 'live') {
-                console.error('❌ No active audio tracks in mic stream');
-                setSessionState(SessionState.ERROR);
+                console.error('❌ No active audio tracks in mic stream, falling back to local STT');
+                // Don't set to ERROR, keep LISTENING and use fallback
+                setSessionState(SessionState.LISTENING);
+                // Trigger fallback to local STT
+                if (speechRecognitionRef.current?.isSupported()) {
+                  recognitionGotResultRef.current = false;
+                  speechRecognitionRef.current.start(
+                    (transcript) => {
+                      recognitionGotResultRef.current = true;
+                      setCurrentInput(transcript);
+                      handleSendMessage(transcript, true);
+                    },
+                    async () => {
+                      if (!recognitionGotResultRef.current) {
+                        try {
+                          if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                          await voiceRecorderRef.current.start();
+                          setIsRecordingFallback(true);
+                          setSessionState(SessionState.LISTENING);
+                        } catch (e) {
+                          console.warn('Fallback recorder failed:', e);
+                          setSessionState(SessionState.ERROR);
+                        }
+                      }
+                    }
+                  );
+                }
                 return;
               }
 
@@ -1873,10 +1951,10 @@ function App() {
                   console.error('❌ Failed to create ScriptProcessor:', scriptProcessorError);
                   // Fallback: Try using AudioWorklet or MediaRecorder approach
                   console.warn('⚠️ Falling back to alternative audio capture method');
-                  setSessionState(SessionState.ERROR);
+                  // Keep LISTENING state and trigger fallback to local STT
+                  setSessionState(SessionState.LISTENING);
                   // Trigger fallback to local STT
                   if (speechRecognitionRef.current?.isSupported()) {
-                    setSessionState(SessionState.LISTENING);
                     recognitionGotResultRef.current = false;
                     speechRecognitionRef.current.start(
                       (transcript) => {
@@ -1902,7 +1980,32 @@ function App() {
                 }
               } catch (audioSetupError) {
                 console.error('❌ Audio setup failed:', audioSetupError);
-                setSessionState(SessionState.ERROR);
+                // Keep LISTENING state and try fallback
+                setSessionState(SessionState.LISTENING);
+                // Try fallback to local STT
+                if (speechRecognitionRef.current?.isSupported()) {
+                  recognitionGotResultRef.current = false;
+                  speechRecognitionRef.current.start(
+                    (transcript) => {
+                      recognitionGotResultRef.current = true;
+                      setCurrentInput(transcript);
+                      handleSendMessage(transcript, true);
+                    },
+                    async () => {
+                      if (!recognitionGotResultRef.current) {
+                        try {
+                          if (!voiceRecorderRef.current) voiceRecorderRef.current = new VoiceRecorder();
+                          await voiceRecorderRef.current.start();
+                          setIsRecordingFallback(true);
+                          setSessionState(SessionState.LISTENING);
+                        } catch (e) {
+                          console.warn('Fallback recorder failed:', e);
+                          setSessionState(SessionState.ERROR);
+                        }
+                      }
+                    }
+                  );
+                }
               }
             },
             onmessage: async (message: any) => {
