@@ -15,6 +15,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   userProfile,
   onOpenProfile,
   onOpenSubscription,
+  onOpenPrivacy,
   onLogout,
   T
 }) => {
