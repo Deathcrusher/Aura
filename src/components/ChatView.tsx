@@ -214,12 +214,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             {sessions.map((session) => (
                                 <div
                                     key={session.id}
-                                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                                    className={`p-4 rounded-2xl border transition-all ${
+                                        editingSessionId === session.id 
+                                            ? 'cursor-default' 
+                                            : 'cursor-pointer'
+                                    } ${
                                         activeSession?.id === session.id
                                             ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
                                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
                                     }`}
                                     onClick={(e) => {
+                                        // Nicht ausführen, wenn im Bearbeitungsmodus
+                                        if (editingSessionId === session.id) {
+                                            return;
+                                        }
                                         e.preventDefault();
                                         e.stopPropagation();
                                         if (onSelectSession) {
