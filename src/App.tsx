@@ -72,6 +72,7 @@ import { AppFrame } from './components/AppFrame';
 import { HomeView } from './components/HomeView';
 import { JournalView } from './components/JournalView';
 import { ProfileView } from './components/ProfileView';
+import { PrivacyView } from './components/PrivacyView';
 import { BreathingExercise } from './components/BreathingExercise';
 import { BottomNavigation } from './components/BottomNavigation';
 import {
@@ -223,7 +224,7 @@ function App() {
     setIsJournalOpen(true);
   };
   // Navigation state
-  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy'>('home');
   // Auth entry state (welcome vs auth)
   const [showAuth, setShowAuth] = useState<boolean>(false);
   const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');
@@ -2713,12 +2714,19 @@ function App() {
             T={T}
           />
         )}
+            {currentView === 'privacy' && (
+              <PrivacyView
+                T={T}
+                onBack={() => setCurrentView('profile')}
+              />
+            )}
             {currentView === 'profile' && (
               <ProfileView
                 userProfile={userProfile}
                 T={T}
                 onOpenProfile={() => setIsProfileOpen(true)}
                 onOpenSubscription={() => setIsSubscriptionOpen(true)}
+                onOpenPrivacy={() => setCurrentView('privacy')}
                 onLogout={async () => {
                   try {
                     await signOut()

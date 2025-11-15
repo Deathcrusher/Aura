@@ -234,6 +234,52 @@ Eintrag:
       contactSupport: 'Support kontaktieren',
       aboutAura: 'Über Aura',
     },
+    privacyView: {
+      title: 'Daten & Datenschutzrichtlinie',
+      updated: 'Letzte Aktualisierung: 15. November 2025',
+      intro:
+        'Aura respektiert deine Privatsphäre und verarbeitet nur die Informationen, die notwendig sind, um Gespräche, Einblicke und personalisierte Begleitung zu ermöglichen. Alle Daten werden verschlüsselt gespeichert und nur solange aufbewahrt, wie es für den Service erforderlich ist.',
+      sectionCollectedTitle: 'Welche Daten wir sammeln',
+      sectionCollectedBody:
+        'Während deiner Nutzung erfassen wir Informationen, die du direkt bereitstellst, sowie technische und Nutzungsdaten. Dazu gehören:',
+      sectionCollectedPoints: [
+        'Chat- und Journaleinträge inklusive Notizen, Stimmungen und KI-Einblicke',
+        'Technische und Nutzungsdaten wie Gerät, Sprache, Zeitstempel und Sitzungsdauer',
+        'Freiwillige Sprachaufnahmen oder Transkripte, wenn du die Sprachfunktion aktivierst',
+      ],
+      sectionUsageTitle: 'Wie wir deine Daten verwenden',
+      sectionUsageBody:
+        'Die gesammelten Informationen helfen uns, personalisierte Unterstützung, sinnvolle Einblicke und sichere Abläufe zu bieten. Beispielsweise:',
+      sectionUsagePoints: [
+        'Antworten und Insights werden auf deine Ziele, Stimmungen und Gesprächshistorie abgestimmt',
+        'Aggregierte Nutzungsdaten verbessern die KI-Modelle und Analysefunktionen',
+        'Wir senden nur auf deine Anfrage hin Erinnerungen, Hinweise oder Follow-ups',
+      ],
+      sectionSharingTitle: 'Weitergabe an Dritte',
+      sectionSharingBody:
+        'Wir geben Daten nur weiter, wenn es zur Vertragserfüllung notwendig ist oder wir gesetzlich dazu verpflichtet sind:',
+      sectionSharingPoints: [
+        'Cloud-Infrastrukturpartner wie Google Cloud, Firebase und GenAI',
+        'Dienstleister für Sicherheit, Authentifizierung und Abrechnung',
+        'Behördliche oder rechtmäßige Anfragen, wenn sie den gesetzlichen Anforderungen genügen',
+      ],
+      sectionSecurityTitle: 'Wie wir deine Daten schützen',
+      sectionSecurityBody:
+        'Technische und organisatorische Maßnahmen schützen Daten in der Übertragung und im Ruhezustand:',
+      sectionSecurityPoints: [
+        'TLS/HTTPS für alle Datenübertragungen',
+        'Verschlüsselte Speicherung mit strengen Zugriffskontrollen',
+        'Regelmäßige Sicherheitsreviews, Monitoring und Berechtigungsprüfungen',
+      ],
+      sectionRightsTitle: 'Deine Rechte',
+      sectionRightsBody:
+        'Du kannst jederzeit Auskunft, Berichtigung, Löschung, Einschränkung oder Datenübertragung verlangen sowie der Verarbeitung widersprechen.',
+      sectionContactTitle: 'Kontakt & Anliegen',
+      sectionContactBody: 'Für Datenschutzfragen, Auskunftsersuchen oder Widerrufe schreibe an',
+      contactButton: 'E-Mail schreiben',
+      contactEmail: 'privacy@aura.app',
+      backButton: 'Zurück zum Profil',
+    },
     voiceDescriptions: {
       Zephyr: 'Sanfte, beruhigende Stimme mit warmer Klangfarbe.',
       Puck: 'Energiegeladene Stimme mit freundlicher Klarheit.',
@@ -502,6 +548,49 @@ export const enUS = {
       faq: 'FAQ',
       contactSupport: 'Contact Support',
       aboutAura: 'About Aura',
+    },
+    privacyView: {
+      title: 'Data & Privacy Policy',
+      updated: 'Last updated: November 15, 2025',
+      intro:
+        'Aura respects your privacy and processes only the information needed to enable conversations, insights, and personalized support. All data is stored encrypted and retained only as long as required to deliver the service.',
+      sectionCollectedTitle: 'Data we collect',
+      sectionCollectedBody:
+        'While you use Aura, we gather information you share directly as well as technical and usage data. This includes:',
+      sectionCollectedPoints: [
+        'Chat and journal entries including notes, moods, and AI insights',
+        'Technical and usage metadata such as device, language, timestamps, and session duration',
+        'Voluntary voice recordings or transcripts when you activate voice features',
+      ],
+      sectionUsageTitle: 'How we use your data',
+      sectionUsageBody:
+        'The collected data helps us personalize support, surface insights, and keep the experience safe. For example:',
+      sectionUsagePoints: [
+        'Responses and insights stay aligned with your goals, mood, and history',
+        'Aggregated usage data helps improve AI models and analytics',
+        'We only send reminders or prompts when you opt in',
+      ],
+      sectionSharingTitle: 'Data sharing',
+      sectionSharingBody: 'We only share data when necessary to provide the service or when required by law:',
+      sectionSharingPoints: [
+        'Cloud infrastructure partners such as Google Cloud, Firebase, and GenAI',
+        'Vendors supporting security, authentication, and billing',
+        'Lawful requests from authorities when required',
+      ],
+      sectionSecurityTitle: 'How we protect your data',
+      sectionSecurityBody: 'Technical and organizational measures protect data in transit and at rest:',
+      sectionSecurityPoints: [
+        'TLS/HTTPS for all data in transit',
+        'Encrypted storage with strict access controls',
+        'Regular security reviews, monitoring, and permission audits',
+      ],
+      sectionRightsTitle: 'Your rights',
+      sectionRightsBody: 'You can request access, correction, deletion, restriction, objection, or portability at any time.',
+      sectionContactTitle: 'Contact & concerns',
+      sectionContactBody: 'For privacy questions, access requests, or objections, email',
+      contactButton: 'Send email',
+      contactEmail: 'privacy@aura.app',
+      backButton: 'Back to profile',
     },
     voiceDescriptions: {
       Zephyr: 'Soft, calming tone with a warm timbre.',
