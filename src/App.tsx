@@ -1635,18 +1635,39 @@ function App() {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Prepare mic visualization
+      // Prepare mic visualization - Request microphone permission explicitly
       try {
+        console.log('🎤 Requesting microphone access...');
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } as MediaTrackConstraints,
+          audio: { 
+            echoCancellation: true, 
+            noiseSuppression: true, 
+            autoGainControl: true 
+          } as MediaTrackConstraints,
         });
         micStreamRef.current = stream;
-        console.log('✅ Microphone access granted');
+        console.log('✅ Microphone access granted, stream active:', stream.active);
+        console.log('✅ Audio tracks:', stream.getAudioTracks().map(t => ({ 
+          id: t.id, 
+          label: t.label, 
+          enabled: t.enabled, 
+          readyState: t.readyState 
+        })));
         if (audioVisualizationRef.current) {
           inputAnalyserRef.current = await audioVisualizationRef.current.createFromStream(stream);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('❌ Failed to get microphone access:', err);
+        console.error('Error name:', err.name);
+        console.error('Error message:', err.message);
+        // Show user-friendly error message
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert('Mikrofon-Zugriff wurde verweigert. Bitte erlauben Sie den Mikrofon-Zugriff in den Browser-Einstellungen.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          alert('Kein Mikrofon gefunden. Bitte stellen Sie sicher, dass ein Mikrofon angeschlossen ist.');
+        } else {
+          alert('Fehler beim Zugriff auf das Mikrofon: ' + err.message);
+        }
         // Don't fail completely - we'll use fallback in onopen
         micStreamRef.current = null;
       }
@@ -1876,11 +1897,22 @@ function App() {
                   scriptProcessorRef.current.onaudioprocess = (e) => {
                     audioChunkCount++;
                     // Log first few chunks to verify audio is being processed
-                    if (audioChunkCount <= 3) {
-                      console.log(`🎤 Audio chunk ${audioChunkCount} processed`);
+                    if (audioChunkCount <= 5) {
+                      console.log(`🎤 Audio chunk ${audioChunkCount} processed, samples: ${e.inputBuffer.length}`);
                     }
                     
                     const inputData = e.inputBuffer.getChannelData(0);
+                    
+                    // Calculate RMS for VAD and logging (do it once)
+                    const VAD_THRESHOLD = 0.01;
+                    const SILENCE_DELAY = 800;
+                    const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
+                    
+                    // Log audio level for first few chunks
+                    if (audioChunkCount <= 5) {
+                      console.log(`🎤 Audio RMS level: ${rms.toFixed(4)} (threshold: ${VAD_THRESHOLD})`);
+                    }
+                    
                     // Send PCM audio chunk to Gemini Live using the correct format per official docs
                     // Format: { audio: { data: base64String, mimeType: "audio/pcm;rate=16000" } }
                     const payload: any = createBlob(inputData);
@@ -1890,6 +1922,7 @@ function App() {
                     if (session && typeof session.sendRealtimeInput === 'function') {
                       try {
                         // Use the correct format according to official Gemini Live API docs
+                        // The Blob interface expects: { data: string (base64), mimeType: string }
                         session.sendRealtimeInput({
                           audio: {
                             data: payload.data,
@@ -1899,6 +1932,11 @@ function App() {
                         // Log first successful send
                         if (audioChunkCount === 1) {
                           console.log('✅ First audio chunk sent successfully (native audio format)');
+                          console.log('✅ Payload size:', payload.data.length, 'chars (base64)');
+                        }
+                        // Log every 50th chunk to verify continuous sending
+                        if (audioChunkCount % 50 === 0) {
+                          console.log(`✅ Sent ${audioChunkCount} audio chunks`);
                         }
                       } catch (err1) {
                         // Fallback: try alternative format if the primary fails
@@ -1911,22 +1949,29 @@ function App() {
                           }
                         } catch (err2) {
                           // Only log first few errors to avoid flooding
-                          if (audioChunkCount <= 3) {
-                            console.warn('Audio send error:', err2);
+                          if (audioChunkCount <= 10) {
+                            console.error('❌ Audio send error:', err2);
+                            console.error('Error details:', {
+                              name: (err2 as any)?.name,
+                              message: (err2 as any)?.message,
+                              stack: (err2 as any)?.stack
+                            });
                           }
                         }
                       }
                     } else {
                       // Session not ready yet - this shouldn't happen if onopen completed
-                      if (audioChunkCount <= 3) {
+                      if (audioChunkCount <= 10) {
                         console.warn('⚠️ Session not ready for audio send, chunk:', audioChunkCount);
+                        console.warn('Session state:', {
+                          hasSession: !!session,
+                          hasSendRealtimeInput: session && typeof session.sendRealtimeInput === 'function',
+                          resolvedSessionRef: !!resolvedSessionRef.current
+                        });
                       }
                     }
 
-                    // Simple VAD-like RMS monitor
-                    const VAD_THRESHOLD = 0.01;
-                    const SILENCE_DELAY = 800;
-                    const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
+                    // Simple VAD-like RMS monitor for UI state
 
                     if (rms > VAD_THRESHOLD) {
                       if (sessionStateRef.current !== SessionState.USER_SPEAKING) {

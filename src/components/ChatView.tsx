@@ -231,12 +231,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         }
                                         // Prüfe nochmal, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        const isButton = target.closest('button') !== null;
-                                        const isRoleButton = target.closest('[role="button"]') !== null;
-                                        const isInput = target.closest('input, textarea, select') !== null;
-                                        const isInteractiveContainer = target.closest('[data-interactive="true"]') !== null;
+                                        const isInteractiveTarget = target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]');
                                         
-                                        if (isButton || isRoleButton || isInput || isInteractiveContainer) {
+                                        if (isInteractiveTarget) {
                                             // Event wurde auf einem interaktiven Element ausgelöst -> nicht Session wechseln
                                             e.stopPropagation();
                                             return;
@@ -252,10 +249,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     onMouseDown={(e) => {
                                         // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
                                         const target = e.target as HTMLElement;
-                                        if (target.closest('button') || 
-                                            target.closest('[role="button"]') || 
-                        target.closest('input, textarea, select') ||
-                                            target.closest('[data-interactive="true"]') ||
+                                        if (target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]') ||
                                             editingSessionId === session.id) {
                                             e.preventDefault();
                                             e.stopPropagation();
@@ -318,9 +312,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             >
                                                 <button
                                                     type="button"
-                                                    onClickCapture={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -345,9 +336,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClickCapture={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
@@ -397,9 +385,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                     {onStartEditing && (
                                                         <button
                                                             type="button"
-                                                            onClickCapture={(e) => {
-                                                                e.stopPropagation();
-                                                            }}
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
@@ -424,9 +409,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                     {onDeleteSession && (
                                                         <button
                                                             type="button"
-                                                            onClickCapture={(e) => {
-                                                                e.stopPropagation();
-                                                            }}
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
