@@ -30,6 +30,7 @@ interface ChatViewProps {
     editingTitle?: string;
     onEditingTitleChange?: (title: string) => void;
     onSaveTitle?: () => void;
+    onCancelEditing?: () => void;
 }
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
@@ -97,6 +98,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     editingTitle = '',
     onEditingTitleChange,
     onSaveTitle,
+    onCancelEditing,
 }) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -127,8 +129,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }, [activeSession, sessionState, isIdle]);
 
     useEffect(() => {
-        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [activeSession?.transcript, currentInput, currentOutput]);
+        // Auto-scroll to bottom when new messages arrive
+        if (transcriptEndRef.current) {
+            // Small delay to ensure DOM is updated
+            setTimeout(() => {
+                transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+    }, [activeSession?.transcript, currentInput, currentOutput, isProcessing]);
 
     useEffect(() => {
         if (!inputRef.current) return;
@@ -211,14 +219,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
                                             : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
                                     }`}
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
                                         if (onSelectSession) {
+                                            console.log('📱 Selecting session:', session.id);
                                             onSelectSession(session.id);
+                                            setShowSessionsList(false);
+                                        } else {
+                                            console.warn('⚠️ onSelectSession is not defined');
                                         }
                                     }}
                                 >
                                     {editingSessionId === session.id ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
                                             <input
                                                 type="text"
                                                 value={editingTitle}
@@ -226,13 +240,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 onKeyPress={(e) => {
                                                     if (e.key === 'Enter') {
                                                         onSaveTitle?.();
+                                                    } else if (e.key === 'Escape') {
+                                                        onCancelEditing?.();
                                                     }
                                                 }}
-                                                onBlur={() => onSaveTitle?.()}
-                                                className="flex-1 bg-transparent border-b-2 border-purple-600 outline-none text-sm font-medium text-slate-900 dark:text-white"
+                                                className="flex-1 bg-transparent border-b-2 border-purple-600 outline-none text-sm font-medium text-slate-900 dark:text-white px-2 py-1"
                                                 autoFocus
-                                                onClick={(e) => e.stopPropagation()}
                                             />
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onSaveTitle?.();
+                                                    }}
+                                                    className="p-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                                                    title="Speichern"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">check</span>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onCancelEditing?.();
+                                                    }}
+                                                    className="p-1.5 rounded-lg bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors"
+                                                    title="Abbrechen"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">close</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <>
@@ -362,8 +398,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Messages - scrollable */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
-                <div className="flex flex-col justify-end gap-4 min-h-full">
+            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4 min-h-0">
+                <div className="flex flex-col gap-4">
                     {activeSession.summary && (
                         <div className="p-4 rounded-xl bg-white dark:bg-slate-900/80 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm">
                             <div className="flex items-start gap-3">
@@ -452,7 +488,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
                                 <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
                                 <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
-                                    <p className="text-sm text-slate-600 dark:text-slate-300">Aura is typing</p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
+                                    <div className="flex gap-1">
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Aura schreibt Animation (wenn verarbeitet wird) */}
+                    {isProcessing && !currentOutput && (
+                        <div className="flex items-end gap-3 animate-fade-in-up">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                <AuraHumanAvatar className="w-6 h-6" />
+                            </div>
+                            <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
+                                <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
+                                <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
                                     <div className="flex gap-1">
                                         <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
                                         <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
@@ -468,7 +524,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {/* Input Area - fixed bottom */}
             <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 pb-24 shrink-0">
-                {(isListening || isProcessing || isSpeaking) && (
+                {(isListening || isSpeaking) && (
                     <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
                         <div className="flex items-center gap-3 flex-1">
                             {isListening && (
@@ -476,14 +532,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                                         {T.ui.chat?.listening || 'Höre zu...'}
-                                    </span>
-                                </>
-                            )}
-                            {isProcessing && (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                        {T.ui.chat?.processing || 'Verarbeite...'}
                                     </span>
                                 </>
                             )}

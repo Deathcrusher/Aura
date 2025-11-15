@@ -945,20 +945,38 @@ function App() {
   };
 
   const handleSaveTitle = async () => {
-    if (editingSessionId && editingTitle.trim()) {
+    if (!editingSessionId) return;
+    
+    const trimmedTitle = editingTitle.trim();
+    if (!trimmedTitle) {
+      // Wenn der Titel leer ist, abbrechen
+      handleCancelEditing();
+      return;
+    }
+
+    const session = sessions.find(s => s.id === editingSessionId);
+    if (!session) {
+      handleCancelEditing();
+      return;
+    }
+
+    try {
       setSessions(prev =>
         prev.map(s =>
-          s.id === editingSessionId ? { ...s, title: editingTitle.trim() } : s
+          s.id === editingSessionId ? { ...s, title: trimmedTitle } : s
         )
       );
       if (activeSession?.id === editingSessionId) {
-        setActiveSession(prev => prev ? { ...prev, title: editingTitle.trim() } : null);
+        setActiveSession(prev => prev ? { ...prev, title: trimmedTitle } : null);
       }
       if (user) {
-        await updateChatSession(editingSessionId, { title: editingTitle.trim() });
+        await updateChatSession(editingSessionId, { title: trimmedTitle });
       }
       setEditingSessionId(null);
       setEditingTitle('');
+    } catch (error) {
+      console.error('Error saving title:', error);
+      handleCancelEditing();
     }
   };
 
@@ -1310,15 +1328,22 @@ function App() {
   };
 
   const handleSelectSession = async (sessionId: string) => {
+    console.log('🔄 handleSelectSession called with:', sessionId);
     const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
+    if (!session) {
+      console.warn('⚠️ Session not found:', sessionId);
+      return;
+    }
 
     try {
+      console.log('📥 Loading transcripts for session:', sessionId);
       const transcripts = await getTranscriptEntries(sessionId);
-      setActiveSession({ ...session, transcript: transcripts });
+      const updatedSession = { ...session, transcript: transcripts };
+      console.log('✅ Setting active session:', updatedSession.id, 'with', transcripts.length, 'transcripts');
+      setActiveSession(updatedSession);
       setSidebarOpen(false);
     } catch (error) {
-      console.error('Error loading session:', error);
+      console.error('❌ Error loading session:', error);
     }
   };
 
@@ -2525,6 +2550,7 @@ function App() {
                 editingTitle={editingTitle}
                 onEditingTitleChange={setEditingTitle}
                 onSaveTitle={handleSaveTitle}
+                onCancelEditing={handleCancelEditing}
               />
             )}
             {currentView === 'home' && (

@@ -126,6 +126,7 @@ Eintrag:
       listening: 'Höre zu...',
       processing: 'Verarbeite...',
       speaking: 'Aura spricht...',
+      typing: 'Aura schreibt...',
       stop: 'Stoppen',
     },
     sidebar: {
@@ -386,6 +387,7 @@ export const enUS = {
       listening: 'Listening...',
       processing: 'Processing...',
       speaking: 'Aura is speaking...',
+      typing: 'Aura is typing...',
       stop: 'Stop',
       insightsTitle: 'Your Session Insights',
       playSummary: 'Play summary',
