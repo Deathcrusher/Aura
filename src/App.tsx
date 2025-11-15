@@ -2517,6 +2517,14 @@ function App() {
                 onOpenSessions={() => setSidebarOpen(true)}
                 onShowSummary={activeSession?.summary ? handleOpenSummaryPanel : undefined}
                 hasSummary={Boolean(activeSession?.summary)}
+                sessions={sessions}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+                onStartEditing={handleStartEditing}
+                editingSessionId={editingSessionId}
+                editingTitle={editingTitle}
+                onEditingTitleChange={setEditingTitle}
+                onSaveTitle={handleSaveTitle}
               />
             )}
             {currentView === 'home' && (

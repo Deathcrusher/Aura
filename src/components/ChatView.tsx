@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SessionState, ChatSession, Speaker, CognitiveDistortion, UserProfile, ChatMode } from '../types';
 import { AuraHumanAvatar, LightbulbIcon, UserIcon } from './Icons';
 
@@ -22,6 +22,14 @@ interface ChatViewProps {
     onOpenSessions?: () => void;
     onShowSummary?: () => void;
     hasSummary?: boolean;
+    sessions?: ChatSession[];
+    onSelectSession?: (sessionId: string) => void;
+    onDeleteSession?: (sessionId: string) => void;
+    onStartEditing?: (session: ChatSession) => void;
+    editingSessionId?: string | null;
+    editingTitle?: string;
+    onEditingTitleChange?: (title: string) => void;
+    onSaveTitle?: () => void;
 }
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
@@ -81,13 +89,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onOpenSessions,
     onShowSummary,
     hasSummary = false,
+    sessions = [],
+    onSelectSession,
+    onDeleteSession,
+    onStartEditing,
+    editingSessionId = null,
+    editingTitle = '',
+    onEditingTitleChange,
+    onSaveTitle,
 }) => {
     const transcriptEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [showSessionsList, setShowSessionsList] = useState(false);
     const isIdle = sessionState === SessionState.IDLE;
     const isListening = sessionState === SessionState.LISTENING || sessionState === SessionState.USER_SPEAKING;
     const isProcessing = sessionState === SessionState.PROCESSING;
     const isSpeaking = sessionState === SessionState.SPEAKING;
+
+    // Wenn keine aktive Sitzung, zeige automatisch die Sitzungsliste
+    useEffect(() => {
+        if (!activeSession) {
+            setShowSessionsList(true);
+        } else {
+            setShowSessionsList(false);
+        }
+    }, [activeSession]);
 
     useEffect(() => {
         console.log('📱 ChatView rendered - activeSession:', activeSession ? {
@@ -125,6 +151,148 @@ export const ChatView: React.FC<ChatViewProps> = ({
             handleSend();
         }
     };
+
+    // Sitzungsliste anzeigen
+    if (showSessionsList || !activeSession) {
+        return (
+            <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                        <AuraHumanAvatar className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-slate-900 dark:text-white font-bold leading-tight truncate">{T.ui.sidebar?.sessions || 'Gespräche'}</h2>
+                    </div>
+                    {onNewChat && (
+                        <button
+                            onClick={async () => {
+                                if (onNewChat) {
+                                    await onNewChat(ChatMode.TEXT);
+                                }
+                            }}
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-all text-sm font-semibold"
+                        >
+                            <span className="material-symbols-outlined text-lg">add</span>
+                            <span className="hidden sm:inline">{T.ui.sidebar?.newChat || 'Neues Gespräch'}</span>
+                        </button>
+                    )}
+                </div>
+
+                {/* Sitzungsliste */}
+                <div className="flex-1 overflow-y-auto p-4">
+                    {sessions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mb-4">
+                                <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
+                            </div>
+                            <p className="text-slate-500 dark:text-slate-400 mb-6">{T.ui.sidebar?.noSessions || 'Noch keine Gespräche'}</p>
+                            {onNewChat && (
+                                <button
+                                    onClick={async () => {
+                                        if (onNewChat) {
+                                            await onNewChat(ChatMode.TEXT);
+                                        }
+                                    }}
+                                    className="flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+                                >
+                                    <span className="material-symbols-outlined">chat_bubble</span>
+                                    <span>{T.ui.chat?.startConversation || 'Konversation starten'}</span>
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-2 max-w-4xl mx-auto">
+                            {sessions.map((session) => (
+                                <div
+                                    key={session.id}
+                                    className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                                        activeSession?.id === session.id
+                                            ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
+                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
+                                    }`}
+                                    onClick={() => {
+                                        if (onSelectSession) {
+                                            onSelectSession(session.id);
+                                        }
+                                    }}
+                                >
+                                    {editingSessionId === session.id ? (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={editingTitle}
+                                                onChange={(e) => onEditingTitleChange?.(e.target.value)}
+                                                onKeyPress={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        onSaveTitle?.();
+                                                    }
+                                                }}
+                                                onBlur={() => onSaveTitle?.()}
+                                                className="flex-1 bg-transparent border-b-2 border-purple-600 outline-none text-sm font-medium text-slate-900 dark:text-white"
+                                                autoFocus
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-base truncate flex-1">
+                                                    {session.title}
+                                                </h3>
+                                                <div className="flex items-center gap-2 ml-2" onClick={(e) => e.stopPropagation()}>
+                                                    {onStartEditing && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onStartEditing(session);
+                                                            }}
+                                                            className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                                            title={T.ui.chat?.renameSession || 'Umbenennen'}
+                                                        >
+                                                            <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-lg">edit</span>
+                                                        </button>
+                                                    )}
+                                                    {onDeleteSession && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm(T.ui.chat?.deleteSessionConfirm?.(session.title) || `Möchten Sie die Sitzung "${session.title}" wirklich löschen?`)) {
+                                                                    onDeleteSession(session.id);
+                                                                }
+                                                            }}
+                                                            className="p-2 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                                            title={T.ui.chat?.deleteSession || 'Löschen'}
+                                                        >
+                                                            <span className="material-symbols-outlined text-red-500 text-lg">delete</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                {new Date(session.startTime).toLocaleDateString(userProfile.language || 'de-DE', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </p>
+                                            {session.summary && (
+                                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 line-clamp-2">
+                                                    {session.summary}
+                                                </p>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (!activeSession) {
         return (
@@ -167,15 +335,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {/* Header - fixed */}
             <div className="flex flex-wrap items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {onOpenSessions && (
-                        <button
-                            onClick={onOpenSessions}
-                            className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-semibold"
-                        >
-                            <span className="material-symbols-outlined text-base">arrow_back</span>
-                            <span className="hidden sm:inline">{T.ui.chat?.backToSessions || 'Zurück'}</span>
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setShowSessionsList(true)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-semibold"
+                    >
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        <span className="hidden sm:inline">{T.ui.chat?.backToSessions || 'Zurück'}</span>
+                    </button>
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
                         <AuraHumanAvatar className="w-6 h-6" />
                     </div>
@@ -301,7 +467,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Input Area - fixed bottom */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shrink-0">
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 pb-24 shrink-0">
                 {(isListening || isProcessing || isSpeaking) && (
                     <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
                         <div className="flex items-center gap-3 flex-1">
@@ -342,10 +508,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                 )}
 
-                <div className="max-w-4xl mx-auto space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <div className="flex-1 flex items-start gap-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
-                            <span className="material-symbols-outlined mt-1 text-slate-400 dark:text-slate-500">edit</span>
+                <div className="max-w-4xl mx-auto">
+                    <div className="flex items-end gap-2">
+                        {/* Mikrofon-Button links (optional) */}
+                        {onStartVoiceSession && isIdle && (
+                            <button
+                                onClick={onStartVoiceSession}
+                                className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 shadow-lg shadow-pink-500/30 flex items-center justify-center transition-all mb-1"
+                                title={T.ui.chat?.startVoice || 'Sprache starten'}
+                            >
+                                <span className="material-symbols-outlined text-lg">mic</span>
+                            </button>
+                        )}
+                        {onStartVoiceSession && !isIdle && (
+                            <button
+                                onClick={onStopSession}
+                                className="flex-shrink-0 w-10 h-10 rounded-full bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/30 flex items-center justify-center transition-all mb-1"
+                                title={T.ui.chat?.stopVoice || 'Sprache stoppen'}
+                            >
+                                <span className="material-symbols-outlined text-lg">mic_off</span>
+                            </button>
+                        )}
+                        
+                        {/* Textfeld mit integriertem Senden-Button */}
+                        <div className="flex-1 flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
                             <textarea
                                 ref={inputRef}
                                 value={textInput}
@@ -357,39 +543,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
                                 }
                                 rows={1}
-                                className="w-full bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed"
+                                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed py-1.5"
                                 disabled={isProcessing}
                             />
-                        </div>
-                        <div className="flex items-stretch gap-2 sm:flex-col sm:w-auto sm:min-w-[120px]">
-                            {onStartVoiceSession && (
-                                <button
-                                    onClick={isIdle ? onStartVoiceSession : onStopSession}
-                                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl px-4 py-3 transition-all font-semibold ${
-                                        isIdle
-                                            ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 shadow-lg shadow-pink-500/30'
-                                            : 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/30'
-                                    }`}
-                                    title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
-                                >
-                                    <span className="material-symbols-outlined text-lg">
-                                        {isIdle ? 'mic' : 'mic_off'}
-                                    </span>
-                                    <span className="hidden sm:inline text-sm">
-                                        {isIdle 
-                                            ? (T.ui.chat?.startVoice || 'Sprache') 
-                                            : (T.ui.chat?.stopVoice || 'Stoppen')
-                                        }
-                                    </span>
-                                </button>
-                            )}
+                            {/* Senden-Button direkt im Textfeld */}
                             <button
                                 onClick={handleSend}
                                 disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-2xl px-5 py-3 bg-purple-600 text-white font-semibold shadow-lg shadow-purple-500/30 hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
+                                    textInput.trim() && !isProcessing && !isListening && !isSpeaking
+                                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
+                                        : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                }`}
+                                title={T.ui.chat?.send || 'Senden'}
                             >
                                 <span className="material-symbols-outlined text-lg">send</span>
-                                <span className="hidden sm:inline text-sm">{T.ui.chat?.send || 'Senden'}</span>
                             </button>
                         </div>
                     </div>
