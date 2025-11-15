@@ -240,7 +240,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     }}
                                 >
                                     {editingSessionId === session.id ? (
-                                        <div className="flex items-center gap-2 w-full" onClick={(e) => e.stopPropagation()}>
+                                        <div 
+                                            className="flex items-center gap-2 w-full" 
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}
+                                        >
                                             <input
                                                 type="text"
                                                 value={editingTitle}
@@ -255,23 +265,43 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                 className="flex-1 bg-transparent border-b-2 border-purple-600 outline-none text-sm font-medium text-slate-900 dark:text-white px-2 py-1"
                                                 autoFocus
                                             />
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                                 <button
+                                                    type="button"
                                                     onClick={(e) => {
+                                                        e.preventDefault();
                                                         e.stopPropagation();
-                                                        onSaveTitle?.();
+                                                        console.log('💾 Save button clicked - calling onSaveTitle');
+                                                        if (onSaveTitle) {
+                                                            onSaveTitle();
+                                                        }
+                                                        return false;
                                                     }}
-                                                    className="p-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
+                                                    className="p-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors flex-shrink-0 z-10 relative"
                                                     title="Speichern"
                                                 >
                                                     <span className="material-symbols-outlined text-sm">check</span>
                                                 </button>
                                                 <button
+                                                    type="button"
                                                     onClick={(e) => {
+                                                        e.preventDefault();
                                                         e.stopPropagation();
-                                                        onCancelEditing?.();
+                                                        console.log('❌ Cancel button clicked - calling onCancelEditing');
+                                                        if (onCancelEditing) {
+                                                            onCancelEditing();
+                                                        }
+                                                        return false;
                                                     }}
-                                                    className="p-1.5 rounded-lg bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors"
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                    }}
+                                                    className="p-1.5 rounded-lg bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-400 dark:hover:bg-slate-500 transition-colors flex-shrink-0 z-10 relative"
                                                     title="Abbrechen"
                                                 >
                                                     <span className="material-symbols-outlined text-sm">close</span>

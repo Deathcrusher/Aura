@@ -981,6 +981,7 @@ function App() {
   };
 
   const handleCancelEditing = () => {
+    console.log('🚫 Canceling edit, restoring original title');
     setEditingSessionId(null);
     setEditingTitle('');
   };
@@ -1560,9 +1561,15 @@ function App() {
           if (sessionSnapshot && !skipAnalysis) {
             generateAndStoreSummary(sessionSnapshot, userProfile.language);
           }
+          // Ensure state is reset after message is sent
+          setIsRecordingFallback(false);
+          setSessionState(SessionState.IDLE);
+          sessionStateRef.current = SessionState.IDLE;
           return;
         }
+        setIsRecordingFallback(false);
         setSessionState(SessionState.IDLE);
+        sessionStateRef.current = SessionState.IDLE;
         if (sessionSnapshot && !skipAnalysis) {
           generateAndStoreSummary(sessionSnapshot, userProfile.language);
         }
@@ -1570,24 +1577,41 @@ function App() {
       }
 
       // Default cleanup
+      setIsRecordingFallback(false);
       setSessionState(SessionState.IDLE);
+      sessionStateRef.current = SessionState.IDLE;
       audioVisualizationRef.current?.cleanup();
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((t) => t.stop());
         micStreamRef.current = null;
       }
       inputAnalyserRef.current = null;
+      outputAnalyserRef.current = null;
+      currentInputRef.current = '';
+      currentOutputRef.current = '';
+      setCurrentInput('');
+      setCurrentOutput('');
       if (sessionSnapshot && !skipAnalysis) {
         generateAndStoreSummary(sessionSnapshot, userProfile.language);
       }
     } catch (error) {
       console.error('Error stopping session:', error);
-      setSessionState(SessionState.ERROR);
+      setIsRecordingFallback(false);
+      setSessionState(SessionState.IDLE);
+      sessionStateRef.current = SessionState.IDLE;
     }
   };
 
   const handleStartVoiceSession = async () => {
     try {
+      // If session is not idle, stop it first
+      if (sessionState !== SessionState.IDLE) {
+        console.log('🛑 Session not idle, stopping first...');
+        await handleStopSession(true);
+        // Wait a bit for cleanup
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       // Ensure we have an active session before starting voice
       if (!activeSession) {
         console.log('📝 No active session, creating new voice session...');
@@ -1598,6 +1622,15 @@ function App() {
           console.error('❌ Failed to create session');
           return;
         }
+      }
+
+      // Double-check that state is IDLE before starting
+      if (sessionState !== SessionState.IDLE) {
+        console.log('⚠️ Session state is not IDLE, resetting...');
+        setSessionState(SessionState.IDLE);
+        sessionStateRef.current = SessionState.IDLE;
+        setIsRecordingFallback(false);
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       // Prepare mic visualization
