@@ -2199,9 +2199,17 @@ function App() {
   return (
     <ErrorBoundary>
       <AppFrame>
+        {/* Sidebar Overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
         {/* Sidebar */}
         <div
-          className={`absolute inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out ${
+          className={`fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out shadow-2xl ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -2211,15 +2219,24 @@ function App() {
                 {T.ui.sidebar.sessions}
               </h2>
               <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSidebarOpen(false);
+                }}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <XIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
               </button>
             </div>
             <button
-              onClick={() => handleNewChat(ChatMode.TEXT)}
-              className="w-full flex items-center justify-center gap-2 bg-[#6c2bee] text-white px-4 py-2 rounded-lg hover:bg-[#5a22d6] transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleNewChat(ChatMode.TEXT);
+                setSidebarOpen(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-[#6c2bee] text-white px-4 py-2 rounded-lg hover:bg-[#5a22d6] transition-colors cursor-pointer"
             >
               <PlusIcon className="w-4 h-4" />
               {T.ui.sidebar.newChat}
@@ -2257,7 +2274,12 @@ function App() {
                       </div>
                     ) : (
                       <div
-                        onClick={() => handleSelectSession(session.id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleSelectSession(session.id);
+                          setSidebarOpen(false);
+                        }}
                         className="cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -2316,21 +2338,29 @@ function App() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setIsProfileOpen(true)}
-                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setSidebarOpen(false);
+                  setIsProfileOpen(true);
+                }}
+                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 <UserIcon className="w-3 h-3" />
                 {T.ui.sidebar.profile}
               </button>
               <button
-                onClick={async () => {
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   try {
-                    await signOut()
+                    setSidebarOpen(false);
+                    await signOut();
                   } catch (error) {
-                    console.error('Fehler beim Abmelden:', error)
+                    console.error('Fehler beim Abmelden:', error);
                   }
                 }}
-                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50"
+                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
               >
                 <LogoutIcon className="w-3 h-3" />
                 {T.ui.sidebar.logout}
@@ -2346,8 +2376,12 @@ function App() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setSidebarOpen(true)}
-                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSidebarOpen(true);
+                  }}
+                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm cursor-pointer"
                 >
                   <MenuIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                 </button>
@@ -2373,8 +2407,12 @@ function App() {
                   ].map((view) => (
                     <button
                       key={view.id}
-                      onClick={() => setCurrentView(view.id as any)}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 ${
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setCurrentView(view.id as any);
+                      }}
+                      className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 cursor-pointer ${
                         currentView === view.id
                           ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-300 shadow-sm font-semibold'
                           : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
@@ -2387,8 +2425,12 @@ function App() {
 
                 {/* Theme toggle */}
                 <button
-                  onClick={handleThemeToggle}
-                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleThemeToggle();
+                  }}
+                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm cursor-pointer"
                 >
                   {isDarkMode ? (
                     <SunIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
