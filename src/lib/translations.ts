@@ -313,6 +313,7 @@ Eintrag:
       title: 'Support kontaktieren',
       intro:
         'Unser Team steht bereit, um dir bei technischen Fragen, Abonnements oder Sicherheitsanliegen zu helfen. Antworte auf deine Nachricht so schnell wie möglich.',
+      updated: 'Zuletzt aktualisiert: 15. November 2025',
       contactTitle: 'So erreichst du uns',
       contactBody:
         'Nutze einen der folgenden Kanäle, um dein Anliegen zu schildern. Wir bemühen uns, innerhalb eines Werktages zu antworten.',
@@ -328,6 +329,25 @@ Eintrag:
         'Fragen zu Abos, Zahlungen oder Rechnungen',
         'Meldung von Sicherheitsvorfällen oder Unregelmäßigkeiten',
       ],
+      backButton: 'Zurück zum Profil',
+    },
+    aboutView: {
+      title: 'Über Aura',
+      intro:
+        'Aura ist eine digitale Begleitung, die empathische Gespräche, therapeutische Mikropraktiken und personalisierte Einblicke liefert – alles auf Basis deiner Sprache und deines Verlaufs.',
+      updated: 'Zuletzt aktualisiert: 15. November 2025',
+      missionTitle: 'Unsere Mission',
+      missionBody:
+        'Wir möchten eine vertrauensvolle, jederzeit erreichbare Anlaufstelle bieten, in der du reflektieren, entlasten und im Alltag kleine Selbstfürsorge-Momente finden kannst.',
+      valuesTitle: 'Werte',
+      valuesList: [
+        'Sicherheit: Alle Daten bleiben verschlüsselt und unter deiner Kontrolle.',
+        'Empathie: Wir antworten verständnisvoll, validieren Emotionen und ermutigen zu Selbstwirksamkeit.',
+        'Verlässlichkeit: Aura ist jederzeit erreichbar, ohne Wartezeiten.',
+      ],
+      storyTitle: 'Wie Aura entsteht',
+      storyBody:
+        'Hinter Aura steht ein interdisziplinäres Team aus Psycholog:innen, Entwickler:innen und Designer:innen, die KI verantwortungsvoll einsetzen, um eine Menschen-zentrierte Erfahrung zu schaffen.',
       backButton: 'Zurück zum Profil',
     },
     voiceDescriptions: {
@@ -675,6 +695,7 @@ export const enUS = {
       title: 'Contact Support',
       intro:
         'Our team is ready to help with technical issues, billing questions, or safety concerns. Expect a reply within one business day.',
+      updated: 'Last updated: November 15, 2025',
       contactTitle: 'Get in touch',
       contactBody:
         'Share your concern via one of the channels below, and we will respond as soon as possible.',
@@ -690,6 +711,25 @@ export const enUS = {
         'Questions about subscriptions, payments, or invoices',
         'Reporting security concerns or suspicious activity',
       ],
+      backButton: 'Back to profile',
+    },
+    aboutView: {
+      title: 'About Aura',
+      intro:
+        'Aura is a digital companion that blends empathetic dialogue, therapeutic micro-practices, and personalized insights based on your voice and history.',
+      updated: 'Last updated: November 15, 2025',
+      missionTitle: 'Our mission',
+      missionBody:
+        'We want to provide a trustworthy, always-available space where you can reflect, feel seen, and find small acts of self-care during the day.',
+      valuesTitle: 'Values',
+      valuesList: [
+        'Safety: All data stays encrypted and under your control.',
+        'Empathy: Aura responds with validation and encourages self-efficacy.',
+        'Reliability: Aura is always reachable without waiting rooms.',
+      ],
+      storyTitle: 'How Aura is built',
+      storyBody:
+        'Behind Aura is an interdisciplinary team of psychologists, engineers, and designers who use AI intentionally to craft a human-centered experience.',
       backButton: 'Back to profile',
     },
     voiceDescriptions: {
