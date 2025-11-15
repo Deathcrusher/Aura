@@ -2588,46 +2588,35 @@ function App() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Modern Header */}
           <header className="glass border-b border-white/20 dark:border-white/5 p-5 shrink-0 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
-                    <span className="text-white text-sm font-bold">A</span>
-                  </div>
-                  <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-                    Aura
-                  </h1>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Navigation buttons */}
-                <div className="hidden md:flex items-center gap-1 glass rounded-xl p-1 border border-white/20 dark:border-white/5">
-                  {[
-                    { id: 'chat', label: 'Chat' },
-                    { id: 'home', label: 'Home' },
-                    { id: 'journal', label: 'Journal' },
-                    { id: 'profile', label: 'Profile' },
-                    { id: 'insights', label: 'Insights' }
-                  ].map((view) => (
-                    <button
-                      key={view.id}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setCurrentView(view.id as any);
-                      }}
-                      className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 cursor-pointer ${
-                        currentView === view.id
-                          ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-300 shadow-sm font-semibold'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
-                      }`}
-                    >
-                      {view.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <div className="flex justify-center">
+              <nav
+                aria-label="App navigation"
+                className="hidden md:flex items-center gap-1 glass rounded-xl p-1 border border-white/20 dark:border-white/5"
+              >
+                {[
+                  { id: 'chat', label: 'Chat' },
+                  { id: 'home', label: 'Home' },
+                  { id: 'journal', label: 'Journal' },
+                  { id: 'profile', label: 'Profile' },
+                  { id: 'insights', label: 'Insights' },
+                ].map((view) => (
+                  <button
+                    key={view.id}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentView(view.id as any);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-all duration-200 cursor-pointer ${
+                      currentView === view.id
+                        ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-700 dark:text-purple-300 shadow-sm font-semibold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    {view.label}
+                  </button>
+                ))}
+              </nav>
             </div>
           </header>
 
