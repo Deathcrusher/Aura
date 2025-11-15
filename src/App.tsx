@@ -74,6 +74,7 @@ import { JournalView } from './components/JournalView';
 import { ProfileView } from './components/ProfileView';
 import { PrivacyView } from './components/PrivacyView';
 import { FAQView } from './components/FAQView';
+import { SupportView } from './components/SupportView';
 import { BreathingExercise } from './components/BreathingExercise';
 import { BottomNavigation } from './components/BottomNavigation';
 import {
@@ -225,7 +226,7 @@ function App() {
     setIsJournalOpen(true);
   };
   // Navigation state
-  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq' | 'support'>('home');
   // Auth entry state (welcome vs auth)
   const [showAuth, setShowAuth] = useState<boolean>(false);
   const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');
@@ -2721,6 +2722,12 @@ function App() {
                 onBack={() => setCurrentView('profile')}
               />
             )}
+            {currentView === 'support' && (
+              <SupportView
+                T={T}
+                onBack={() => setCurrentView('profile')}
+              />
+            )}
             {currentView === 'faq' && (
               <FAQView
                 T={T}
@@ -2735,6 +2742,7 @@ function App() {
                 onOpenSubscription={() => setIsSubscriptionOpen(true)}
                 onOpenPrivacy={() => setCurrentView('privacy')}
                 onOpenFAQ={() => setCurrentView('faq')}
+                onOpenSupport={() => setCurrentView('support')}
                 onLogout={async () => {
                   try {
                     await signOut()

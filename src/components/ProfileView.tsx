@@ -7,6 +7,7 @@ interface ProfileViewProps {
   onOpenProfile: () => void;
   onOpenSubscription?: () => void;
   onOpenPrivacy?: () => void;
+  onOpenSupport?: () => void;
   onOpenFAQ?: () => void;
   onLogout?: () => void;
   T: typeof translations['de-DE'];
@@ -18,6 +19,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenSubscription,
   onOpenPrivacy,
   onOpenFAQ,
+  onOpenSupport,
   onLogout,
   T
 }) => {
@@ -47,6 +49,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         </div>
         <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.faq || 'FAQ'}
+        </p>
+      </div>
+      <div className="shrink-0">
+        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </div>
+  );
+  const supportCard = (
+    <div className="flex items-center gap-4 px-4 py-3.5">
+      <div className="flex flex-1 items-center gap-4">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+          <span className="material-symbols-outlined text-2xl">support_agent</span>
+        </div>
+        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+          {T.ui.profileView?.contactSupport || 'Support kontaktieren'}
         </p>
       </div>
       <div className="shrink-0">
@@ -186,21 +205,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               faqCard
             )}
             <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
-            <div className="flex items-center gap-4 px-4 py-3.5">
-              <div className="flex flex-1 items-center gap-4">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
-                  <span className="material-symbols-outlined text-2xl">support_agent</span>
-                </div>
-                <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
-                  {T.ui.profileView?.contactSupport || 'Support kontaktieren'}
-                </p>
-              </div>
-              <div className="shrink-0">
-                <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
+            {onOpenSupport ? (
+              <button
+                type="button"
+                onClick={onOpenSupport}
+                className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c2bee]"
+              >
+                {supportCard}
+              </button>
+            ) : (
+              supportCard
+            )}
             <hr className="border-slate-200/80 dark:border-slate-800/60 ml-16" />
             <div className="flex items-center gap-4 px-4 py-3.5">
               <div className="flex flex-1 items-center gap-4">

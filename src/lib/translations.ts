@@ -309,6 +309,27 @@ Eintrag:
       ],
       backButton: 'Zurück zum Profil',
     },
+    supportView: {
+      title: 'Support kontaktieren',
+      intro:
+        'Unser Team steht bereit, um dir bei technischen Fragen, Abonnements oder Sicherheitsanliegen zu helfen. Antworte auf deine Nachricht so schnell wie möglich.',
+      contactTitle: 'So erreichst du uns',
+      contactBody:
+        'Nutze einen der folgenden Kanäle, um dein Anliegen zu schildern. Wir bemühen uns, innerhalb eines Werktages zu antworten.',
+      emailLabel: 'E-Mail',
+      emailValue: 'support@aura.app',
+      emailCTA: 'E-Mail schreiben',
+      phoneLabel: 'Telefon (Montag–Freitag, 9–17 Uhr)',
+      phoneValue: '0800 123 4567',
+      phoneCTA: 'Jetzt anrufen',
+      faqLabel: 'Support-Themen',
+      faqList: [
+        'Technische Probleme mit Login oder Sprachausgabe',
+        'Fragen zu Abos, Zahlungen oder Rechnungen',
+        'Meldung von Sicherheitsvorfällen oder Unregelmäßigkeiten',
+      ],
+      backButton: 'Zurück zum Profil',
+    },
     voiceDescriptions: {
       Zephyr: 'Sanfte, beruhigende Stimme mit warmer Klangfarbe.',
       Puck: 'Energiegeladene Stimme mit freundlicher Klarheit.',
@@ -647,6 +668,27 @@ export const enUS = {
           answer:
             'We leverage TLS, encrypted storage, and role-based access controls plus ongoing security reviews.',
         },
+      ],
+      backButton: 'Back to profile',
+    },
+    supportView: {
+      title: 'Contact Support',
+      intro:
+        'Our team is ready to help with technical issues, billing questions, or safety concerns. Expect a reply within one business day.',
+      contactTitle: 'Get in touch',
+      contactBody:
+        'Share your concern via one of the channels below, and we will respond as soon as possible.',
+      emailLabel: 'Email',
+      emailValue: 'support@aura.app',
+      emailCTA: 'Send an email',
+      phoneLabel: 'Phone (Mon–Fri, 9am – 5pm CET)',
+      phoneValue: '+49 800 123 4567',
+      phoneCTA: 'Call now',
+      faqLabel: 'Common support topics',
+      faqList: [
+        'Technical issues with login or voice features',
+        'Questions about subscriptions, payments, or invoices',
+        'Reporting security concerns or suspicious activity',
       ],
       backButton: 'Back to profile',
     },

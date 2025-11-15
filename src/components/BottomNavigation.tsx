@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type ViewType = 'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq';
+export type ViewType = 'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq' | 'support';
 
 interface BottomNavigationProps {
   currentView: ViewType;
