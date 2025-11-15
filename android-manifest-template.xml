@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  Diese Datei zeigt, welche Berechtigungen im AndroidManifest.xml benötigt werden.
+  Wenn du Capacitor verwendest, werden diese automatisch hinzugefügt.
+  Wenn du ein anderes Tool verwendest, füge diese Berechtigungen manuell hinzu.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Mikrofon-Berechtigung (erforderlich für Audio-Aufnahme) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
+    <!-- Internet-Berechtigung (erforderlich für API-Calls) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Netzwerk-Zustand (optional, für bessere Performance) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Feature-Deklaration: Mikrofon ist verfügbar -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    
+    <application>
+        <!-- Deine Activity-Konfiguration hier -->
+    </application>
+</manifest>
+
