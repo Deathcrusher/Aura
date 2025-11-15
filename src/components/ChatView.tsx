@@ -19,7 +19,6 @@ interface ChatViewProps {
     onNewChat?: (mode: ChatMode) => void;
     textInput?: string;
     setTextInput?: (text: string) => void;
-    onOpenSessions?: () => void;
     onShowSummary?: () => void;
     hasSummary?: boolean;
     sessions?: ChatSession[];
@@ -87,7 +86,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     onNewChat,
     textInput = '',
     setTextInput,
-    onOpenSessions,
     onShowSummary,
     hasSummary = false,
     sessions = [],

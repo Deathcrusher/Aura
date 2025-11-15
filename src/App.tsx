@@ -39,7 +39,6 @@ import {
 } from './lib/database';
 import { translations } from './lib/translations';
 import {
-  MenuIcon,
   PlusIcon,
   GoalsIcon,
   HeartIcon,
@@ -47,7 +46,6 @@ import {
   UserIcon,
   LogoutIcon,
   StopIcon,
-  XIcon,
   MicrophoneIcon,
   SunIcon,
   MoonIcon,
@@ -117,6 +115,19 @@ const DEFAULT_PROFILE: UserProfile = {
 
 const MAX_CHAT_HISTORY_MESSAGES = 12;
 
+const mergeProfileState = (prev: UserProfile, next: UserProfile): UserProfile => ({
+  ...prev,
+  ...next,
+  memory: next.memory ?? prev.memory,
+  goals: next.goals ?? prev.goals,
+  moodJournal: next.moodJournal ?? prev.moodJournal,
+  journal: next.journal ?? prev.journal,
+  subscription: {
+    ...prev.subscription,
+    ...next.subscription,
+  },
+});
+
 function App() {
   // Helper to validate API key (avoid placeholders)
   const getValidApiKey = () => {
@@ -137,7 +148,6 @@ function App() {
   const [currentOutput, setCurrentOutput] = useState('');
   const [textInputDraft, setTextInputDraft] = useState('');
   const [activeDistortion, setActiveDistortion] = useState<CognitiveDistortion | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -381,9 +391,20 @@ function App() {
         setIsLoadingProfile(true);
         console.log('📥 Loading profile for user:', user.id, userChanged ? '(force refresh)' : '');
 
-        // Use optimized profile loading with caching - pass session directly
-        // Force refresh if user changed to ensure we get the latest data
-        const profile = await getUserProfile(user.id, session, userChanged);
+        const applyHydratedProfile = (incoming: UserProfile) => {
+          setUserProfile(prev =>
+            mergeProfileState(prev, {
+              ...DEFAULT_PROFILE,
+              ...incoming,
+              onboardingCompleted: incoming.onboardingCompleted === true,
+            }),
+          );
+        };
+
+        const profile = await getUserProfile(user.id, session, {
+          forceRefresh: userChanged,
+          onHydrated: applyHydratedProfile,
+        });
         
         if (profile) {
           console.log('✅ Profile loaded successfully:', {
@@ -392,12 +413,7 @@ function App() {
             forceRefresh: userChanged
           });
           
-          const mergedProfile = {
-            ...DEFAULT_PROFILE,
-            ...profile,
-            onboardingCompleted: profile.onboardingCompleted === true,
-          };
-          setUserProfile(mergedProfile);
+          applyHydratedProfile(profile);
         } else {
           console.log('⚠️ No profile found, using default');
           setUserProfile(DEFAULT_PROFILE);
@@ -1263,7 +1279,6 @@ function App() {
     setSessions(prev => [optimisticSession, ...prev]);
     setActiveSession(optimisticSession);
     activeSessionRef.current = optimisticSession;
-    setSidebarOpen(false);
     setCurrentView('chat');
     setSessionState(SessionState.IDLE);
 
@@ -1343,7 +1358,6 @@ function App() {
       const updatedSession = { ...session, transcript: transcripts };
       console.log('✅ Setting active session:', updatedSession.id, 'with', transcripts.length, 'transcripts');
       setActiveSession(updatedSession);
-      setSidebarOpen(false);
     } catch (error) {
       console.error('❌ Error loading session:', error);
     }
@@ -2570,192 +2584,12 @@ function App() {
   return (
     <ErrorBoundary>
       <AppFrame>
-        {/* Sidebar Overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-        
-        {/* Sidebar */}
-        <div
-          className={`fixed inset-y-0 left-0 z-50 w-80 bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out shadow-2xl ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
-        >
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-                {T.ui.sidebar.sessions}
-              </h2>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSidebarOpen(false);
-                }}
-                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <XIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-            </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleNewChat(ChatMode.TEXT);
-                setSidebarOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 bg-[#6c2bee] text-white px-4 py-2 rounded-lg hover:bg-[#5a22d6] transition-colors cursor-pointer"
-            >
-              <PlusIcon className="w-4 h-4" />
-              {T.ui.sidebar.newChat}
-            </button>
-          </div>
-
-          {/* Session list */}
-          <div className="flex-1 overflow-y-auto p-2">
-            {sessions.length === 0 ? (
-              <div className="text-center text-slate-500 dark:text-slate-400 py-8">
-                <p className="text-sm">{T.ui.sidebar.noSessions}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {sessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className={`p-3 rounded-lg border transition-colors ${
-                      activeSession?.id === session.id
-                        ? 'bg-[#6c2bee]/10 border-[#6c2bee]/20'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
-                    }`}
-                  >
-                    {editingSessionId === session.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          onKeyPress={(e) => e.key === 'Enter' && handleSaveTitle()}
-                          onBlur={handleSaveTitle}
-                          className="flex-1 bg-transparent border-b border-[#6c2bee] outline-none text-sm"
-                          autoFocus
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleSelectSession(session.id);
-                          setSidebarOpen(false);
-                        }}
-                        className="cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-medium text-slate-800 dark:text-slate-200 text-sm truncate">
-                            {session.title}
-                          </h3>
-                          <div className="flex items-center gap-1 ml-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartEditing(session);
-                              }}
-                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600"
-                            >
-                              <PencilIcon className="w-3 h-3 text-slate-500" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteSession(session.id);
-                              }}
-                              className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/30"
-                            >
-                              <TrashIcon className="w-3 h-3 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {new Date(session.startTime).toLocaleDateString(userProfile.language || 'de-DE')}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* User info and controls */}
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-[#6c2bee] rounded-full flex items-center justify-center">
-                <UserIcon className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-slate-800 dark:text-slate-200 text-sm">
-                  {userProfile.name}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {userProfile.subscription.plan === SubscriptionPlan.PREMIUM 
-                    ? 'Premium' 
-                    : 'Free'
-                  }
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setSidebarOpen(false);
-                  setIsProfileOpen(true);
-                }}
-                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-              >
-                <UserIcon className="w-3 h-3" />
-                {T.ui.sidebar.profile}
-              </button>
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  try {
-                    setSidebarOpen(false);
-                    await signOut();
-                  } catch (error) {
-                    console.error('Fehler beim Abmelden:', error);
-                  }
-                }}
-                className="flex items-center justify-center gap-1 px-3 py-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
-              >
-                <LogoutIcon className="w-3 h-3" />
-                {T.ui.sidebar.logout}
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Main content */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Modern Header */}
           <header className="glass border-b border-white/20 dark:border-white/5 p-5 shrink-0 backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSidebarOpen(true);
-                  }}
-                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm cursor-pointer"
-                >
-                  <MenuIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                </button>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
                     <span className="text-white text-sm font-bold">A</span>
@@ -2793,22 +2627,6 @@ function App() {
                     </button>
                   ))}
                 </div>
-
-                {/* Theme toggle */}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleThemeToggle();
-                  }}
-                  className="p-2.5 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 shadow-sm cursor-pointer"
-                >
-                  {isDarkMode ? (
-                    <SunIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  ) : (
-                    <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  )}
-                </button>
               </div>
             </div>
           </header>
@@ -2833,7 +2651,6 @@ function App() {
                 onNewChat={handleNewChat}
                 textInput={textInputDraft}
                 setTextInput={setTextInputDraft}
-                onOpenSessions={() => setSidebarOpen(true)}
                 onShowSummary={activeSession?.summary ? handleOpenSummaryPanel : undefined}
                 hasSummary={Boolean(activeSession?.summary)}
                 sessions={sessions}
@@ -2873,6 +2690,7 @@ function App() {
             isOpen={isProfileOpen}
             onClose={() => setIsProfileOpen(false)}
             profile={userProfile}
+            userId={user?.id || ''}
             onProfileChange={handleProfileChange}
             onPreviewVoice={handlePreviewVoiceFromProfile}
             voicePreviewState={voicePreviewState}
@@ -2884,6 +2702,8 @@ function App() {
               }
             }}
             onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+            isDarkMode={isDarkMode}
+            onThemeToggle={handleThemeToggle}
             T={T}
           />
         )}

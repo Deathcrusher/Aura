@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, AVAILABLE_VOICES, AVAILABLE_LANGUAGES, SubscriptionPlan } from '../types';
-import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon, LogOutIcon, SparklesIcon } from './Icons';
+import { XIcon, PlayIcon, UserIcon, CameraIcon, StopIcon, SpinnerIcon, LogOutIcon, SparklesIcon, SunIcon, MoonIcon } from './Icons';
+import { uploadAvatar } from '../lib/database';
 
 type VoicePreviewState = { id: string; status: 'loading' | 'playing' } | null;
 
@@ -8,32 +9,84 @@ interface ProfileModalProps {
     isOpen: boolean;
     onClose: () => void;
     profile: UserProfile;
+    userId: string;
     onProfileChange: (newProfile: UserProfile) => void;
     onPreviewVoice: (voiceId: string) => void;
     voicePreviewState: VoicePreviewState;
     onLogout: () => void;
     onOpenSubscriptionModal: () => void;
+    isDarkMode: boolean;
+    onThemeToggle: () => void;
     T: any; // Translation object
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, onProfileChange, onPreviewVoice, voicePreviewState, onLogout, onOpenSubscriptionModal, T }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, profile, userId, onProfileChange, onPreviewVoice, voicePreviewState, onLogout, onOpenSubscriptionModal, isDarkMode, onThemeToggle, T }) => {
     const [localProfile, setLocalProfile] = useState<UserProfile>(profile);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const pendingFileRef = useRef<File | null>(null);
 
     useEffect(() => {
         setLocalProfile(profile);
+        setUploadError(null);
+        pendingFileRef.current = null;
     }, [profile, isOpen]);
 
     if (!isOpen) return null;
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        // If there's a pending file, upload it first
+        if (pendingFileRef.current) {
+            setIsUploading(true);
+            setUploadError(null);
+            try {
+                const uploadedUrl = await uploadAvatar(userId, pendingFileRef.current);
+                if (uploadedUrl) {
+                    const updatedProfile = { ...localProfile, avatarUrl: uploadedUrl };
+                    setLocalProfile(updatedProfile);
+                    onProfileChange(updatedProfile);
+                    pendingFileRef.current = null;
+                    setIsUploading(false);
+                    onClose();
+                    return;
+                } else {
+                    setUploadError('Fehler beim Hochladen des Profilbilds');
+                    setIsUploading(false);
+                    return;
+                }
+            } catch (error: any) {
+                console.error('Error uploading avatar:', error);
+                setUploadError(error.message || 'Fehler beim Hochladen des Profilbilds');
+                setIsUploading(false);
+                return;
+            }
+        }
+        
+        // No file to upload, just save the profile
         onProfileChange(localProfile);
         onClose();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setUploadError('Das Bild ist zu groß. Bitte wählen Sie ein Bild unter 5MB.');
+                return;
+            }
+
+            // Validate file type
+            if (!file.type.match(/^image\/(png|jpeg|jpg|webp)$/)) {
+                setUploadError('Ungültiger Dateityp. Bitte wählen Sie ein PNG, JPEG oder WebP Bild.');
+                return;
+            }
+
+            setUploadError(null);
+            pendingFileRef.current = file;
+
+            // Show preview immediately using FileReader
             const reader = new FileReader();
             reader.onloadend = () => {
                 setLocalProfile(p => ({ ...p, avatarUrl: reader.result as string }));
@@ -82,9 +135,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                     <UserIcon className="w-16 h-16 text-slate-400 dark:text-slate-500" />
                                 </div>
                             )}
+                            {isUploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
+                                    <SpinnerIcon className="w-8 h-8 text-white animate-spin" />
+                                </div>
+                            )}
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="absolute -bottom-2 -right-2 p-2 bg-[#6c2bee] text-white rounded-full hover:bg-[#5a22cc] transition-colors shadow-md border-2 border-white dark:border-slate-800"
+                                disabled={isUploading}
+                                className="absolute -bottom-2 -right-2 p-2 bg-[#6c2bee] text-white rounded-full hover:bg-[#5a22cc] transition-colors shadow-md border-2 border-white dark:border-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Change profile picture"
                             >
                                 <CameraIcon className="w-5 h-5"/>
@@ -95,8 +154,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                                 accept="image/png, image/jpeg, image/webp"
                                 className="hidden"
                                 onChange={handleFileChange}
+                                disabled={isUploading}
                             />
                         </div>
+                        {uploadError && (
+                            <p className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">{uploadError}</p>
+                        )}
                     </div>
 
                      <div className="p-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg text-center">
@@ -106,6 +169,26 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                         </p>
                         <button onClick={handleManageSubscription} className="mt-2 text-sm font-semibold text-[#483d8b] dark:text-violet-300 hover:underline">
                             {isPremium ? T.ui.subscription.manage : T.ui.subscription.upgrade}
+                        </button>
+                    </div>
+
+                    {/* Theme Toggle */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                            {T.ui.profileModal?.themeLabel || 'Theme'}
+                        </label>
+                        <button
+                            onClick={onThemeToggle}
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                        >
+                            <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                {isDarkMode ? (T.ui.profileModal?.darkMode || 'Dark Mode') : (T.ui.profileModal?.lightMode || 'Light Mode')}
+                            </span>
+                            {isDarkMode ? (
+                                <SunIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                            ) : (
+                                <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                            )}
                         </button>
                     </div>
 
@@ -197,7 +280,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, pro
                     <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">
                       {T.ui.cancel}
                     </button>
-                    <button onClick={handleSave} className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors disabled:opacity-50">
+                    <button 
+                      onClick={handleSave} 
+                      disabled={isUploading}
+                      className="px-4 py-2 text-sm font-semibold text-white bg-[#6c2bee] rounded-md hover:bg-[#5a22cc] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isUploading && <SpinnerIcon className="w-4 h-4 animate-spin" />}
                       {T.ui.save}
                     </button>
                   </div>

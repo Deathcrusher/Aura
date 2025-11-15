@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase'
+import { CacheStore } from './cache'
 import {
   UserProfile,
   AuraMemory,
@@ -16,8 +17,14 @@ const hasSupabase = Boolean(isSupabaseConfigured && supabase)
 const DEMO_STORAGE_KEY = 'aura-demo-database-v1'
 
 // Cache for profile data to avoid repeated expensive queries
-const profileCache = new Map<string, { data: UserProfile; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const CACHE_REVALIDATE_THRESHOLD = CACHE_DURATION * 0.6
+const profileCache = new CacheStore<UserProfile>({
+  namespace: 'profile',
+  ttl: CACHE_DURATION,
+  persist: 'local',
+  maxEntries: 8,
+})
 
 const createDefaultMemory = (): AuraMemory => ({
   keyRelationships: [],
@@ -51,6 +58,13 @@ interface DemoDatabase {
   profiles: Record<string, UserProfile>
   sessions: Record<string, DemoChatSession>
   userSessions: Record<string, string[]>
+}
+
+type ProfileHydrationHandler = (profile: UserProfile) => void
+
+interface GetUserProfileOptions {
+  forceRefresh?: boolean
+  onHydrated?: ProfileHydrationHandler
 }
 
 const loadDemoDatabase = (): DemoDatabase => {
@@ -149,43 +163,85 @@ const getSessionSafely = async (maxWaitMs: number = 1000) => {
 }
 
 // Optimized profile loader with caching - uses session directly if provided
-export async function getUserProfile(userId: string, session?: any, forceRefresh: boolean = false): Promise<UserProfile | null> {
-  if (!hasSupabase || !supabase) {
-    const db = loadDemoDatabase()
-    const profile = db.profiles[userId]
-    return profile ? clone(profile) : null
-  }
+export async function getUserProfile(
+  userId: string,
+  session?: any,
+  options: boolean | GetUserProfileOptions = {},
+): Promise<UserProfile | null> {
+  const normalizedOptions: GetUserProfileOptions = typeof options === 'boolean' ? { forceRefresh: options } : options || {}
+  const { forceRefresh = false, onHydrated } = normalizedOptions
+  const cacheKey = userId
 
-  try {
-    // Check cache first (unless force refresh is requested)
-    const cacheKey = userId
-    if (!forceRefresh) {
-      const cached = profileCache.get(cacheKey)
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        console.log('✅ Using cached profile for user:', userId)
-        return clone(cached.data)
-      }
-    } else {
-      console.log('🔄 Force refresh requested - bypassing cache for user:', userId)
+  if (!hasSupabase || !supabase) {
+    if (forceRefresh) {
       profileCache.delete(cacheKey)
+    } else {
+      const cachedDemo = profileCache.get(cacheKey)
+      if (cachedDemo) {
+        return clone(cachedDemo)
+      }
     }
 
+    const db = loadDemoDatabase()
+    const profile = db.profiles[userId]
+    if (!profile) return null
+
+    profileCache.set(cacheKey, clone(profile))
+    return clone(profile)
+  }
+
+  if (forceRefresh) {
+    console.log('🔄 Force refresh requested - bypassing cache for user:', userId)
+    profileCache.delete(cacheKey)
+  } else {
+    const cachedEntry = profileCache.getEntry(cacheKey)
+    if (cachedEntry) {
+      console.log('✅ Using cached profile for user:', userId)
+      const age = Date.now() - cachedEntry.timestamp
+      if (age > CACHE_REVALIDATE_THRESHOLD) {
+        console.log('♻️ Cached profile is aging (', Math.round(age / 1000), 's ) - revalidating in background')
+        void refreshProfileInBackground(userId, session, onHydrated)
+      }
+      return clone(cachedEntry.value)
+    }
+  }
+
+  return await fetchFreshProfile(userId, session, onHydrated)
+}
+
+const refreshProfileInBackground = async (
+  userId: string,
+  session?: any,
+  onHydrated?: ProfileHydrationHandler,
+) => {
+  try {
+    const profile = await fetchFreshProfile(userId, session, onHydrated)
+    if (profile && onHydrated) {
+      onHydrated(clone(profile))
+    }
+  } catch (error) {
+    console.warn('Background profile refresh failed:', error)
+  }
+}
+
+const fetchFreshProfile = async (
+  userId: string,
+  session?: any,
+  onHydrated?: ProfileHydrationHandler,
+): Promise<UserProfile | null> => {
+  try {
     console.log('🔍 Loading fresh profile for user:', userId)
     
-    // CRITICAL: Ensure we have a valid session before querying
-    // The Supabase client should automatically use the session, but we need to ensure it's loaded
     let currentSession = session
     if (!currentSession) {
       console.log('⏳ No session provided, fetching session...')
-      currentSession = await getSessionSafely(3000) // Increased timeout for session fetch
+      currentSession = await getSessionSafely(3000)
     }
-    
+
     if (!currentSession) {
       console.error('❌ CRITICAL: No session available for profile query!')
       console.error('   - User ID:', userId)
-      console.error('   - This will cause RLS to block the query')
-      // Try to get session one more time with longer timeout
-      const { data: { session: retrySession }, error: sessionError } = await supabase.auth.getSession()
+      const { data: { session: retrySession }, error: sessionError } = await supabase!.auth.getSession()
       if (retrySession) {
         console.log('✅ Got session on retry')
         currentSession = retrySession
@@ -196,41 +252,31 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
     } else {
       console.log('✅ Session available for profile query:', {
         userId: currentSession.user.id,
-        expiresAt: new Date(currentSession.expires_at! * 1000).toISOString()
+        expiresAt: new Date(currentSession.expires_at! * 1000).toISOString(),
       })
     }
 
-    // CRITICAL: The Supabase client automatically uses the session from localStorage
-    // But we need to ensure the session is properly loaded before querying
-    // The session should be automatically included in the Authorization header
-    
-    // Optimized single query for profile data with timeout and better error handling
-    // RLS policies are now optimized with direct auth.uid() for better performance
     console.log('📤 Executing profile query with session...')
-    
-    // Create the query - Supabase client will automatically use the session
-    const queryPromise = supabase
+    const queryPromise = supabase!
       .from('profiles')
       .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
       .eq('id', userId)
       .maybeSingle()
 
-    const timeoutPromise = new Promise<{ data: null; error: { message: string; code: string } }>((resolve) => {
+    const timeoutPromise = new Promise<{ data: null; error: { message: string; code: string } }>(resolve => {
       setTimeout(() => {
-        resolve({ 
-          data: null, 
-          error: { message: 'Query timeout after 8 seconds', code: 'TIMEOUT' } 
+        resolve({
+          data: null,
+          error: { message: 'Query timeout after 8 seconds', code: 'TIMEOUT' },
         })
-      }, 8000) // Reduced timeout to 8 seconds - should be fast with optimized RLS
+      }, 8000)
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
-    
     const { data: profile, error } = result
 
     if (error) {
       console.error('❌ Profile query error:', error)
-      // Don't throw - return null to allow fallback
       if (error.code === 'TIMEOUT') {
         console.error('❌ Profile query timed out - check network connection')
       } else if (error.code === 'PGRST116' || error.message?.includes('JWT')) {
@@ -244,7 +290,6 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
       return null
     }
 
-    // Construct basic profile immediately
     const basicProfile: UserProfile = {
       name: profile.name || 'User',
       voice: profile.voice || 'Zephyr',
@@ -261,14 +306,11 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
       journal: [],
     }
 
-    // Load additional data in background (non-blocking) - don't await
-    loadAdditionalData(userId, basicProfile).catch(error => {
+    loadAdditionalData(userId, basicProfile, onHydrated).catch(error => {
       console.warn('Background data loading failed:', error)
     })
 
-    // Cache the result
-    profileCache.set(cacheKey, { data: clone(basicProfile), timestamp: Date.now() })
-    
+    profileCache.set(userId, clone(basicProfile))
     console.log('✅ Profile loaded successfully (basic data)')
     return basicProfile
   } catch (error: any) {
@@ -278,7 +320,11 @@ export async function getUserProfile(userId: string, session?: any, forceRefresh
 }
 
 // Background loading of non-essential data - optimized with timeouts
-const loadAdditionalData = async (userId: string, profile: UserProfile) => {
+const loadAdditionalData = async (
+  userId: string,
+  profile: UserProfile,
+  onHydrated?: ProfileHydrationHandler,
+) => {
   try {
     console.log('🔄 Loading additional data in background...')
     
@@ -313,8 +359,8 @@ const loadAdditionalData = async (userId: string, profile: UserProfile) => {
     }
 
     // Update cache
-    const cacheKey = userId
-    profileCache.set(cacheKey, { data: clone(profile), timestamp: Date.now() })
+    profileCache.set(userId, clone(profile))
+    onHydrated?.(clone(profile))
     
     console.log('✅ Additional data loaded in background')
   } catch (error) {
@@ -324,11 +370,7 @@ const loadAdditionalData = async (userId: string, profile: UserProfile) => {
 
 // Clear profile cache when needed
 export const clearProfileCache = (userId?: string) => {
-  if (userId) {
-    profileCache.delete(userId)
-  } else {
-    profileCache.clear()
-  }
+  profileCache.delete(userId)
 }
 
 // Aura Memory Operations
@@ -964,6 +1006,102 @@ export async function getCognitiveDistortions(sessionId: string): Promise<Cognit
   }))
 }
 
+/**
+ * Uploads a profile picture to Supabase Storage
+ * @param userId - The user ID
+ * @param file - The image file to upload
+ * @returns The public URL of the uploaded image, or null if upload fails
+ */
+export async function uploadAvatar(userId: string, file: File): Promise<string | null> {
+  if (!hasSupabase || !supabase) {
+    // Demo mode: convert to data URL
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = () => {
+        console.error('Error reading file in demo mode');
+        resolve(null);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Check if user is authenticated
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (!session) {
+    console.error('❌ No active session! User is not authenticated.');
+    throw new Error('User must be authenticated to upload avatar');
+  }
+
+  if (session.user.id !== userId) {
+    console.error('❌ User ID mismatch!');
+    throw new Error('User ID mismatch - cannot upload avatar for another user');
+  }
+
+  const bucketName = 'avatars';
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+  try {
+    // Delete old avatar if it exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (existingProfile?.avatar_url) {
+      // Extract path from URL (could be full URL or just path)
+      const oldPath = existingProfile.avatar_url.includes('/storage/v1/object/public/')
+        ? existingProfile.avatar_url.split('/storage/v1/object/public/avatars/')[1]
+        : existingProfile.avatar_url.replace(/^avatars\//, '');
+      
+      if (oldPath && oldPath.startsWith(userId + '/')) {
+        const { error: deleteError } = await supabase.storage
+          .from(bucketName)
+          .remove([oldPath]);
+        
+        if (deleteError) {
+          console.warn('⚠️ Could not delete old avatar:', deleteError);
+          // Continue anyway - not critical
+        }
+      }
+    }
+
+    // Upload new avatar
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      console.error('❌ Error uploading avatar:', uploadError);
+      throw uploadError;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(fileName);
+
+    if (!urlData?.publicUrl) {
+      console.error('❌ Could not get public URL for uploaded avatar');
+      return null;
+    }
+
+    console.log('✅ Avatar uploaded successfully:', urlData.publicUrl);
+    return urlData.publicUrl;
+  } catch (error: any) {
+    console.error('❌ Error in uploadAvatar:', error);
+    throw error;
+  }
+}
+
 export async function addCognitiveDistortion(sessionId: string, distortion: CognitiveDistortion): Promise<void> {
   if (!hasSupabase || !supabase) {
     const db = loadDemoDatabase()
@@ -1005,6 +1143,7 @@ export async function updateUserProfile(userId: string, updates: Partial<UserPro
 
     db.profiles[userId] = updatedProfile
     saveDemoDatabase(db)
+    profileCache.set(userId, clone(updatedProfile))
     return
   }
 
