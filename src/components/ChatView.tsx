@@ -183,7 +183,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     };
 
     // Sitzungsliste anzeigen
-    if (showSessionsList || !activeSession) {
+    if (showSessionsList) {
         return (
             <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
                 {/* Header */}
