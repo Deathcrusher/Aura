@@ -27,78 +27,70 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 }) => {
   const isPremium = userProfile.subscription.plan === SubscriptionPlan.PREMIUM;
   const privacyCard = (
-    <div className="flex items-center gap-4 px-4 py-3.5">
+    <div className="flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 cursor-pointer group">
       <div className="flex flex-1 items-center gap-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
           <span className="material-symbols-outlined text-2xl">shield_person</span>
         </div>
-        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+        <p className="flex-1 truncate text-lg font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.dataPrivacy || 'Daten & Datenschutzrichtlinie'}
         </p>
       </div>
       <div className="shrink-0">
-        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-        </svg>
+        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors">chevron_right</span>
       </div>
     </div>
   );
   const faqCard = (
-    <div className="flex items-center gap-4 px-4 py-3.5">
+    <div className="flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 cursor-pointer group">
       <div className="flex flex-1 items-center gap-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
           <span className="material-symbols-outlined text-2xl">help</span>
         </div>
-        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+        <p className="flex-1 truncate text-lg font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.faq || 'FAQ'}
         </p>
       </div>
       <div className="shrink-0">
-        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-        </svg>
+        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors">chevron_right</span>
       </div>
     </div>
   );
   const supportCard = (
-    <div className="flex items-center gap-4 px-4 py-3.5">
+    <div className="flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 cursor-pointer group">
       <div className="flex flex-1 items-center gap-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
           <span className="material-symbols-outlined text-2xl">support_agent</span>
         </div>
-        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+        <p className="flex-1 truncate text-lg font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.contactSupport || 'Support kontaktieren'}
         </p>
       </div>
       <div className="shrink-0">
-        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-        </svg>
+        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors">chevron_right</span>
       </div>
     </div>
   );
   const aboutCard = (
-    <div className="flex items-center gap-4 px-4 py-3.5">
+    <div className="flex items-center gap-4 px-6 py-4 rounded-2xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-200 cursor-pointer group">
       <div className="flex flex-1 items-center gap-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#6c2bee]/10 text-[#6c2bee]">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
           <span className="material-symbols-outlined text-2xl">info</span>
         </div>
-        <p className="flex-1 truncate text-base font-medium leading-normal text-slate-800 dark:text-slate-200">
+        <p className="flex-1 truncate text-lg font-medium leading-normal text-slate-800 dark:text-slate-200">
           {T.ui.profileView?.aboutAura || 'Über Aura'}
         </p>
       </div>
       <div className="shrink-0">
-        <svg className="w-6 h-6 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-        </svg>
+        <span className="material-symbols-outlined text-slate-400 dark:text-slate-500 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors">chevron_right</span>
       </div>
     </div>
   );
 
   return (
-    <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
+    <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0">
       {/* Top App Bar */}
-      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] px-4 pt-4 pb-2 sticky top-0 z-10 shrink-0">
+      <header className="flex items-center glass p-6 pb-4 justify-between sticky top-0 z-10 shrink-0 border-b border-white/20 dark:border-white/5 backdrop-blur-xl">
         <div className="flex size-12 shrink-0 items-center justify-center" />
         <h1 className="flex-1 text-center text-xl font-bold leading-tight tracking-tight text-slate-900 dark:text-white">
           {T.ui.sidebar.profile}

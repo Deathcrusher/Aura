@@ -17,37 +17,37 @@ export const JournalView: React.FC<JournalViewProps> = ({
   const [currentMonth] = useState(new Date());
 
   return (
-    <div className="relative flex flex-1 w-full flex-col bg-[#f6f6f8] dark:bg-[#161022] overflow-hidden min-h-0">
+    <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0">
       {/* Top App Bar */}
-      <header className="flex items-center bg-[#f6f6f8] dark:bg-[#161022] p-4 pb-2 justify-between sticky top-0 z-10 shrink-0">
+      <header className="flex items-center glass p-6 pb-4 justify-between sticky top-0 z-10 shrink-0 border-b border-white/20 dark:border-white/5 backdrop-blur-xl">
         <div className="flex size-12 shrink-0 items-center" />
-        <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">My Journal</h1>
+        <h1 className="text-slate-900 dark:text-white text-xl font-bold leading-tight tracking-[-0.015em] flex-1 text-center">My Journal</h1>
         <div className="flex w-12 items-center justify-end">
           <button 
             onClick={() => onOpenJournal()} 
-            className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-slate-900 dark:text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] min-w-0 p-0"
+            className="flex h-12 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-white/50 dark:bg-slate-800/50 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 group"
           >
-            <span className="material-symbols-outlined">settings</span>
+            <span className="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pb-28 px-4">
+      <main className="flex-1 overflow-y-auto pb-28 px-6">
         {/* Calendar Picker */}
-        <div className="flex flex-wrap items-center justify-center gap-6 pt-2">
-          <div className="flex w-full max-w-[480px] flex-1 flex-col gap-0.5">
-            <div className="flex items-center p-1 justify-between">
-              <button className="text-slate-900 dark:text-white">
+        <div className="flex flex-wrap items-center justify-center gap-6 pt-4">
+          <div className="flex w-full max-w-[480px] flex-1 flex-col gap-2">
+            <div className="flex items-center p-2 justify-between glass rounded-2xl">
+              <button className="text-slate-900 dark:text-white hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-xl transition-all p-2">
                 <span className="material-symbols-outlined flex size-10 items-center justify-center">chevron_left</span>
               </button>
-              <p className="text-slate-900 dark:text-white text-base font-bold leading-tight flex-1 text-center">
+              <p className="text-slate-900 dark:text-white text-lg font-bold leading-tight flex-1 text-center">
                 {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </p>
-              <button className="text-slate-900 dark:text-white">
+              <button className="text-slate-900 dark:text-white hover:bg-white/50 dark:hover:bg-slate-800/50 rounded-xl transition-all p-2">
                 <span className="material-symbols-outlined flex size-10 items-center justify-center">chevron_right</span>
               </button>
             </div>
-            <div className="grid grid-cols-7">
+            <div className="grid grid-cols-7 gap-1 p-2 glass rounded-2xl">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
                 <p key={idx} className="text-slate-600 dark:text-[#a69db9] text-[13px] font-bold leading-normal tracking-[0.015em] flex h-12 w-full items-center justify-center pb-0.5">
                   {day}
@@ -108,8 +108,8 @@ export const JournalView: React.FC<JournalViewProps> = ({
             
             {/* Save Button */}
             <button 
-              onClick={onOpenJournal}
-              className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 bg-[#6c2bee] text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] mt-4 shadow-lg shadow-[#6c2bee]/30 hover:bg-[#5a22cc] transition-all"
+              onClick={() => onOpenJournal()}
+              className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl h-12 bg-gradient-to-r from-purple-600 to-pink-600 text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] mt-4 shadow-xl shadow-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             >
               Save Entry
             </button>

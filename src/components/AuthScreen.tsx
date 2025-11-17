@@ -33,30 +33,30 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#f6f6f8] dark:bg-[#161022] font-['Manrope']">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900 font-['Manrope']">
             
-            <div className="relative z-10 w-full max-w-sm mx-auto text-center px-4">
-                <AuraHumanAvatar className="w-24 h-24 mx-auto mb-6" />
-                <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white">
+            <div className="relative z-10 w-full max-w-sm mx-auto text-center px-6">
+                <AuraHumanAvatar className="w-28 h-28 mx-auto mb-8" />
+                <h1 className="text-3xl font-bold leading-tight tracking-tight text-gray-900 dark:text-white mb-2">
                     {isSignUp ? T.ui.auth.signUpTitle : T.ui.auth.loginTitle}
                 </h1>
-                <p className="mt-2 text-gray-600 dark:text-gray-300">
+                <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
                     {isSignUp ? T.ui.auth.signUpSubtitle : T.ui.auth.loginSubtitle}
                 </p>
 
                 {error && (
-                    <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-800 dark:text-red-200 text-sm">
+                    <div className="mb-6 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-xl text-red-800 dark:text-red-200 text-sm">
                         {error}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]/50 text-gray-900 dark:text-white"
+                            className="w-full px-6 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-gray-900 dark:text-white text-lg placeholder-gray-500 dark:placeholder-gray-400 transition-all"
                             placeholder={T.ui.auth.emailPlaceholder}
                             required
                             disabled={loading}
@@ -67,7 +67,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-3 bg-white dark:bg-slate-700 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6c2bee]/50 text-gray-900 dark:text-white"
+                            className="w-full px-6 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-gray-900 dark:text-white text-lg placeholder-gray-500 dark:placeholder-gray-400 transition-all"
                             placeholder={T.ui.auth.passwordPlaceholder}
                             required
                             disabled={loading}
@@ -75,20 +75,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     </div>
                     <button
                         type="submit"
-                        className="w-full px-8 py-3 bg-[#6c2bee] text-white rounded-lg font-bold leading-normal tracking-[0.015em] shadow-lg shadow-[#6c2bee]/40 hover:bg-[#6c2bee]/90 transition-all disabled:bg-slate-400 disabled:cursor-not-allowed"
+                        className="w-full px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-purple-500/40 hover:shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:from-slate-400 disabled:to-slate-500 disabled:cursor-not-allowed"
                         disabled={loading}
                     >
                         {loading ? 'Lädt...' : (isSignUp ? T.ui.auth.signUpButton : T.ui.auth.loginButton)}
                     </button>
                 </form>
 
-                <div className="mt-6">
+                <div className="mt-8">
                     <div className="relative">
                         <div className="absolute inset-0 flex items-center">
                             <div className="w-full border-t border-slate-300 dark:border-slate-600"></div>
                         </div>
                         <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-[#f6f6f8] dark:bg-[#161022] text-slate-600 dark:text-slate-400">
+                            <span className="px-4 bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900 text-slate-600 dark:text-slate-400">
                                 {T.ui.auth.orContinueWith}
                             </span>
                         </div>
@@ -97,7 +97,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     <button
                         onClick={onSignInWithGoogle}
                         disabled={loading}
-                        className="mt-4 w-full px-8 py-3 bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors shadow-lg border border-gray-300 dark:border-gray-600 disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        className="mt-6 w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-white/10 hover:bg-white dark:hover:bg-slate-700 transition-all duration-200 group"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -109,11 +109,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onSi
                     </button>
                 </div>
 
-                <p className="mt-6 text-sm">
+                <p className="mt-8 text-base">
                     <span className="text-slate-600 dark:text-slate-400">
                         {isSignUp ? T.ui.auth.haveAccount : T.ui.auth.noAccount}
                     </span>
-                    <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-gray-700 dark:text-gray-300 hover:underline ml-1" disabled={loading}>
+                    <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:underline ml-2 transition-colors" disabled={loading}>
                         {isSignUp ? T.ui.auth.loginLink : T.ui.auth.signUpLink}
                     </button>
                 </p>
