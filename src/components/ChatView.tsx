@@ -767,7 +767,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 {/* Floating Mikrofon-Button - außerhalb des Input-Containers */}
                 {onStartVoiceSession && (
-                    <div className="fixed bottom-32 right-6 z-40">
+                    <div className="fixed bottom-36 right-6 z-40">
                         <button
                             onClick={isIdle ? onStartVoiceSession : onStopSession}
                             className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${
