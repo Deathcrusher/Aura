@@ -182,8 +182,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
     };
 
-    // Sitzungsliste anzeigen
-    if (showSessionsList || !activeSession) {
+    // Show session list only when explicitly requested AND session exists
+    if (showSessionsList && activeSession) {
         return (
             <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
                 {/* Header */}
@@ -638,6 +638,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {/* Chat messages area */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
                 <div className="max-w-4xl mx-auto">
+                    {(!activeSession?.transcript || activeSession.transcript.length === 0) && !currentOutput && (
+                        <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
+                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mb-4">
+                                <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                                {T.ui.chat?.readyToChat || 'Bereit zum Chatten!'}
+                            </h3>
+                            <p className="text-slate-600 dark:text-slate-400 max-w-sm">
+                                {T.ui.chat?.startChatHint || 'Schreibe eine Nachricht oder klicke auf das Mikrofon um zu sprechen'}
+                            </p>
+                        </div>
+                    )}
                     {activeSession?.transcript?.map((message, index) => (
                         <div key={index} className="mb-4">
                             <div className="flex gap-3">
