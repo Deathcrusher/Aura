@@ -832,6 +832,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         >
                             <span className="material-symbols-outlined text-lg">send</span>
                         </button>
+                        {/* Mikrofon-Button direkt im Textfeld */}
+                        {onStartVoiceSession && (
+                            <button
+                                onClick={isIdle ? onStartVoiceSession : onStopSession}
+                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
+                                    isIdle 
+                                        ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-md shadow-purple-500/30'
+                                        : 'bg-red-500 text-white hover:bg-red-600 animate-pulse shadow-md shadow-red-500/30'
+                                }`}
+                                title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
+                            >
+                                <span className="material-symbols-outlined text-lg">
+                                    {isIdle ? 'mic' : 'stop'}
+                                </span>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
