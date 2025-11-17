@@ -441,6 +441,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                                             onClick={(e) => {
                                                                 e.preventDefault();
                                                                 e.stopPropagation();
+                                                                console.log('🗑️ Delete button clicked for session:', session.id);
                                                                 setDeleteConfirmSessionId(session.id);
                                                                 return false;
                                                             }}
@@ -516,8 +517,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 <button
                                     onClick={() => {
                                         if (onDeleteSession && deleteConfirmSessionId) {
+                                            console.log('🗑️ Deleting session:', deleteConfirmSessionId);
                                             onDeleteSession(deleteConfirmSessionId);
                                             setDeleteConfirmSessionId(null);
+                                        } else {
+                                            console.error('❌ Delete failed: onDeleteSession or deleteConfirmSessionId missing', {
+                                                onDeleteSession: !!onDeleteSession,
+                                                deleteConfirmSessionId
+                                            });
                                         }
                                     }}
                                     className="px-4 py-2 rounded-xl text-white bg-red-600 hover:bg-red-700 transition-colors font-semibold"
@@ -822,53 +829,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     onClose={() => setActiveDistortion(null)}
                     T={T}
                 />
-            )}
-
-            {/* Delete Confirmation Modal */}
-            {deleteConfirmSessionId && (
-                <div 
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in"
-                    onClick={() => setDeleteConfirmSessionId(null)}
-                >
-                    <div 
-                        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 p-6"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                                <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
-                                    {T.ui.chat?.deleteSession || 'Sitzung löschen'}
-                                </h3>
-                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                    {T.ui.chat?.deleteSessionConfirm?.(sessions.find(s => s.id === deleteConfirmSessionId)?.title || '') || 
-                                     `Möchten Sie die Sitzung "${sessions.find(s => s.id === deleteConfirmSessionId)?.title || ''}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setDeleteConfirmSessionId(null)}
-                                className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-semibold"
-                            >
-                                {T.ui.cancel || 'Abbrechen'}
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (onDeleteSession && deleteConfirmSessionId) {
-                                        onDeleteSession(deleteConfirmSessionId);
-                                        setDeleteConfirmSessionId(null);
-                                    }
-                                }}
-                                className="px-4 py-2 rounded-xl text-white bg-red-600 hover:bg-red-700 transition-colors font-semibold"
-                            >
-                                {T.ui.chat?.deleteSession || 'Löschen'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );

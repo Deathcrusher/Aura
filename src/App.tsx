@@ -1369,17 +1369,29 @@ function App() {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    if (!user) return;
+    if (!user) {
+      console.error('❌ Cannot delete session: No user logged in');
+      return;
+    }
 
+    console.log('🗑️ Starting deletion of session:', sessionId);
+    
     try {
       await deleteChatSession(sessionId);
-      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      console.log('✅ Session deleted from database:', sessionId);
+      
+      setSessions(prev => {
+        const newSessions = prev.filter(s => s.id !== sessionId);
+        console.log('📝 Updated sessions list:', newSessions.map(s => s.id));
+        return newSessions;
+      });
       
       if (activeSession?.id === sessionId) {
+        console.log('🔄 Clearing active session:', sessionId);
         setActiveSession(null);
       }
     } catch (error) {
-      console.error('Error deleting session:', error);
+      console.error('❌ Error deleting session:', error);
     }
   };
 
