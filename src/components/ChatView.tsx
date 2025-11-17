@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SessionState, ChatSession, Speaker, CognitiveDistortion, UserProfile, ChatMode } from '../types';
 import { AuraHumanAvatar, LightbulbIcon, UserIcon } from './Icons';
-import { ChatMessageSkeleton, LoadingSpinner } from './ui/SkeletonLoader';
-import { AIThinkingState, VoiceRecordingState } from './ui/LoadingStates';
-import { useLoadingState } from '../hooks/useLoadingState';
-import { useDeviceInfo } from '../hooks/useResponsive';
-import { Container, ResponsiveCard } from './ui/ResponsiveLayout';
 
 interface ChatViewProps {
     sessionState: SessionState;
@@ -107,28 +102,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [showSessionsList, setShowSessionsList] = useState(false);
     const [deleteConfirmSessionId, setDeleteConfirmSessionId] = useState<string | null>(null);
-    const [isLoadingSessions, setIsLoadingSessions] = useState(false);
-    const [isSendingMessage, setIsSendingMessage] = useState(false);
-    
-    // Responsive device info
-    const { isMobile, isTablet, isDesktop, isMobilePortrait, isMobileLandscape } = useDeviceInfo();
-    
     const isIdle = sessionState === SessionState.IDLE;
     const isListening = sessionState === SessionState.LISTENING || sessionState === SessionState.USER_SPEAKING;
     const isProcessing = sessionState === SessionState.PROCESSING;
     const isSpeaking = sessionState === SessionState.SPEAKING;
-
-    // Loading state hook for AI responses
-    const aiLoading = useLoadingState({ minLoadingTime: 800 });
-
-    // Simulate loading when processing AI response
-    useEffect(() => {
-        if (isProcessing) {
-            aiLoading.startLoading('KI verarbeitet deine Nachricht...');
-        } else {
-            aiLoading.stopLoading();
-        }
-    }, [isProcessing, aiLoading]);
 
     // Wenn keine aktive Sitzung, zeige automatisch die Sitzungsliste
     useEffect(() => {
@@ -182,8 +159,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
     };
 
-    // Show session list only when explicitly requested AND session exists
-    if (showSessionsList && activeSession) {
+    // Sitzungsliste anzeigen
+    if (showSessionsList || !activeSession) {
         return (
             <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
                 {/* Header */}
@@ -211,34 +188,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 {/* Sitzungsliste */}
                 <div className="flex-1 overflow-y-auto p-4">
-                    {isLoadingSessions ? (
-                        <Container>
-                            <div className="mb-6">
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                                    {T.ui.chat?.recentSessions || 'Letzte Gespräche'}
-                                </h3>
-                            </div>
-                            {/* Responsive Session Skeletons */}
-                            <div className={`grid gap-4 ${
-                                isMobile ? 'grid-cols-1' : 
-                                isTablet ? 'grid-cols-2' : 
-                                'grid-cols-3'
-                            }`}>
-                                {Array.from({ length: isMobile ? 3 : isTablet ? 4 : 6 }, (_, i) => (
-                                    <ResponsiveCard key={i} className="animate-fade-in">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-full animate-pulse flex-shrink-0"></div>
-                                            <div className="flex-1 space-y-2">
-                                                <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 animate-pulse"></div>
-                                                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full w-1/2 animate-pulse opacity-60"></div>
-                                            </div>
-                                            <div className="w-6 h-6 bg-slate-200 dark:bg-slate-700 rounded-full animate-pulse flex-shrink-0"></div>
-                                        </div>
-                                    </ResponsiveCard>
-                                ))}
-                            </div>
-                        </Container>
-                    ) : sessions.length === 0 ? (
+                    {sessions.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center">
                             <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mb-4">
                                 <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
@@ -259,56 +209,51 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             )}
                         </div>
                     ) : (
-                        <Container>
-                            <div className={`grid gap-4 ${
-                                isMobile ? 'grid-cols-1' : 
-                                isTablet ? 'grid-cols-2' : 
-                                'grid-cols-3'
-                            }`}>
-                                {sessions.map((session) => (
-                                    <ResponsiveCard
-                                        key={session.id}
-                                        className={`transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
-                                            editingSessionId === session.id 
-                                                ? 'ring-2 ring-purple-500' 
-                                                : ''
-                                        } ${
-                                            activeSession?.id === session.id
-                                                ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
-                                                : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'
-                                        }`}
-                                        onClick={(e) => {
-                                            // Nicht ausführen, wenn im Bearbeitungsmodus
-                                            if (editingSessionId === session.id) {
-                                                return;
-                                            }
-                                            // Prüfe nochmal, ob der Klick auf einen Button oder ein interaktives Element war
-                                            const target = e.target as HTMLElement;
-                                            const isInteractiveTarget = target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]');
-                                            
-                                            if (isInteractiveTarget) {
-                                                // Event wurde auf einem interaktiven Element ausgelöst -> nicht Session wechseln
-                                                e.stopPropagation();
-                                                return;
-                                            }
-                                            if (onSelectSession) {
-                                                console.log('📱 Selecting session:', session.id);
-                                                onSelectSession(session.id);
-                                                setShowSessionsList(false);
-                                            } else {
-                                                console.warn('⚠️ onSelectSession is not defined');
-                                            }
-                                        }}
-                                        onMouseDown={(e) => {
-                                            // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
-                                            const target = e.target as HTMLElement;
-                                            if (target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]') ||
-                                                editingSessionId === session.id) {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                            }
-                                        }}
-                                    >
+                        <div className="space-y-2 max-w-4xl mx-auto">
+                            {sessions.map((session) => (
+                                <div
+                                    key={session.id}
+                                    className={`p-4 rounded-2xl border transition-all ${
+                                        editingSessionId === session.id 
+                                            ? 'cursor-default' 
+                                            : 'cursor-pointer'
+                                    } ${
+                                        activeSession?.id === session.id
+                                            ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
+                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
+                                    }`}
+                                    onClick={(e) => {
+                                        // Nicht ausführen, wenn im Bearbeitungsmodus
+                                        if (editingSessionId === session.id) {
+                                            return;
+                                        }
+                                        // Prüfe nochmal, ob der Klick auf einen Button oder ein interaktives Element war
+                                        const target = e.target as HTMLElement;
+                                        const isInteractiveTarget = target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]');
+                                        
+                                        if (isInteractiveTarget) {
+                                            // Event wurde auf einem interaktiven Element ausgelöst -> nicht Session wechseln
+                                            e.stopPropagation();
+                                            return;
+                                        }
+                                        if (onSelectSession) {
+                                            console.log('📱 Selecting session:', session.id);
+                                            onSelectSession(session.id);
+                                            setShowSessionsList(false);
+                                        } else {
+                                            console.warn('⚠️ onSelectSession is not defined');
+                                        }
+                                    }}
+                                    onMouseDown={(e) => {
+                                        // Prüfe, ob der Klick auf einen Button oder ein interaktives Element war
+                                        const target = e.target as HTMLElement;
+                                        if (target.closest('button, [role="button"], input, textarea, select, [data-interactive="true"]') ||
+                                            editingSessionId === session.id) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }
+                                    }}
+                                >
                                     {editingSessionId === session.id ? (
                                         <div 
                                             className="flex items-center gap-2 w-full" 
@@ -500,10 +445,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                             )}
                                         </>
                                     )}
-                                    </ResponsiveCard>
-                                ))}
-                            </div>
-                        </Container>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
 
@@ -593,84 +537,154 @@ export const ChatView: React.FC<ChatViewProps> = ({
         );
     }
 
-    // Main chat view when session is active
     return (
-        <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0">
-            {/* Status indicators */}
-            {(isListening || isSpeaking || isProcessing) && (
-                <div className="flex items-center gap-3 px-6 py-3 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm border-b border-purple-200/30 dark:border-purple-800/20">
-                    {isProcessing && (
-                        <>
-                            <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
-                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
-                                {T.ui.chat?.processing || 'Aura denkt nach...'}
-                            </span>
-                        </>
-                    )}
-                    {isListening && (
-                        <>
-                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
-                                {T.ui.chat?.listening || 'Aura hört zu...'}
-                            </span>
-                        </>
-                    )}
-                    {isSpeaking && (
-                        <>
-                            <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
-                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
-                                {T.ui.chat?.speaking || 'Aura spricht...'}
-                            </span>
-                        </>
-                    )}
-                    {onStopSession && (
-                        <button
-                            onClick={onStopSession}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-all duration-200 text-sm"
-                        >
-                            <span className="material-symbols-outlined text-lg">stop</span>
-                            <span className="font-medium">{T.ui.chat?.stop || 'Stoppen'}</span>
-                        </button>
-                    )}
+        <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
+            {/* Header - fixed */}
+            <div className="flex flex-wrap items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <button
+                        onClick={() => setShowSessionsList(true)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-semibold"
+                    >
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        <span className="hidden sm:inline">{T.ui.chat?.backToSessions || 'Zurück'}</span>
+                    </button>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                        <AuraHumanAvatar className="w-6 h-6" />
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-slate-900 dark:text-white font-bold leading-tight truncate">Aura</h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{T.ui.chat?.assistantSubtitle || 'Your AI companion'}</p>
+                    </div>
                 </div>
-            )}
+                {hasSummary && onShowSummary && (
+                    <button
+                        onClick={onShowSummary}
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-200/40 dark:border-purple-800/40 hover:bg-purple-600/20 transition-all text-sm font-semibold"
+                    >
+                        <span className="material-symbols-outlined text-base">summarize</span>
+                        <span>{T.ui.chat?.viewSummary || 'Zusammenfassung'}</span>
+                    </button>
+                )}
+            </div>
 
-            {/* Chat messages area */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-                <div className="max-w-4xl mx-auto">
-                    {(!activeSession?.transcript || activeSession.transcript.length === 0) && !currentOutput && (
-                        <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-center">
-                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mb-4">
-                                <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
+            {/* Messages - scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4 min-h-0">
+                <div className="flex flex-col gap-4">
+                    {activeSession.summary && (
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-900/80 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center flex-shrink-0">
+                                    <span className="material-symbols-outlined text-white text-lg">lightbulb</span>
+                                </div>
+                                <div className="flex-1">
+                                    <strong className="block mb-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                        {T.ui.chat?.sessionSummaryTitle ?? 'Zusammenfassung'}
+                                    </strong>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{activeSession.summary}</p>
+                                </div>
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                                {T.ui.chat?.readyToChat || 'Bereit zum Chatten!'}
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-400 max-w-sm">
-                                {T.ui.chat?.startChatHint || 'Schreibe eine Nachricht oder klicke auf das Mikrofon um zu sprechen'}
-                            </p>
                         </div>
                     )}
-                    {activeSession?.transcript?.map((message, index) => (
-                        <div key={index} className="mb-4">
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
-                                    <span className="material-symbols-outlined text-white text-sm">person</span>
+                    
+                    {(activeSession.transcript || []).map((entry, idx) => {
+                        const distortion = activeSession.cognitiveDistortions?.find(d => d.transcriptEntryId === entry.id);
+                        const isDistortionActive = activeDistortion?.transcriptEntryId === entry.id;
+                        const isUser = entry.speaker === Speaker.USER;
+                        
+                        return (
+                            <div 
+                                key={entry.id} 
+                                className={`flex items-end gap-3 animate-fade-in-up ${isUser ? 'justify-end' : ''}`}
+                                style={{ animationDelay: `${idx * 0.05}s` }}
+                            >
+                                {!isUser && (
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                        <AuraHumanAvatar className="w-6 h-6" />
+                                    </div>
+                                )}
+                                <div className={`flex flex-col gap-1.5 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+                                    <p className={`text-xs font-medium px-2 ${isUser ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                        {isUser ? 'You' : 'Aura'}
+                                    </p>
+                                    <div className={`relative group rounded-2xl px-4 py-3 shadow-sm transition-all duration-200 ${
+                                        isUser 
+                                            ? 'bg-purple-600 text-white rounded-br-md' 
+                                            : 'bg-white dark:bg-slate-900/80 text-slate-900 dark:text-white rounded-bl-md border border-slate-200/70 dark:border-slate-700/60'
+                                    }`}>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
+                                        {distortion && (
+                                            <button
+                                                onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
+                                                className={`absolute -bottom-2 -right-2 p-2 rounded-full transition-all shadow ${
+                                                    isDistortionActive 
+                                                        ? 'bg-purple-200 dark:bg-purple-800 scale-110' 
+                                                        : 'bg-white dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100'
+                                                }`}
+                                                title={T.ui.chat.distortionDetected}
+                                            >
+                                                <LightbulbIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-slate-900 dark:text-white">{message.text}</p>
+                                {isUser && (
+                                    <div className="w-9 h-9 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0">
+                                        <UserAvatar profile={userProfile} className="w-6 h-6" />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                    
+                    {currentInput && (
+                        <div className="flex items-end gap-3 justify-end animate-fade-in-up">
+                            <div className="flex flex-col gap-1.5 items-end max-w-[75%]">
+                                <p className="text-xs font-medium px-2 text-purple-600 dark:text-purple-400">You</p>
+                                <div className="rounded-2xl rounded-br-md px-4 py-3 bg-purple-500/20 border border-purple-200/50 dark:border-purple-800/50">
+                                    <p className="text-sm text-purple-700 dark:text-purple-300 italic">{currentInput}</p>
+                                </div>
+                            </div>
+                            <div className="w-9 h-9 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0">
+                                <UserAvatar profile={userProfile} className="w-6 h-6" />
+                            </div>
+                        </div>
+                    )}
+                    
+                    {currentOutput && (
+                        <div className="flex items-end gap-3 animate-fade-in-up">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                <AuraHumanAvatar className="w-6 h-6" />
+                            </div>
+                            <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
+                                <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
+                                <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
+                                    <div className="flex gap-1">
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    ))}
-                    {currentOutput && (
-                        <div className="mb-4">
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                                    <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-slate-900 dark:text-white">{currentOutput}</p>
+                    )}
+                    
+                    {/* Aura schreibt Animation (wenn verarbeitet wird) */}
+                    {isProcessing && !currentOutput && (
+                        <div className="flex items-end gap-3 animate-fade-in-up">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                <AuraHumanAvatar className="w-6 h-6" />
+                            </div>
+                            <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
+                                <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
+                                <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
+                                    <div className="flex gap-1">
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -679,30 +693,80 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
             </div>
 
-            {/* Input area */}
-            <div className="border-t border-purple-200/30 dark:border-purple-800/20 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-4">
+            {/* Input Area - fixed bottom */}
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 pb-24 shrink-0">
+                {(isListening || isSpeaking) && (
+                    <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
+                        <div className="flex items-center gap-3 flex-1">
+                            {isListening && (
+                                <>
+                                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {T.ui.chat?.listening || 'Höre zu...'}
+                                    </span>
+                                </>
+                            )}
+                            {isSpeaking && (
+                                <>
+                                    <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        {T.ui.chat?.speaking || 'Aura spricht...'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        {onStopSession && (
+                            <button
+                                onClick={onStopSession}
+                                className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-all duration-200"
+                            >
+                                <span className="material-symbols-outlined text-lg">stop</span>
+                                <span className="text-sm font-medium">{T.ui.chat?.stop || 'Stoppen'}</span>
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 <div className="max-w-4xl mx-auto">
                     <div className="flex items-end gap-2">
-                        {/* Voice button */}
+                        {/* Promenter Floating Mikrofon-Button mit Audio-Visualisierung */}
                         {onStartVoiceSession && (
-                            <div className={`fixed z-40 ${isMobile ? 'bottom-24 right-4' : 'bottom-24 right-6'}`}>
+                            <div className="fixed bottom-24 right-6 z-40">
                                 <button
                                     onClick={isIdle ? onStartVoiceSession : onStopSession}
-                                    className={`rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${isMobile ? 'w-14 h-14' : 'w-16 h-16'} ${
-                                        isIdle
-                                            ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30'
+                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${
+                                        isIdle 
+                                            ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30' 
                                             : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30 animate-pulse'
                                     }`}
                                     title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
                                 >
-                                    <span className={`material-symbols-outlined relative z-10 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+                                    {/* Audio-Visualisierung bei Aufnahme */}
+                                    {!isIdle && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="absolute w-20 h-20 rounded-full border-2 border-red-400 animate-pulse-ring"></div>
+                                            <div className="flex gap-1">
+                                                <div className="w-1 h-4 bg-white rounded-full voice-wave"></div>
+                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-1"></div>
+                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-2"></div>
+                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-3"></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <span className="material-symbols-outlined text-2xl relative z-10">
                                         {isIdle ? 'mic' : 'mic_off'}
                                     </span>
                                 </button>
+                                
+                                {/* Status-Indikator */}
+                                {!isIdle && (
+                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
+                                )}
                             </div>
                         )}
-
-                        {/* Text input */}
+                        
+                        {/* Textfeld mit integriertem Senden-Button */}
                         <div className="flex-1 flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
                             <textarea
                                 ref={inputRef}
@@ -710,30 +774,86 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 onChange={(e) => setTextInput?.(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 placeholder={
-                                    isListening || isSpeaking
+                                    isListening || isSpeaking 
                                         ? (T.ui.chat?.inputPlaceholderVoice || "Tippe eine Nachricht oder sprich weiter...")
                                         : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
                                 }
                                 rows={1}
-                                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed py-1.5 text-sm"
+                                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed py-1.5"
                                 disabled={isProcessing}
                             />
+                            {/* Senden-Button direkt im Textfeld */}
                             <button
                                 onClick={handleSend}
                                 disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
-                                className={`flex-shrink-0 rounded-full flex items-center justify-center transition-all mb-0.5 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} ${
+                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
                                     textInput.trim() && !isProcessing && !isListening && !isSpeaking
                                         ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
                                         : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                                 }`}
                                 title={T.ui.chat?.send || 'Senden'}
                             >
-                                <span className={`material-symbols-outlined ${isMobile ? 'text-base' : 'text-lg'}`}>send</span>
+                                <span className="material-symbols-outlined text-lg">send</span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {activeDistortion && (
+                <DistortionInfoCard
+                    distortion={activeDistortion}
+                    onClose={() => setActiveDistortion(null)}
+                    T={T}
+                />
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirmSessionId && (
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in"
+                    onClick={() => setDeleteConfirmSessionId(null)}
+                >
+                    <div 
+                        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md m-4 p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                <span className="material-symbols-outlined text-red-500 text-2xl">warning</span>
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                                    {T.ui.chat?.deleteSession || 'Sitzung löschen'}
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                    {T.ui.chat?.deleteSessionConfirm?.(sessions.find(s => s.id === deleteConfirmSessionId)?.title || '') || 
+                                     `Möchten Sie die Sitzung "${sessions.find(s => s.id === deleteConfirmSessionId)?.title || ''}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteConfirmSessionId(null)}
+                                className="px-4 py-2 rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors font-semibold"
+                            >
+                                {T.ui.cancel || 'Abbrechen'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (onDeleteSession && deleteConfirmSessionId) {
+                                        onDeleteSession(deleteConfirmSessionId);
+                                        setDeleteConfirmSessionId(null);
+                                    }
+                                }}
+                                className="px-4 py-2 rounded-xl text-white bg-red-600 hover:bg-red-700 transition-colors font-semibold"
+                            >
+                                {T.ui.chat?.deleteSession || 'Löschen'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
