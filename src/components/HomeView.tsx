@@ -39,13 +39,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   return (
     <div className="flex-1 overflow-y-auto bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 min-h-0">
       {/* Modern Top App Bar */}
-      <div className="flex items-center glass p-6 pb-4 justify-between sticky top-0 z-10 shrink-0 border-b border-white/20 dark:border-white/5 backdrop-blur-xl">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-            <span className="text-white text-xl font-bold">{userProfile.name.charAt(0).toUpperCase()}</span>
+      <div className="flex items-center glass p-8 pb-6 justify-between sticky top-0 z-10 shrink-0 border-b border-white/20 dark:border-white/5 backdrop-blur-xl">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="w-14 h-14 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl shadow-purple-500/30">
+            <span className="text-white text-2xl font-bold">{userProfile.name.charAt(0).toUpperCase()}</span>
           </div>
           <div>
-            <h2 className="text-slate-900 dark:text-white text-xl font-bold leading-tight">
+            <h2 className="text-slate-900 dark:text-white text-2xl font-bold leading-tight">
               {getGreeting()}, {userProfile.name.split(' ')[0]}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Welcome back</p>
@@ -59,33 +59,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </button>
       </div>
       
-      <main className="flex-grow px-5 pb-32 pt-2">
+      <main className="flex-grow px-8 pb-32 pt-4">
         {/* Modern Primary CTA */}
-        <div className="mb-6 animate-fade-in-up">
+        <div className="mb-8 animate-fade-in-up">
           <button 
             onClick={async () => {
               if (onNewChat) {
                 await onNewChat(ChatMode.TEXT);
               }
             }}
-            className="w-full flex items-center justify-center gap-3 rounded-2xl h-16 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group"
+            className="w-full flex items-center justify-center gap-4 rounded-3xl h-20 px-8 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-2xl shadow-purple-500/40 hover:shadow-3xl hover:shadow-purple-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group relative overflow-hidden"
           >
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-all">
-              <span className="material-symbols-outlined text-white">chat_bubble</span>
+            {/* Background gradient animation */}
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-700 via-violet-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            
+            <div className="relative w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-all">
+              <span className="material-symbols-outlined text-white text-xl">chat_bubble</span>
             </div>
-            <span className="text-base font-semibold">Start Conversation</span>
-            <span className="material-symbols-outlined ml-auto text-white/80">arrow_forward</span>
+            <span className="relative text-lg font-semibold">Start Conversation</span>
+            <span className="relative material-symbols-outlined ml-auto text-white/80 text-xl">arrow_forward</span>
           </button>
         </div>
 
         {/* Modern Mood Check-in Card */}
-        <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-          <div className="rounded-2xl glass p-5 card-shadow border border-white/20 dark:border-white/5">
-            <div className="mb-4">
-              <h3 className="text-slate-900 dark:text-white text-lg font-bold mb-1">How are you feeling?</h3>
+        <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div className="rounded-3xl glass p-6 card-shadow border border-white/20 dark:border-white/5">
+            <div className="mb-6">
+              <h3 className="text-slate-900 dark:text-white text-xl font-bold mb-2">How are you feeling?</h3>
               <p className="text-sm text-slate-600 dark:text-slate-400">Track your mood today</p>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-3">
               {[
                 { label: 'Happy', icon: 'sentiment_very_satisfied', color: 'from-yellow-400 to-orange-400' },
                 { label: 'Calm', icon: 'sentiment_satisfied', color: 'from-blue-400 to-cyan-400' },
@@ -95,13 +98,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <button
                   key={mood.label}
                   onClick={() => onOpenMood()}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-3 transition-all duration-200 hover:scale-105 ${
+                  className={`flex flex-col items-center justify-center gap-3 rounded-2xl p-4 transition-all duration-200 hover:scale-105 min-h-[80px] ${
                     todayMoodEntry?.mood === mood.label.toLowerCase()
                       ? 'bg-gradient-to-br ' + mood.color + ' shadow-lg scale-105'
                       : 'bg-white/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700'
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-2xl ${
+                  <span className={`material-symbols-outlined text-3xl ${
                     todayMoodEntry?.mood === mood.label.toLowerCase() ? 'text-white' : 'text-slate-600 dark:text-slate-400'
                   }`}>
                     {mood.icon}
@@ -118,9 +121,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
         
         {/* Modern Quick Access Section */}
-        <div className="mb-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <h3 className="text-slate-900 dark:text-white text-lg font-bold mb-3">Quick Tools</h3>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <h3 className="text-slate-900 dark:text-white text-xl font-bold mb-4">Quick Tools</h3>
+          <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Breathing', icon: 'self_improvement', color: 'from-purple-500 to-pink-500', onClick: onStartBreathingExercise },
               { label: 'Journal', icon: 'edit_note', color: 'from-blue-500 to-cyan-500', onClick: () => onOpenJournal() },
@@ -130,12 +133,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 key={tool.label}
                 onClick={tool.onClick}
-                className="flex flex-col items-center justify-center gap-3 rounded-2xl p-5 bg-gradient-to-br glass border border-white/20 dark:border-white/5 hover:scale-105 transition-all duration-200 card-shadow group"
+                className="flex flex-col items-center justify-center gap-4 rounded-3xl p-6 bg-gradient-to-br glass border border-white/20 dark:border-white/5 hover:scale-105 transition-all duration-200 card-shadow hover-lift group relative overflow-hidden"
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${tool.color} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all`}>
+                {/* Hover gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                
+                <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${tool.color} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all group-hover:scale-110`}>
                   <span className="material-symbols-outlined text-white text-2xl">{tool.icon}</span>
                 </div>
-                <p className="text-slate-800 dark:text-white text-sm font-semibold">{tool.label}</p>
+                <p className="relative text-slate-800 dark:text-white text-sm font-semibold group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{tool.label}</p>
               </button>
             ))}
           </div>

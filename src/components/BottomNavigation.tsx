@@ -47,10 +47,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   ];
 
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 z-30 glass border-t border-white/20 dark:border-white/5 backdrop-blur-xl shadow-2xl ${className}`}>
-      <div className="mx-auto flex h-20 max-w-md items-center justify-around px-2 sm:px-4">
+    <nav className={`fixed bottom-0 left-0 right-0 h-20 glass border-t border-white/10 dark:border-white/5 backdrop-blur-2xl shadow-2xl ${className}`}>
+      <div className="flex items-center justify-around h-full px-2">
         {navItems.map((item) => {
           const isActive = currentView === item.id;
+          
           return (
             <button
               key={item.id}
