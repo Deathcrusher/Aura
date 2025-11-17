@@ -1,6 +1,5 @@
 import React from 'react';
-
-export type ViewType = 'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq' | 'support';
+import { ViewType } from '../types';
 
 interface BottomNavigationProps {
   currentView: ViewType;

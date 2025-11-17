@@ -3,7 +3,7 @@ import { useAuth } from './contexts/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { Onboarding } from './components/Onboarding';
 import { ChatView } from './components/ChatView';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { SessionSummaryCard } from './components/SessionSummaryCard';
 import {
@@ -19,6 +19,7 @@ import {
   AuraMemory,
   JournalInsights,
   ChatMode,
+  ViewType,
 } from './types';
 import {
   getUserProfile,
@@ -227,7 +228,7 @@ function App() {
     setIsJournalOpen(true);
   };
   // Navigation state
-  const [currentView, setCurrentView] = useState<'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq' | 'support' | 'about'>('home');
+  const [currentView, setCurrentView] = useState<ViewType>('home');
   // Auth entry state (welcome vs auth)
   const [showAuth, setShowAuth] = useState<boolean>(false);
   const [initialAuthMode, setInitialAuthMode] = useState<'signup' | 'login'>('signup');

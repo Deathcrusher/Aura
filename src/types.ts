@@ -131,3 +131,6 @@ export const AVAILABLE_LANGUAGES = [
     { id: 'de-DE', name: 'Deutsch' },
     { id: 'en-US', name: 'English (US)' },
 ];
+
+// View types for navigation
+export type ViewType = 'home' | 'chat' | 'journal' | 'profile' | 'insights' | 'privacy' | 'faq' | 'support' | 'about';
