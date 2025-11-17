@@ -765,44 +765,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                 )}
 
-                {/* Floating Mikrofon-Button - außerhalb des Input-Containers */}
-                {onStartVoiceSession && (
-                    <div className="fixed bottom-52 right-6 z-40">
-                        <button
-                            onClick={isIdle ? onStartVoiceSession : onStopSession}
-                            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${
-                                isIdle 
-                                    ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30' 
-                                    : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30 animate-pulse'
-                            }`}
-                            title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
-                        >
-                            {/* Audio-Visualisierung bei Aufnahme */}
-                            {!isIdle && (
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="absolute w-20 h-20 rounded-full border-2 border-red-400 animate-pulse-ring"></div>
-                                    <div className="flex gap-1">
-                                        <div className="w-1 h-4 bg-white rounded-full voice-wave"></div>
-                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-1"></div>
-                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-2"></div>
-                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-3"></div>
-                                    </div>
-                                </div>
-                            )}
-                            
-                            <span className="material-symbols-outlined text-2xl relative z-10">
-                                {isIdle ? 'mic' : 'mic_off'}
-                            </span>
-                        </button>
-                        
-                        {/* Status-Indikator */}
-                        {!isIdle && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
-                        )}
-                    </div>
-                )}
-
-                <div className="max-w-4xl mx-auto pr-20">
+                
+                <div className="max-w-4xl mx-auto">
                     {/* Textfeld mit integriertem Senden-Button */}
                     <div className="flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
                         <textarea
