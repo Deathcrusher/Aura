@@ -765,75 +765,73 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                 )}
 
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-end gap-2">
-                        {/* Promenter Floating Mikrofon-Button mit Audio-Visualisierung */}
-                        {onStartVoiceSession && (
-                            <div className="fixed bottom-24 right-6 z-40">
-                                <button
-                                    onClick={isIdle ? onStartVoiceSession : onStopSession}
-                                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${
-                                        isIdle 
-                                            ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30' 
-                                            : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30 animate-pulse'
-                                    }`}
-                                    title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
-                                >
-                                    {/* Audio-Visualisierung bei Aufnahme */}
-                                    {!isIdle && (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="absolute w-20 h-20 rounded-full border-2 border-red-400 animate-pulse-ring"></div>
-                                            <div className="flex gap-1">
-                                                <div className="w-1 h-4 bg-white rounded-full voice-wave"></div>
-                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-1"></div>
-                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-2"></div>
-                                                <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-3"></div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    <span className="material-symbols-outlined text-2xl relative z-10">
-                                        {isIdle ? 'mic' : 'mic_off'}
-                                    </span>
-                                </button>
-                                
-                                {/* Status-Indikator */}
-                                {!isIdle && (
-                                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
-                                )}
-                            </div>
-                        )}
+                {/* Floating Mikrofon-Button - außerhalb des Input-Containers */}
+                {onStartVoiceSession && (
+                    <div className="fixed bottom-24 right-6 z-40">
+                        <button
+                            onClick={isIdle ? onStartVoiceSession : onStopSession}
+                            className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${
+                                isIdle 
+                                    ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30' 
+                                    : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30 animate-pulse'
+                            }`}
+                            title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
+                        >
+                            {/* Audio-Visualisierung bei Aufnahme */}
+                            {!isIdle && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="absolute w-20 h-20 rounded-full border-2 border-red-400 animate-pulse-ring"></div>
+                                    <div className="flex gap-1">
+                                        <div className="w-1 h-4 bg-white rounded-full voice-wave"></div>
+                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-1"></div>
+                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-2"></div>
+                                        <div className="w-1 h-4 bg-white rounded-full voice-wave voice-wave-delay-3"></div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <span className="material-symbols-outlined text-2xl relative z-10">
+                                {isIdle ? 'mic' : 'mic_off'}
+                            </span>
+                        </button>
                         
-                        {/* Textfeld mit integriertem Senden-Button */}
-                        <div className="flex-1 flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
-                            <textarea
-                                ref={inputRef}
-                                value={textInput}
-                                onChange={(e) => setTextInput?.(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                placeholder={
-                                    isListening || isSpeaking 
-                                        ? (T.ui.chat?.inputPlaceholderVoice || "Tippe eine Nachricht oder sprich weiter...")
-                                        : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
-                                }
-                                rows={1}
-                                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed py-1.5"
-                                disabled={isProcessing}
-                            />
-                            {/* Senden-Button direkt im Textfeld */}
-                            <button
-                                onClick={handleSend}
-                                disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
-                                className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
-                                    textInput.trim() && !isProcessing && !isListening && !isSpeaking
-                                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
-                                        : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                                }`}
-                                title={T.ui.chat?.send || 'Senden'}
-                            >
-                                <span className="material-symbols-outlined text-lg">send</span>
-                            </button>
-                        </div>
+                        {/* Status-Indikator */}
+                        {!isIdle && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>
+                        )}
+                    </div>
+                )}
+
+                <div className="max-w-4xl mx-auto">
+                    {/* Textfeld mit integriertem Senden-Button */}
+                    <div className="flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                        <textarea
+                            ref={inputRef}
+                            value={textInput}
+                            onChange={(e) => setTextInput?.(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={
+                                isListening || isSpeaking 
+                                    ? (T.ui.chat?.inputPlaceholderVoice || "Tippe eine Nachricht oder sprich weiter...")
+                                    : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
+                            }
+                            rows={1}
+                            className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed py-1.5"
+                            disabled={isProcessing}
+                        />
+                        {/* Senden-Button direkt im Textfeld */}
+                        <button
+                            onClick={handleSend}
+                            disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
+                            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
+                                textInput.trim() && !isProcessing && !isListening && !isSpeaking
+                                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
+                                    : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                            }`}
+                            title={T.ui.chat?.send || 'Senden'}
+                        >
+                            <span className="material-symbols-outlined text-lg">send</span>
+                        </button>
                     </div>
                 </div>
             </div>
