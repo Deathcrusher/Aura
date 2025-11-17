@@ -592,4 +592,135 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
         );
     }
+
+    // Main chat view when session is active
+    return (
+        <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0">
+            {/* Status indicators */}
+            {(isListening || isSpeaking || isProcessing) && (
+                <div className="flex items-center gap-3 px-6 py-3 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm border-b border-purple-200/30 dark:border-purple-800/20">
+                    {isProcessing && (
+                        <>
+                            <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                                {T.ui.chat?.processing || 'Aura denkt nach...'}
+                            </span>
+                        </>
+                    )}
+                    {isListening && (
+                        <>
+                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                                {T.ui.chat?.listening || 'Aura hört zu...'}
+                            </span>
+                        </>
+                    )}
+                    {isSpeaking && (
+                        <>
+                            <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                                {T.ui.chat?.speaking || 'Aura spricht...'}
+                            </span>
+                        </>
+                    )}
+                    {onStopSession && (
+                        <button
+                            onClick={onStopSession}
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-all duration-200 text-sm"
+                        >
+                            <span className="material-symbols-outlined text-lg">stop</span>
+                            <span className="font-medium">{T.ui.chat?.stop || 'Stoppen'}</span>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Chat messages area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="max-w-4xl mx-auto">
+                    {activeSession?.transcript?.map((message, index) => (
+                        <div key={index} className="mb-4">
+                            <div className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
+                                    <span className="material-symbols-outlined text-white text-sm">person</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-slate-900 dark:text-white">{message.text}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {currentOutput && (
+                        <div className="mb-4">
+                            <div className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                                    <span className="material-symbols-outlined text-white text-sm">smart_toy</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-slate-900 dark:text-white">{currentOutput}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={transcriptEndRef} />
+                </div>
+            </div>
+
+            {/* Input area */}
+            <div className="border-t border-purple-200/30 dark:border-purple-800/20 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm px-6 py-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="flex items-end gap-2">
+                        {/* Voice button */}
+                        {onStartVoiceSession && (
+                            <div className={`fixed z-40 ${isMobile ? 'bottom-24 right-4' : 'bottom-24 right-6'}`}>
+                                <button
+                                    onClick={isIdle ? onStartVoiceSession : onStopSession}
+                                    className={`rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 shadow-2xl relative ${isMobile ? 'w-14 h-14' : 'w-16 h-16'} ${
+                                        isIdle
+                                            ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-purple-500/30'
+                                            : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/30 animate-pulse'
+                                    }`}
+                                    title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
+                                >
+                                    <span className={`material-symbols-outlined relative z-10 ${isMobile ? 'text-xl' : 'text-2xl'}`}>
+                                        {isIdle ? 'mic' : 'mic_off'}
+                                    </span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Text input */}
+                        <div className="flex-1 flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                            <textarea
+                                ref={inputRef}
+                                value={textInput}
+                                onChange={(e) => setTextInput?.(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={
+                                    isListening || isSpeaking
+                                        ? (T.ui.chat?.inputPlaceholderVoice || "Tippe eine Nachricht oder sprich weiter...")
+                                        : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
+                                }
+                                rows={1}
+                                className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed py-1.5 text-sm"
+                                disabled={isProcessing}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
+                                className={`flex-shrink-0 rounded-full flex items-center justify-center transition-all mb-0.5 ${isMobile ? 'w-7 h-7' : 'w-8 h-8'} ${
+                                    textInput.trim() && !isProcessing && !isListening && !isSpeaking
+                                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
+                                        : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                }`}
+                                title={T.ui.chat?.send || 'Senden'}
+                            >
+                                <span className={`material-symbols-outlined ${isMobile ? 'text-base' : 'text-lg'}`}>send</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 };
