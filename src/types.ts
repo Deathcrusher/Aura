@@ -33,6 +33,7 @@ export interface TranscriptEntry {
   id: string; // Unique ID for each entry
   speaker: Speaker;
   text: string;
+  timestamp?: number; // Unix timestamp in milliseconds
 }
 
 export interface CognitiveDistortion {

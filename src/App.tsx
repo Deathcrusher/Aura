@@ -2128,13 +2128,13 @@ function App() {
 
                   if (activeSession && (userText || auraText)) {
                     if (userText) {
-                      const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText };
+                      const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText, timestamp: Date.now() };
                       lastTranscriptEntryIdRef.current = userEntry.id;
                       await addTranscriptEntryAuto(activeSession.id, userEntry);
                     setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), userEntry] } : prev);
                   }
                   if (auraText) {
-                    const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText };
+                    const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText, timestamp: Date.now() };
                     await addTranscriptEntryAuto(activeSession.id, auraEntry);
                     setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), auraEntry] } : prev);
                   }
@@ -2353,6 +2353,7 @@ function App() {
       id: crypto.randomUUID(),
       speaker: Speaker.USER,
       text: trimmedText,
+      timestamp: Date.now(),
     };
 
     const transcriptWithUser = [...(session.transcript || []), userEntry];
@@ -2400,6 +2401,7 @@ function App() {
           id: crypto.randomUUID(),
           speaker: Speaker.AURA,
           text: fallbackText,
+          timestamp: Date.now(),
         };
 
         if (user) {
@@ -2456,6 +2458,7 @@ function App() {
         id: crypto.randomUUID(),
         speaker: Speaker.AURA,
         text: responseText,
+        timestamp: Date.now(),
       };
 
       if (user) {

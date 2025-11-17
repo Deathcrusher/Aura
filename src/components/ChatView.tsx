@@ -2,6 +2,37 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SessionState, ChatSession, Speaker, CognitiveDistortion, UserProfile, ChatMode } from '../types';
 import { AuraHumanAvatar, LightbulbIcon, UserIcon } from './Icons';
 
+// Helper function for relative time formatting
+const getRelativeTime = (timestamp: number | undefined, language: string = 'de-DE'): string => {
+    if (!timestamp) return '';
+    
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    const isDe = language.startsWith('de');
+    
+    if (seconds < 10) return isDe ? 'Gerade eben' : 'Just now';
+    if (seconds < 60) return isDe ? 'vor wenigen Sekunden' : 'a few seconds ago';
+    if (minutes === 1) return isDe ? 'vor 1 Minute' : '1 minute ago';
+    if (minutes < 60) return isDe ? `vor ${minutes} Minuten` : `${minutes} minutes ago`;
+    if (hours === 1) return isDe ? 'vor 1 Stunde' : '1 hour ago';
+    if (hours < 24) return isDe ? `vor ${hours} Stunden` : `${hours} hours ago`;
+    if (days === 1) return isDe ? 'Gestern' : 'Yesterday';
+    if (days < 7) return isDe ? `vor ${days} Tagen` : `${days} days ago`;
+    
+    // For older messages, show the actual date
+    return new Date(timestamp).toLocaleDateString(language, {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 interface ChatViewProps {
     sessionState: SessionState;
     activeSession: ChatSession | null;
@@ -569,8 +600,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Messages - scrollable */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4 min-h-0">
-                <div className="flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-4 min-h-0">
+                <div className="flex flex-col gap-5">
                     {activeSession.summary && (
                         <div className="p-4 rounded-xl bg-white dark:bg-slate-900/80 border border-yellow-200/60 dark:border-yellow-800/40 shadow-sm">
                             <div className="flex items-start gap-3">
@@ -599,27 +630,34 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 style={{ animationDelay: `${idx * 0.05}s` }}
                             >
                                 {!isUser && (
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
                                         <AuraHumanAvatar className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div className={`flex flex-col gap-1.5 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
-                                    <p className={`text-xs font-medium px-2 ${isUser ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                        {isUser ? 'You' : 'Aura'}
-                                    </p>
-                                    <div className={`relative group rounded-2xl px-4 py-3 shadow-sm transition-all duration-200 ${
+                                    <div className={`flex items-center gap-2 px-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                                        <p className={`text-xs font-semibold ${isUser ? 'text-purple-700 dark:text-purple-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                                            {isUser ? 'You' : 'Aura'}
+                                        </p>
+                                        {entry.timestamp && (
+                                            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                                                {getRelativeTime(entry.timestamp, userProfile.language)}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className={`relative group rounded-2xl px-5 py-3.5 transition-all duration-300 hover:scale-[1.01] ${
                                         isUser 
-                                            ? 'bg-purple-600 text-white rounded-br-md' 
-                                            : 'bg-white dark:bg-slate-900/80 text-slate-900 dark:text-white rounded-bl-md border border-slate-200/70 dark:border-slate-700/60'
+                                            ? 'bg-gradient-to-br from-purple-600 via-purple-600 to-violet-600 text-white rounded-br-md shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 backdrop-blur-sm' 
+                                            : 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-bl-md border border-slate-200/70 dark:border-slate-700/50 shadow-md shadow-slate-900/5 dark:shadow-slate-900/20 hover:shadow-lg hover:border-purple-300/50 dark:hover:border-purple-700/50 backdrop-blur-sm'
                                     }`}>
                                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
                                         {distortion && (
                                             <button
                                                 onClick={() => setActiveDistortion(isDistortionActive ? null : distortion)}
-                                                className={`absolute -bottom-2 -right-2 p-2 rounded-full transition-all shadow ${
+                                                className={`absolute -bottom-2 -right-2 p-2 rounded-full transition-all duration-200 shadow-lg ${
                                                     isDistortionActive 
-                                                        ? 'bg-purple-200 dark:bg-purple-800 scale-110' 
-                                                        : 'bg-white dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100'
+                                                        ? 'bg-purple-200 dark:bg-purple-800 scale-110 shadow-purple-500/30' 
+                                                        : 'bg-white dark:bg-slate-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-slate-900/10'
                                                 }`}
                                                 title={T.ui.chat.distortionDetected}
                                             >
@@ -629,7 +667,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     </div>
                                 </div>
                                 {isUser && (
-                                    <div className="w-9 h-9 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0">
+                                    <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
                                         <UserAvatar profile={userProfile} className="w-6 h-6" />
                                     </div>
                                 )}
@@ -639,13 +677,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     
                     {currentInput && (
                         <div className="flex items-end gap-3 justify-end animate-fade-in-up">
-                            <div className="flex flex-col gap-1.5 items-end max-w-[75%]">
-                                <p className="text-xs font-medium px-2 text-purple-600 dark:text-purple-400">You</p>
-                                <div className="rounded-2xl rounded-br-md px-4 py-3 bg-purple-500/20 border border-purple-200/50 dark:border-purple-800/50">
-                                    <p className="text-sm text-purple-700 dark:text-purple-300 italic">{currentInput}</p>
+                            <div className="flex flex-col gap-2 items-end max-w-[75%]">
+                                <p className="text-xs font-semibold px-2 text-purple-700 dark:text-purple-300">You</p>
+                                <div className="rounded-2xl rounded-br-md px-5 py-3.5 bg-purple-100/60 dark:bg-purple-900/30 border-2 border-dashed border-purple-300/60 dark:border-purple-700/50 shadow-md backdrop-blur-sm">
+                                    <p className="text-sm text-purple-800 dark:text-purple-200 italic">{currentInput}</p>
                                 </div>
                             </div>
-                            <div className="w-9 h-9 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shadow-md flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
                                 <UserAvatar profile={userProfile} className="w-6 h-6" />
                             </div>
                         </div>
@@ -653,17 +691,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     
                     {currentOutput && (
                         <div className="flex items-end gap-3 animate-fade-in-up">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
                                 <AuraHumanAvatar className="w-6 h-6" />
                             </div>
-                            <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
-                                <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
-                                <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
-                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
+                            <div className="flex flex-col gap-2 items-start max-w-[75%]">
+                                <p className="text-xs font-semibold px-2 text-slate-600 dark:text-slate-400">Aura</p>
+                                <div className="rounded-2xl rounded-bl-md px-5 py-3.5 bg-white/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/50 shadow-md backdrop-blur-sm flex items-center gap-2">
+                                    <p className="text-sm text-slate-700 dark:text-slate-200">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
                                     <div className="flex gap-1">
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
                                     </div>
                                 </div>
                             </div>
@@ -673,17 +711,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     {/* Aura schreibt Animation (wenn verarbeitet wird) */}
                     {isProcessing && !currentOutput && (
                         <div className="flex items-end gap-3 animate-fade-in-up">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
                                 <AuraHumanAvatar className="w-6 h-6" />
                             </div>
-                            <div className="flex flex-col gap-1.5 items-start max-w-[75%]">
-                                <p className="text-xs font-medium px-2 text-slate-500 dark:text-slate-400">Aura</p>
-                                <div className="rounded-2xl rounded-bl-md px-4 py-3 bg-white dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-700/60 flex items-center gap-2">
-                                    <p className="text-sm text-slate-600 dark:text-slate-300">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
+                            <div className="flex flex-col gap-2 items-start max-w-[75%]">
+                                <p className="text-xs font-semibold px-2 text-slate-600 dark:text-slate-400">Aura</p>
+                                <div className="rounded-2xl rounded-bl-md px-5 py-3.5 bg-white/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/50 shadow-md backdrop-blur-sm flex items-center gap-2">
+                                    <p className="text-sm text-slate-700 dark:text-slate-200">{T.ui.chat?.typing || 'Aura schreibt...'}</p>
                                     <div className="flex gap-1">
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
-                                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.2s'}} />
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s'}} />
                                     </div>
                                 </div>
                             </div>
