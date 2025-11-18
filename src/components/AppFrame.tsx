@@ -7,18 +7,17 @@ interface AppFrameProps {
 // Modern, elegant container with glassmorphism - responsive for web & mobile
 export const AppFrame: React.FC<AppFrameProps> = ({ children }) => {
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 dark:from-slate-950 dark:via-purple-950/20 dark:to-slate-900 flex justify-center py-2 sm:py-4 md:py-8 relative overflow-hidden">
+    <div className="min-h-screen w-full mesh-bg flex justify-center py-2 sm:py-4 md:py-8 relative overflow-hidden transition-colors duration-500">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-purple-300/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-300/20 dark:bg-pink-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-300/10 dark:bg-violet-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[100px] animate-float-slow"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-accent/20 rounded-full blur-[120px] animate-float-slow" style={{ animationDelay: '2s' }}></div>
       </div>
       
-      <div className="relative w-full max-w-md md:max-w-lg lg:max-w-2xl mx-auto glass rounded-2xl md:rounded-3xl shadow-2xl dark:shadow-purple-900/20 flex flex-col overflow-hidden backdrop-blur-xl" style={{ minHeight: 'calc(100vh - 1rem)', maxHeight: 'calc(100vh - 1rem)' }}>
+      <div className="relative w-full max-w-md md:max-w-lg lg:max-w-2xl mx-auto glass rounded-3xl shadow-2xl flex flex-col overflow-hidden backdrop-blur-2xl transition-all duration-500 border-opacity-50" style={{ minHeight: 'calc(100vh - 2rem)', maxHeight: 'calc(100vh - 2rem)' }}>
         {children}
       </div>
     </div>
- );
+  );
 };
 

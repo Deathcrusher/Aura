@@ -65,18 +65,18 @@ interface ChatViewProps {
 
 const DistortionInfoCard: React.FC<{ distortion: CognitiveDistortion, onClose: () => void, T: any }> = ({ distortion, onClose, T }) => {
     return (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md p-5 glass rounded-2xl shadow-2xl border border-purple-200/50 dark:border-purple-800/30 animate-scale-in backdrop-blur-xl">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md p-5 glass-card shadow-2xl border border-purple-200/50 dark:border-purple-800/30 animate-scale-in">
             <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
                     <LightbulbIcon className="w-6 h-6 text-white"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-slate-900 dark:text-white mb-2">{T.ui.chat.distortionDetected}</h4>
-                    <div className="inline-block px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 mb-2">
-                        <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase">{distortion.type}</p>
+                    <h4 className="font-bold text-foreground mb-2">{T.ui.chat.distortionDetected}</h4>
+                    <div className="inline-block px-3 py-1 rounded-full bg-primary/10 mb-2">
+                        <p className="text-xs font-semibold text-primary uppercase">{distortion.type}</p>
                     </div>
-                    <p className="text-sm italic text-slate-700 dark:text-slate-300 mb-3 leading-relaxed">"{distortion.statement}"</p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{T.ui.chat.distortionInfo(distortion.type)}</p>
+                    <p className="text-sm italic text-muted-foreground mb-3 leading-relaxed">"{distortion.statement}"</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{T.ui.chat.distortionInfo(distortion.type)}</p>
                 </div>
                 <button 
                     onClick={onClose} 
@@ -193,14 +193,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     // Sitzungsliste anzeigen
     if (showSessionsList || !activeSession) {
         return (
-            <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
+            <div className="flex flex-1 flex-col bg-transparent w-full min-h-0 overflow-hidden">
                 {/* Header */}
-                <div className="flex items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                <div className="flex items-center gap-3 p-5 border-b border-white/10 shrink-0 glass sticky top-0 z-10">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                         <AuraHumanAvatar className="w-6 h-6" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <h2 className="text-slate-900 dark:text-white font-bold leading-tight truncate">{T.ui.sidebar?.sessions || 'Gespräche'}</h2>
+                        <h2 className="text-foreground font-bold leading-tight truncate">{T.ui.sidebar?.sessions || 'Gespräche'}</h2>
                     </div>
                     {onNewChat && (
                         <button
@@ -209,7 +209,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     await onNewChat(ChatMode.TEXT);
                                 }
                             }}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-all text-sm font-semibold"
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all text-sm font-semibold shadow-lg shadow-primary/20"
                         >
                             <span className="material-symbols-outlined text-lg">add</span>
                             <span className="hidden sm:inline">{T.ui.sidebar?.newChat || 'Neues Gespräch'}</span>
@@ -247,11 +247,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     className={`p-4 rounded-2xl border transition-all ${
                                         editingSessionId === session.id 
                                             ? 'cursor-default' 
-                                            : 'cursor-pointer'
+                                            : 'cursor-pointer hover-lift'
                                     } ${
                                         activeSession?.id === session.id
-                                            ? 'bg-purple-600/10 border-purple-600/30 dark:bg-purple-600/20 dark:border-purple-600/40'
-                                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-purple-300 dark:hover:border-purple-700'
+                                            ? 'bg-primary/10 border-primary/30'
+                                            : 'glass-card border-transparent hover:border-primary/30'
                                     }`}
                                     onClick={(e) => {
                                         // Nicht ausführen, wenn im Bearbeitungsmodus
@@ -541,15 +541,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     if (!activeSession) {
         return (
-            <div className="relative flex flex-1 w-full flex-col bg-gradient-to-b from-white/50 to-purple-50/30 dark:from-slate-900/50 dark:to-purple-950/20 overflow-hidden min-h-0 items-center justify-center p-6">
+            <div className="relative flex flex-1 w-full flex-col bg-transparent overflow-hidden min-h-0 items-center justify-center p-6">
                 <div className="text-center max-w-sm">
-                    <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-xl mx-auto mb-4">
-                        <span className="material-symbols-outlined text-white text-4xl">chat_bubble</span>
+                    <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-2xl shadow-primary/30 mx-auto mb-6 animate-float">
+                        <span className="material-symbols-outlined text-white text-5xl">chat_bubble</span>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                    <h3 className="text-2xl font-bold text-foreground mb-2">
                         {T.ui.chat?.noSessionTitle || 'Keine aktive Sitzung'}
                     </h3>
-                    <p className="text-slate-600 dark:text-slate-400 mb-6">
+                    <p className="text-muted-foreground mb-8">
                         {T.ui.chat?.noSessionSubtitle || 'Starte eine neue Konversation, um mit Aura zu sprechen'}
                     </p>
                     <div className="flex flex-col gap-3 w-full">
@@ -560,13 +560,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                         await onNewChat(ChatMode.TEXT);
                                     }
                                 }}
-                                className="flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-purple-600 via-violet-600 to-purple-600 text-white shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
+                                className="flex items-center justify-center gap-3 rounded-2xl h-14 px-6 bg-gradient-to-r from-primary via-purple-500 to-primary bg-[length:200%_auto] animate-gradient text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] font-semibold"
                             >
                                 <span className="material-symbols-outlined">chat_bubble</span>
                                 <span>{T.ui.chat?.startConversation || 'Konversation starten'}</span>
                             </button>
                         )}
-                        <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-center text-muted-foreground">
                             {T.ui.chat?.conversationHint || 'Du kannst jederzeit zwischen Text und Sprache wechseln'}
                         </p>
                     </div>
@@ -576,29 +576,29 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
 
     return (
-        <div className="flex flex-1 flex-col bg-slate-50 dark:bg-slate-950 w-full min-h-0 overflow-hidden">
+        <div className="flex flex-1 flex-col bg-transparent w-full min-h-0 overflow-hidden">
             {/* Header - fixed */}
-            <div className="flex flex-wrap items-center gap-3 p-5 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900">
+            <div className="flex flex-wrap items-center gap-3 p-5 border-b border-white/10 shrink-0 glass sticky top-0 z-10">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                     <button
                         onClick={() => setShowSessionsList(true)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm font-semibold"
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl border border-white/10 text-muted-foreground hover:bg-white/10 transition-all text-sm font-semibold"
                     >
                         <span className="material-symbols-outlined text-base">arrow_back</span>
                         <span className="hidden sm:inline">{T.ui.chat?.backToSessions || 'Zurück'}</span>
                     </button>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                         <AuraHumanAvatar className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <h2 className="text-slate-900 dark:text-white font-bold leading-tight truncate">Aura</h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{T.ui.chat?.assistantSubtitle || 'Your AI companion'}</p>
+                        <h2 className="text-foreground font-bold leading-tight truncate">Aura</h2>
+                        <p className="text-xs text-muted-foreground truncate">{T.ui.chat?.assistantSubtitle || 'Your AI companion'}</p>
                     </div>
                 </div>
                 {hasSummary && onShowSummary && (
                     <button
                         onClick={onShowSummary}
-                        className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-purple-600/10 text-purple-700 dark:text-purple-300 border border-purple-200/40 dark:border-purple-800/40 hover:bg-purple-600/20 transition-all text-sm font-semibold"
+                        className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all text-sm font-semibold"
                     >
                         <span className="material-symbols-outlined text-base">summarize</span>
                         <span>{T.ui.chat?.viewSummary || 'Zusammenfassung'}</span>
@@ -637,25 +637,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 style={{ animationDelay: `${idx * 0.05}s` }}
                             >
                                 {!isUser && (
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 flex-shrink-0 ring-2 ring-white dark:ring-slate-900">
+                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0 ring-2 ring-white/20">
                                         <AuraHumanAvatar className="w-6 h-6" />
                                     </div>
                                 )}
                                 <div className={`flex flex-col gap-1.5 max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
                                     <div className={`flex items-center gap-2 px-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        <p className={`text-xs font-semibold ${isUser ? 'text-purple-700 dark:text-purple-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                                        <p className={`text-xs font-semibold ${isUser ? 'text-primary' : 'text-muted-foreground'}`}>
                                             {isUser ? 'You' : 'Aura'}
                                         </p>
                                         {entry.timestamp && (
-                                            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                                            <p className="text-[10px] text-muted-foreground/60">
                                                 {getRelativeTime(entry.timestamp, userProfile.language)}
                                             </p>
                                         )}
                                     </div>
                                     <div className={`relative group rounded-2xl px-5 py-3.5 transition-all duration-300 hover:scale-[1.01] ${
                                         isUser 
-                                            ? 'bg-gradient-to-br from-purple-600 via-purple-600 to-violet-600 text-white rounded-br-md shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 backdrop-blur-sm' 
-                                            : 'bg-white/90 dark:bg-slate-800/90 text-slate-900 dark:text-white rounded-bl-md border border-slate-200/70 dark:border-slate-700/50 shadow-md shadow-slate-900/5 dark:shadow-slate-900/20 hover:shadow-lg hover:border-purple-300/50 dark:hover:border-purple-700/50 backdrop-blur-sm'
+                                            ? 'bg-gradient-to-br from-primary to-purple-600 text-white rounded-br-sm shadow-lg shadow-primary/20' 
+                                            : 'glass-card text-foreground rounded-bl-sm border-white/20'
                                     }`}>
                                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{entry.text}</p>
                                         {distortion && (
@@ -739,22 +739,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* Input Area - fixed bottom */}
-            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 pb-24 shrink-0">
+            <div className="border-t border-white/10 glass p-4 pb-24 shrink-0">
                 {(isListening || isSpeaking) && (
                     <div className="flex items-center justify-center gap-4 max-w-4xl mx-auto mb-3">
                         <div className="flex items-center gap-3 flex-1">
                             {isListening && (
                                 <>
                                     <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    <span className="text-sm font-medium text-foreground">
                                         {T.ui.chat?.listening || 'Höre zu...'}
                                     </span>
                                 </>
                             )}
                             {isSpeaking && (
                                 <>
-                                    <div className="w-3 h-3 rounded-full bg-purple-500 animate-pulse"></div>
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                                    <span className="text-sm font-medium text-foreground">
                                         {T.ui.chat?.speaking || 'Aura spricht...'}
                                     </span>
                                 </>
@@ -775,7 +775,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 
                 <div className="max-w-4xl mx-auto">
                     {/* Textfeld mit integriertem Senden-Button */}
-                    <div className="flex items-end gap-2 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2.5 focus-within:ring-2 focus-within:ring-purple-500/40 transition-all">
+                    <div className="flex items-end gap-2 rounded-3xl bg-white/50 dark:bg-slate-900/50 border border-white/20 dark:border-white/10 px-4 py-2.5 focus-within:ring-2 focus-within:ring-primary/40 transition-all shadow-inner">
                         <textarea
                             ref={inputRef}
                             value={textInput}
@@ -787,7 +787,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     : (T.ui.chat?.inputPlaceholder || "Schreibe eine Nachricht...")
                             }
                             rows={1}
-                            className="flex-1 bg-transparent border-none outline-none resize-none text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm sm:text-base leading-relaxed py-1.5"
+                            className="flex-1 bg-transparent border-none outline-none resize-none text-foreground placeholder-muted-foreground text-sm sm:text-base leading-relaxed py-1.5"
                             disabled={isProcessing}
                         />
                         {/* Senden-Button direkt im Textfeld */}
@@ -796,8 +796,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             disabled={!textInput.trim() || isProcessing || isListening || isSpeaking}
                             className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
                                 textInput.trim() && !isProcessing && !isListening && !isSpeaking
-                                    ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/30'
-                                    : 'bg-slate-300 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md shadow-primary/30'
+                                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                             }`}
                             title={T.ui.chat?.send || 'Senden'}
                         >
@@ -809,7 +809,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 onClick={isIdle ? onStartVoiceSession : onStopSession}
                                 className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all mb-0.5 ${
                                     isIdle 
-                                        ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 shadow-md shadow-purple-500/30'
+                                        ? 'bg-gradient-to-br from-primary to-purple-600 text-white hover:shadow-lg hover:shadow-primary/30'
                                         : 'bg-red-500 text-white hover:bg-red-600 animate-pulse shadow-md shadow-red-500/30'
                                 }`}
                                 title={isIdle ? (T.ui.chat?.startVoice || 'Sprache starten') : (T.ui.chat?.stopVoice || 'Sprache stoppen')}
