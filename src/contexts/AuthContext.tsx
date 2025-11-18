@@ -109,11 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session)
         setUser(session?.user ?? null)
         
-        // CRITICAL: Clear cache when loading existing session to ensure fresh profile load
-        // This ensures that when user opens app on different device, profile is loaded fresh
+        // Wir löschen den Cache NICHT mehr hier, damit wir die cached Daten nutzen können
+        // falls das Netzwerk langsam ist oder offline.
         if (session?.user) {
-          console.log('🔄 Initial session loaded - clearing profile cache for:', session.user.id)
-          clearProfileCache(session.user.id)
+          console.log(' Initial session loaded for:', session.user.id)
         }
       } catch (error) {
         console.error('Fehler beim Laden der Session:', error)

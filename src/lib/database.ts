@@ -282,6 +282,14 @@ const fetchFreshProfile = async (
       } else if (error.code === 'PGRST116' || error.message?.includes('JWT')) {
         console.warn('⚠️ Auth error - session may be expired')
       }
+      
+      // Fallback: Versuche Cache zu nutzen, auch wenn er alt ist
+      const cached = profileCache.getEntry(userId)
+      if (cached) {
+        console.log('⚠️ Using stale cache due to network error')
+        return clone(cached.value)
+      }
+      
       return null
     }
 
