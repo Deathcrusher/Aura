@@ -267,9 +267,9 @@ const fetchFreshProfile = async (
       setTimeout(() => {
         resolve({
           data: null,
-          error: { message: 'Query timeout after 8 seconds', code: 'TIMEOUT' },
+          error: { message: 'Query timeout after 20 seconds', code: 'TIMEOUT' },
         })
-      }, 8000)
+      }, 20000)
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
