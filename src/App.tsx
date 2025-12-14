@@ -681,7 +681,7 @@ function App() {
           parts: [{ text: translationBundle.summarizeNotesPrompt(name, conversation) }],
         }],
       });
-      return response.text.trim();
+      return (await extractTextFromResponse(response)).trim();
     } catch (error) {
       console.warn('Note generation failed:', error);
       return '';
@@ -708,7 +708,7 @@ function App() {
           thinkingConfig: { thinkingBudget: 32768 },
         },
       });
-      return response.text.trim();
+      return (await extractTextFromResponse(response)).trim();
     } catch (error) {
       console.warn('User summary failed:', error);
       return '';
@@ -745,7 +745,7 @@ function App() {
           thinkingConfig: { thinkingBudget: 32768 },
         },
       });
-      const jsonStr = response.text.trim();
+      const jsonStr = (await extractTextFromResponse(response)).trim();
       if (!jsonStr) return currentMemory;
       return JSON.parse(jsonStr) as AuraMemory;
     } catch (error) {
@@ -774,7 +774,7 @@ function App() {
           responseSchema: { type: Type.ARRAY, items: { type: Type.NUMBER } },
         },
       });
-      const jsonStr = response.text.trim();
+      const jsonStr = (await extractTextFromResponse(response)).trim();
       if (!jsonStr) return undefined;
       const parsed = JSON.parse(jsonStr);
       return Array.isArray(parsed) && parsed.length === 4 && parsed.every((n: any) => typeof n === 'number')
@@ -815,7 +815,7 @@ function App() {
           },
         },
       });
-      const jsonStr = response.text.trim();
+      const jsonStr = (await extractTextFromResponse(response)).trim();
       if (!jsonStr) return undefined;
       const parsed = JSON.parse(jsonStr);
       return Array.isArray(parsed) ? (parsed as { text: string; value: number }[]) : undefined;
@@ -1167,7 +1167,7 @@ function App() {
           parts: [{ text: translationBundle.journalInsightPrompt(entry) }],
         }],
       });
-      const jsonStr = response.text.trim();
+      const jsonStr = (await extractTextFromResponse(response)).trim();
       if (!jsonStr) return undefined;
       const parsed = JSON.parse(jsonStr);
       if (parsed?.keyThemes && parsed?.positiveNotes) {
@@ -1434,7 +1434,7 @@ function App() {
           parts: [{ text: translationBundle.smartGoalPrompt(description) }],
         }],
       });
-      return response.text.trim();
+      return (await extractTextFromResponse(response)).trim();
     } catch (error) {
       console.error('Error suggesting smart goal:', error);
       return description; // Fallback to original on error
@@ -1575,7 +1575,7 @@ function App() {
                 ]
               }]
             });
-            transcript = response.text.trim();
+            transcript = (await extractTextFromResponse(response)).trim();
           }
         } catch (err) {
           console.error('Transcription error:', err);
@@ -2141,20 +2141,48 @@ function App() {
                 setCurrentOutput('');
                 setSessionState(SessionState.LISTENING);
 
-                  if (activeSession && (userText || auraText)) {
+                  const session = activeSessionRef.current ?? activeSession;
+                  if (session && (userText || auraText)) {
+                    const newEntries: TranscriptEntry[] = [];
+
                     if (userText) {
                       const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText, timestamp: Date.now() };
                       lastTranscriptEntryIdRef.current = userEntry.id;
-                      await addTranscriptEntryAuto(activeSession.id, userEntry);
-                    setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), userEntry] } : prev);
-                  }
-                  if (auraText) {
-                    const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText, timestamp: Date.now() };
-                    await addTranscriptEntryAuto(activeSession.id, auraEntry);
-                    setActiveSession(prev => prev ? { ...prev, transcript: [...(prev.transcript || []), auraEntry] } : prev);
+                      newEntries.push(userEntry);
+                    }
+
+                    if (auraText) {
+                      const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText, timestamp: Date.now() };
+                      newEntries.push(auraEntry);
+                    }
+
+                    const updatedTranscript = [...(session.transcript || []), ...newEntries];
+
+                    setActiveSession(prev =>
+                      prev && prev.id === session.id
+                        ? { ...prev, transcript: updatedTranscript }
+                        : prev,
+                    );
+                    setSessions(prev =>
+                      prev.map(s =>
+                        s.id === session.id
+                          ? { ...s, transcript: updatedTranscript }
+                          : s,
+                      ),
+                    );
+                    if (activeSessionRef.current?.id === session.id) {
+                      activeSessionRef.current = { ...session, transcript: updatedTranscript };
+                    }
+
+                    for (const entry of newEntries) {
+                      try {
+                        await addTranscriptEntryAuto(session.id, entry);
+                      } catch (persistError) {
+                        console.warn('Failed to persist voice transcript entry, continuing without DB sync:', persistError);
+                      }
+                    }
                   }
                 }
-              }
               if (message.toolCall?.functionCalls?.length) {
                 for (const fc of message.toolCall.functionCalls) {
                   if (fc.name === 'startBreathingExercise') {
@@ -2317,7 +2345,19 @@ function App() {
   };
 
   const handleSendMessage = async (text: string, speakResponse: boolean = false) => {
-    if (!activeSession || !text.trim()) return;
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+
+    let session = activeSessionRef.current ?? activeSession;
+    if (!session) {
+      try {
+        session = await handleNewChat(ChatMode.TEXT);
+      } catch (error) {
+        console.error('Error creating new chat session:', error);
+        setSessionState(SessionState.ERROR);
+        return;
+      }
+    }
 
     // If a voice session is active, stop it before sending text message
     // This ensures clean context switching between voice and text modes
@@ -2349,13 +2389,10 @@ function App() {
       setSessionState(SessionState.IDLE);
     }
 
-    const session = activeSession;
     const isLocalSession = session.id.startsWith('local-');
     const pendingPersistPromise = isLocalSession
       ? pendingSessionPromisesRef.current[session.id]
       : undefined;
-
-    const trimmedText = text.trim();
 
     console.log('💬 handleSendMessage called:', {
       text: trimmedText,
@@ -2376,29 +2413,27 @@ function App() {
     lastTranscriptEntryIdRef.current = userEntry.id;
 
     try {
+      setActiveSession({ ...session, transcript: transcriptWithUser });
+      activeSessionRef.current = { ...session, transcript: transcriptWithUser };
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === session.id
+            ? { ...s, transcript: transcriptWithUser }
+            : s,
+        ),
+      );
+
       if (user) {
         if (isLocalSession) {
           (pendingTranscriptQueueRef.current[session.id] ||= []).push(userEntry);
         } else {
-          await addTranscriptEntryAuto(session.id, userEntry);
+          try {
+            await addTranscriptEntryAuto(session.id, userEntry);
+          } catch (persistError) {
+            console.warn('Failed to persist user message, continuing without DB sync:', persistError);
+          }
         }
       }
-
-      setActiveSession(prev =>
-        prev
-          ? {
-              ...prev,
-              transcript: [...(prev.transcript || []), userEntry],
-            }
-          : null,
-      );
-      setSessions(prev =>
-        prev.map(s =>
-          s.id === session.id
-            ? { ...s, transcript: [...(s.transcript || []), userEntry] }
-            : s,
-        ),
-      );
 
       setSessionState(SessionState.PROCESSING);
       setCurrentOutput('');
@@ -2419,29 +2454,29 @@ function App() {
           timestamp: Date.now(),
         };
 
+        const updatedTranscript = [...transcriptWithUser, auraFallback];
+
+        setActiveSession({ ...session, transcript: updatedTranscript });
+        activeSessionRef.current = { ...session, transcript: updatedTranscript };
+        setSessions(prev =>
+          prev.map(s =>
+            s.id === session.id
+              ? { ...s, transcript: updatedTranscript }
+              : s,
+          ),
+        );
+
         if (user) {
           if (isLocalSession) {
             (pendingTranscriptQueueRef.current[session.id] ||= []).push(auraFallback);
           } else {
-            await addTranscriptEntryAuto(session.id, auraFallback);
+            try {
+              await addTranscriptEntryAuto(session.id, auraFallback);
+            } catch (persistError) {
+              console.warn('Failed to persist fallback response, continuing without DB sync:', persistError);
+            }
           }
         }
-
-        setActiveSession(prev =>
-          prev
-            ? {
-                ...prev,
-                transcript: [...(prev.transcript || []), auraFallback],
-              }
-            : null,
-        );
-        setSessions(prev =>
-          prev.map(s =>
-            s.id === session.id
-              ? { ...s, transcript: [...(s.transcript || []), auraFallback] }
-              : s,
-          ),
-        );
         setSessionState(SessionState.IDLE);
         return;
       }
@@ -2476,31 +2511,29 @@ function App() {
         timestamp: Date.now(),
       };
 
+      const updatedTranscript = [...transcriptWithUser, auraEntry];
+
+      setActiveSession({ ...session, transcript: updatedTranscript });
+      activeSessionRef.current = { ...session, transcript: updatedTranscript };
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === session.id
+            ? { ...s, transcript: updatedTranscript }
+            : s,
+        ),
+      );
+
       if (user) {
         if (isLocalSession) {
           (pendingTranscriptQueueRef.current[session.id] ||= []).push(auraEntry);
         } else {
-          await addTranscriptEntryAuto(session.id, auraEntry);
+          try {
+            await addTranscriptEntryAuto(session.id, auraEntry);
+          } catch (persistError) {
+            console.warn('Failed to persist assistant message, continuing without DB sync:', persistError);
+          }
         }
       }
-
-      const updatedTranscript = [...transcriptWithUser, auraEntry];
-
-      setActiveSession(prev =>
-        prev
-          ? {
-              ...prev,
-              transcript: [...(prev.transcript || []), auraEntry],
-            }
-          : null,
-      );
-      setSessions(prev =>
-        prev.map(s =>
-          s.id === session.id
-            ? { ...s, transcript: [...(s.transcript || []), auraEntry] }
-            : s,
-        ),
-      );
 
       if (speakResponse && ttsServiceRef.current?.isSupported()) {
         setSessionState(SessionState.SPEAKING);
@@ -2533,6 +2566,25 @@ function App() {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+
+      const errorEntry: TranscriptEntry = {
+        id: crypto.randomUUID(),
+        speaker: Speaker.AURA,
+        text: 'Es gab gerade ein Problem beim Antworten. Bitte versuche es nochmal.',
+        timestamp: Date.now(),
+      };
+
+      const updatedTranscript = [...transcriptWithUser, errorEntry];
+      setActiveSession({ ...session, transcript: updatedTranscript });
+      activeSessionRef.current = { ...session, transcript: updatedTranscript };
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === session.id
+            ? { ...s, transcript: updatedTranscript }
+            : s,
+        ),
+      );
+
       setSessionState(SessionState.ERROR);
     }
   };
