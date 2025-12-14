@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Mood } from '../types';
+import { Mood, ViewType } from '../types';
 import { XIcon, MoodVeryGoodIcon, MoodGoodIcon, MoodNeutralIcon, MoodBadIcon, MoodVeryBadIcon } from './Icons';
-import { BottomNavigation, ViewType } from './BottomNavigation';
+import { BottomNavigation } from './BottomNavigation';
 
 interface MoodJournalModalProps {
     isOpen: boolean;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XIcon, LightbulbIcon } from './Icons';
-import { BottomNavigation, ViewType } from './BottomNavigation';
+import { BottomNavigation } from './BottomNavigation';
+import { ViewType } from '../types';
 
 interface GoalsModalProps {
     isOpen: boolean;

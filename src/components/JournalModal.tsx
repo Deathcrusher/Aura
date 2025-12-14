@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { JournalEntry } from '../types';
 import { XIcon, LightbulbIcon, TrashIcon } from './Icons';
-import { BottomNavigation, ViewType } from './BottomNavigation';
+import { BottomNavigation } from './BottomNavigation';
+import { ViewType } from '../types';
 
 interface JournalModalProps {
     isOpen: boolean;

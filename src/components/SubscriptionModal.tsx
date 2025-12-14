@@ -1,7 +1,7 @@
 import React from 'react';
-import { SubscriptionPlan } from '../types';
+import { SubscriptionPlan, ViewType } from '../types';
 import { XIcon, SparklesIcon, CheckCircleIcon } from './Icons';
-import { BottomNavigation, ViewType } from './BottomNavigation';
+import { BottomNavigation } from './BottomNavigation';
 
 interface SubscriptionModalProps {
     isOpen: boolean;

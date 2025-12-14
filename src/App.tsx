@@ -120,6 +120,9 @@ const DEFAULT_PROFILE: UserProfile = {
 
 const MAX_CHAT_HISTORY_MESSAGES = 12;
 
+const GEMINI_TEXT_MODEL = 'gemini-3-pro-preview';
+const GEMINI_AUDIO_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+
 const mergeProfileState = (prev: UserProfile, next: UserProfile): UserProfile => ({
   ...prev,
   ...next,
@@ -672,7 +675,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.summarizeNotesPrompt(name, conversation) }],
@@ -696,7 +699,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.generateUserSummaryPrompt(name, conversation) }],
@@ -723,7 +726,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.updateAuraMemoryPrompt(currentMemory, conversation) }],
@@ -761,7 +764,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.moodTrendPrompt(conversation) }],
@@ -793,7 +796,7 @@ function App() {
 
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.wordCloudPrompt(conversation) }],
@@ -1158,7 +1161,7 @@ function App() {
     if (!genAIRef.current) return undefined;
     try {
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.journalInsightPrompt(entry) }],
@@ -1425,7 +1428,7 @@ function App() {
     try {
       const translationBundle = translations[userProfile.language as keyof typeof translations] || translations['de-DE'];
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_TEXT_MODEL,
         contents: [{
           role: 'user',
           parts: [{ text: translationBundle.smartGoalPrompt(description) }],
@@ -1563,7 +1566,7 @@ function App() {
 
           if (genAIRef.current) {
             const response = await genAIRef.current.models.generateContent({
-              model: 'gemini-2.5-flash',
+              model: GEMINI_AUDIO_MODEL,
               contents: [{
                 role: 'user',
                 parts: [
@@ -1730,7 +1733,7 @@ function App() {
         sessionPromiseRef.current = ai.live.connect({
           // Use the official live model id from the SDK docs
           // Use the same model id that worked in the previous project for maximum compatibility
-          model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+          model: GEMINI_AUDIO_MODEL,
           config: {
             systemInstruction: dynamicSystemInstruction,
             responseModalities: [Modality.AUDIO],
@@ -2447,7 +2450,7 @@ function App() {
       const historyContents = transcriptToContents(transcriptWithUser).slice(-MAX_CHAT_HISTORY_MESSAGES);
 
       const response = await genAIRef.current.models.generateContent({
-        model: 'gemini-2.5-pro',
+        model: GEMINI_TEXT_MODEL,
         contents: historyContents,
         config: {
           systemInstruction,
