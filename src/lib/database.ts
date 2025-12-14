@@ -257,11 +257,14 @@ const fetchFreshProfile = async (
     }
 
     console.log('📤 Executing profile query with session...')
-    const queryPromise = supabase!
-      .from('profiles')
-      .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
-      .eq('id', userId)
-      .maybeSingle()
+    const runProfileQuery = () =>
+      supabase!
+        .from('profiles')
+        .select('id, email, full_name, created_at, updated_at, name, voice, language, avatar_url, onboarding_completed, subscription_plan, subscription_expiry_date')
+        .eq('id', userId)
+        .maybeSingle()
+
+    const queryPromise = runProfileQuery()
 
     const timeoutPromise = new Promise<{ data: null; error: { message: string; code: string } }>(resolve => {
       setTimeout(() => {
@@ -273,7 +276,8 @@ const fetchFreshProfile = async (
     })
 
     const result = await Promise.race([queryPromise, timeoutPromise])
-    const { data: profile, error } = result
+    const { data, error } = result
+    let profile = data
 
     if (error) {
       console.error('❌ Profile query error:', error)
@@ -291,6 +295,20 @@ const fetchFreshProfile = async (
       }
       
       return null
+    }
+
+    if (!profile) {
+      // OAuth/new-user race: profile row may be created asynchronously right after sign-in.
+      // Retry briefly to avoid falling back to DEFAULT_PROFILE permanently.
+      for (const delayMs of [250, 500, 750, 1000, 1250]) {
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        const { data: retryProfile, error: retryError } = await runProfileQuery()
+        if (retryError) break
+        if (retryProfile) {
+          profile = retryProfile
+          break
+        }
+      }
     }
 
     if (!profile) {
