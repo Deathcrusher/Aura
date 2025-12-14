@@ -154,16 +154,18 @@ const mergeProfileState = (prev: UserProfile, next: UserProfile): UserProfile =>
 function App() {
   // Helper to validate API key (avoid placeholders)
   const getValidApiKey = () => {
-    // Support both VITE_API_KEY and VITE_GEMINI_API_KEY (or defined via vite.config.ts)
+    // Get Vite env object - VITE_API_KEY is automatically injected by Vite for vars prefixed with VITE_
     const envObj = (import.meta as any).env || {};
-    const rawKey = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY) as string | undefined;
+    // Try standard VITE_API_KEY first, then VITE_GEMINI_API_KEY, then legacy fallback from vite.config.ts
+    const legacyKey = typeof __LEGACY_API_KEY__ !== 'undefined' ? __LEGACY_API_KEY__ : '';
+    const rawKey = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY || legacyKey) as string | undefined;
     if (!rawKey) return null;
     const key = String(rawKey).trim();
     if (!key) return null;
-    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY'];
+    const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY', ''];
     return invalid.includes(key) ? null : key;
   };
-  
+
   const { user, session, loading: authLoading, signIn, signUp, signInWithGoogle, signOut } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -380,7 +382,7 @@ function App() {
 
   // Track previous user ID to detect user changes
   const previousUserIdRef = useRef<string | null>(null);
-  
+
   // Optimized profile loading with caching - only depends on user and authLoading
   const loadingProfileRef = useRef(false);
   useEffect(() => {
@@ -430,14 +432,14 @@ function App() {
           forceRefresh: userChanged,
           onHydrated: applyHydratedProfile,
         });
-        
+
         if (profile) {
           console.log('✅ Profile loaded successfully:', {
             name: profile.name,
             onboardingCompleted: profile.onboardingCompleted,
             forceRefresh: userChanged
           });
-          
+
           applyHydratedProfile(profile);
         } else {
           console.log('⚠️ No profile found, using default');
@@ -464,7 +466,7 @@ function App() {
       try {
         const loadedSessions = await getChatSessions(user.id);
         setSessions(loadedSessions);
-        
+
         // Load active session if none selected
         if (!activeSession && loadedSessions.length > 0) {
           const session = loadedSessions[0];
@@ -530,12 +532,12 @@ function App() {
     try {
       // Update UI immediately to let the user proceed
       setUserProfile(updatedProfile);
-      
+
       // CRITICAL: Persist to Supabase FIRST before doing anything else
       console.log('💾 Starting to save profile...');
       await updateUserProfile(user.id, updatedProfile);
       console.log('✅ Profile saved to Supabase successfully');
-      
+
       // Create first session
       await handleNewChat(ChatMode.TEXT);
     } catch (error) {
@@ -668,6 +670,7 @@ function App() {
 
   const generateContentWithFallback = async (requestBase: any, models: string[]): Promise<any> => {
     if (!genAIRef.current) {
+      console.error('❌ Gemini client not initialized - check if VITE_API_KEY is set correctly in Vercel!');
       throw new Error('Gemini client not initialized');
     }
 
@@ -675,26 +678,36 @@ function App() {
 
     for (const model of models) {
       try {
+        console.log(`🤖 Trying model: ${model}`);
         return await genAIRef.current.models.generateContent({ ...requestBase, model });
-      } catch (error) {
+      } catch (error: any) {
+        console.error(`❌ Model ${model} failed:`, {
+          message: error?.message || String(error),
+          status: error?.status,
+          statusText: error?.statusText,
+          details: error?.errorDetails || error?.error || null,
+        });
         lastError = error;
 
         // Common failure mode: model supports text, but rejects thinkingConfig – retry once without it.
         if (requestBase?.config?.thinkingConfig && isThinkingConfigError(error)) {
           try {
+            console.log(`🔄 Retrying ${model} without thinkingConfig...`);
             const { thinkingConfig: _thinkingConfig, ...restConfig } = requestBase.config;
             return await genAIRef.current.models.generateContent({
               ...requestBase,
               model,
               config: restConfig,
             });
-          } catch (retryError) {
+          } catch (retryError: any) {
+            console.error(`❌ Retry for ${model} also failed:`, retryError?.message || String(retryError));
             lastError = retryError;
           }
         }
       }
     }
 
+    console.error('❌ All models failed. Last error:', lastError);
     throw lastError;
   };
 
@@ -932,18 +945,18 @@ function App() {
       stopSummaryPlayback();
       return;
     }
-    
+
     if (!activeSession?.summary) return;
 
     setSummaryPlaybackState('loading');
-    
+
     try {
       let base64Audio: string | undefined;
 
       // 1. Check in-memory cache
       if (summaryAudioCacheRef.current[activeSession.id]) {
         base64Audio = summaryAudioCacheRef.current[activeSession.id];
-      } 
+      }
       // 2. Check transient state for just-completed session
       else if (activeSession.summaryAudioBase64) {
         base64Audio = activeSession.summaryAudioBase64;
@@ -956,10 +969,10 @@ function App() {
       if (base64Audio) {
         // Cache the generated audio
         summaryAudioCacheRef.current[activeSession.id] = base64Audio;
-        
+
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         summaryAudioContextRef.current = audioCtx;
-        
+
         const audioBuffer = await decodeAudioData(decode(base64Audio), audioCtx, 24000, 1);
         const source = audioCtx.createBufferSource();
         summaryAudioSourceRef.current = source;
@@ -967,7 +980,7 @@ function App() {
         source.connect(audioCtx.destination);
         source.start();
         setSummaryPlaybackState('playing');
-        
+
         source.onended = () => {
           stopSummaryPlayback();
         };
@@ -1036,7 +1049,7 @@ function App() {
 
   const handleSaveTitle = async () => {
     if (!editingSessionId) return;
-    
+
     const trimmedTitle = editingTitle.trim();
     if (!trimmedTitle) {
       // Wenn der Titel leer ist, abbrechen
@@ -1443,17 +1456,17 @@ function App() {
     }
 
     console.log('🗑️ Starting deletion of session:', sessionId);
-    
+
     try {
       await deleteChatSession(sessionId);
       console.log('✅ Session deleted from database:', sessionId);
-      
+
       setSessions(prev => {
         const newSessions = prev.filter(s => s.id !== sessionId);
         console.log('📝 Updated sessions list:', newSessions.map(s => s.id));
         return newSessions;
       });
-      
+
       if (activeSession?.id === sessionId) {
         console.log('🔄 Clearing active session:', sessionId);
         setActiveSession(null);
@@ -1588,7 +1601,7 @@ function App() {
           if (s && typeof s.close === 'function') {
             s.close();
           }
-        } catch {}
+        } catch { }
         sessionPromiseRef.current = null;
         resolvedSessionRef.current = null;
       }
@@ -1604,19 +1617,19 @@ function App() {
 
       // Dispose audio contexts and nodes
       if (scriptProcessorRef.current) {
-        try { scriptProcessorRef.current.disconnect(); } catch {}
+        try { scriptProcessorRef.current.disconnect(); } catch { }
         scriptProcessorRef.current = null;
       }
       if (mediaStreamSourceRef.current) {
-        try { mediaStreamSourceRef.current.disconnect(); } catch {}
+        try { mediaStreamSourceRef.current.disconnect(); } catch { }
         mediaStreamSourceRef.current = null;
       }
       if (inputAudioContextRef.current) {
-        try { await inputAudioContextRef.current.close(); } catch {}
+        try { await inputAudioContextRef.current.close(); } catch { }
         inputAudioContextRef.current = null;
       }
       if (outputAudioContextRef.current) {
-        try { await outputAudioContextRef.current.close(); } catch {}
+        try { await outputAudioContextRef.current.close(); } catch { }
         outputAudioContextRef.current = null;
       }
 
@@ -1738,19 +1751,19 @@ function App() {
       try {
         console.log('🎤 Requesting microphone access...');
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { 
-            echoCancellation: true, 
-            noiseSuppression: true, 
-            autoGainControl: true 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
           } as MediaTrackConstraints,
         });
         micStreamRef.current = stream;
         console.log('✅ Microphone access granted, stream active:', stream.active);
-        console.log('✅ Audio tracks:', stream.getAudioTracks().map(t => ({ 
-          id: t.id, 
-          label: t.label, 
-          enabled: t.enabled, 
-          readyState: t.readyState 
+        console.log('✅ Audio tracks:', stream.getAudioTracks().map(t => ({
+          id: t.id,
+          label: t.label,
+          enabled: t.enabled,
+          readyState: t.readyState
         })));
         if (audioVisualizationRef.current) {
           inputAnalyserRef.current = await audioVisualizationRef.current.createFromStream(stream);
@@ -1791,7 +1804,7 @@ function App() {
         const dynamicSystemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
 
         // Convert existing transcript to history format for Live API
-        const existingHistory = activeSession?.transcript 
+        const existingHistory = activeSession?.transcript
           ? transcriptToContents(activeSession.transcript).slice(-MAX_CHAT_HISTORY_MESSAGES)
           : [];
 
@@ -1818,7 +1831,7 @@ function App() {
           callbacks: {
             onopen: async () => {
               setSessionState(SessionState.LISTENING);
-              
+
               // Resolve and cache the session object
               try {
                 const session = await sessionPromiseRef.current;
@@ -1854,7 +1867,7 @@ function App() {
                 }
                 return;
               }
-              
+
               // Send existing conversation history to Live API to maintain context
               if (existingHistory.length > 0 && resolvedSessionRef.current) {
                 try {
@@ -1987,7 +2000,7 @@ function App() {
                 }
 
                 mediaStreamSourceRef.current = inputAudioContextRef.current.createMediaStreamSource(micStreamRef.current);
-                
+
                 // Try to create ScriptProcessor (deprecated but still works in most browsers)
                 // If it fails, we'll fall back to a different approach
                 try {
@@ -1999,23 +2012,23 @@ function App() {
                     if (audioChunkCount <= 5) {
                       console.log(`🎤 Audio chunk ${audioChunkCount} processed, samples: ${e.inputBuffer.length}`);
                     }
-                    
+
                     const inputData = e.inputBuffer.getChannelData(0);
-                    
+
                     // Calculate RMS for VAD and logging (do it once)
                     const VAD_THRESHOLD = 0.01;
                     const SILENCE_DELAY = 800;
                     const rms = Math.sqrt(inputData.reduce((acc, val) => acc + val * val, 0) / inputData.length);
-                    
+
                     // Log audio level for first few chunks
                     if (audioChunkCount <= 5) {
                       console.log(`🎤 Audio RMS level: ${rms.toFixed(4)} (threshold: ${VAD_THRESHOLD})`);
                     }
-                    
+
                     // Send PCM audio chunk to Gemini Live using the correct format per official docs
                     // Format: { audio: { data: base64String, mimeType: "audio/pcm;rate=16000" } }
                     const payload: any = createBlob(inputData);
-                    
+
                     // Use cached resolved session instead of promise chain
                     const session = resolvedSessionRef.current;
                     if (session && typeof session.sendRealtimeInput === 'function') {
@@ -2040,8 +2053,8 @@ function App() {
                       } catch (err1) {
                         // Fallback: try alternative format if the primary fails
                         try {
-                          session.sendRealtimeInput({ 
-                            audio: payload 
+                          session.sendRealtimeInput({
+                            audio: payload
                           });
                           if (audioChunkCount === 1) {
                             console.log('✅ First audio chunk sent (alternative format)');
@@ -2206,48 +2219,48 @@ function App() {
                 setCurrentOutput('');
                 setSessionState(SessionState.LISTENING);
 
-                  const session = activeSessionRef.current ?? activeSession;
-                  if (session && (userText || auraText)) {
-                    const newEntries: TranscriptEntry[] = [];
+                const session = activeSessionRef.current ?? activeSession;
+                if (session && (userText || auraText)) {
+                  const newEntries: TranscriptEntry[] = [];
 
-                    if (userText) {
-                      const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText, timestamp: Date.now() };
-                      lastTranscriptEntryIdRef.current = userEntry.id;
-                      newEntries.push(userEntry);
-                    }
+                  if (userText) {
+                    const userEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.USER, text: userText, timestamp: Date.now() };
+                    lastTranscriptEntryIdRef.current = userEntry.id;
+                    newEntries.push(userEntry);
+                  }
 
-                    if (auraText) {
-                      const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText, timestamp: Date.now() };
-                      newEntries.push(auraEntry);
-                    }
+                  if (auraText) {
+                    const auraEntry: TranscriptEntry = { id: crypto.randomUUID(), speaker: Speaker.AURA, text: auraText, timestamp: Date.now() };
+                    newEntries.push(auraEntry);
+                  }
 
-                    const updatedTranscript = [...(session.transcript || []), ...newEntries];
+                  const updatedTranscript = [...(session.transcript || []), ...newEntries];
 
-                    setActiveSession(prev =>
-                      prev && prev.id === session.id
-                        ? { ...prev, transcript: updatedTranscript }
-                        : prev,
-                    );
-                    setSessions(prev =>
-                      prev.map(s =>
-                        s.id === session.id
-                          ? { ...s, transcript: updatedTranscript }
-                          : s,
-                      ),
-                    );
-                    if (activeSessionRef.current?.id === session.id) {
-                      activeSessionRef.current = { ...session, transcript: updatedTranscript };
-                    }
+                  setActiveSession(prev =>
+                    prev && prev.id === session.id
+                      ? { ...prev, transcript: updatedTranscript }
+                      : prev,
+                  );
+                  setSessions(prev =>
+                    prev.map(s =>
+                      s.id === session.id
+                        ? { ...s, transcript: updatedTranscript }
+                        : s,
+                    ),
+                  );
+                  if (activeSessionRef.current?.id === session.id) {
+                    activeSessionRef.current = { ...session, transcript: updatedTranscript };
+                  }
 
-                    for (const entry of newEntries) {
-                      try {
-                        await addTranscriptEntryAuto(session.id, entry);
-                      } catch (persistError) {
-                        console.warn('Failed to persist voice transcript entry, continuing without DB sync:', persistError);
-                      }
+                  for (const entry of newEntries) {
+                    try {
+                      await addTranscriptEntryAuto(session.id, entry);
+                    } catch (persistError) {
+                      console.warn('Failed to persist voice transcript entry, continuing without DB sync:', persistError);
                     }
                   }
                 }
+              }
               if (message.toolCall?.functionCalls?.length) {
                 for (const fc of message.toolCall.functionCalls) {
                   if (fc.name === 'startBreathingExercise') {
@@ -2268,18 +2281,18 @@ function App() {
                         prev.map(session =>
                           session.id === activeSession.id
                             ? {
-                                ...session,
-                                cognitiveDistortions: [...(session.cognitiveDistortions || []), newDistortion],
-                              }
+                              ...session,
+                              cognitiveDistortions: [...(session.cognitiveDistortions || []), newDistortion],
+                            }
                             : session,
                         ),
                       );
                       setActiveSession(prev =>
                         prev && prev.id === activeSession.id
                           ? {
-                              ...prev,
-                              cognitiveDistortions: [...(prev.cognitiveDistortions || []), newDistortion],
-                            }
+                            ...prev,
+                            cognitiveDistortions: [...(prev.cognitiveDistortions || []), newDistortion],
+                          }
                           : prev,
                       );
                       setActiveDistortion(newDistortion);
@@ -2440,11 +2453,11 @@ function App() {
       resolvedSessionRef.current = null;
       // Clean up audio contexts
       if (inputAudioContextRef.current) {
-        try { await inputAudioContextRef.current.close(); } catch {}
+        try { await inputAudioContextRef.current.close(); } catch { }
         inputAudioContextRef.current = null;
       }
       if (outputAudioContextRef.current) {
-        try { await outputAudioContextRef.current.close(); } catch {}
+        try { await outputAudioContextRef.current.close(); } catch { }
         outputAudioContextRef.current = null;
       }
       if (micStreamRef.current) {
@@ -2630,13 +2643,28 @@ function App() {
       } else {
         scheduleSummary(session.id);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      const isApiKeyIssue = errorMessage.includes('API key') || errorMessage.includes('not initialized') || errorMessage.includes('401') || errorMessage.includes('403');
+      console.error('❌ Error sending message:', {
+        message: errorMessage,
+        status: error?.status,
+        isApiKeyIssue,
+        stack: error?.stack,
+      });
+
+      // Show a more specific error message based on the error type
+      let userFacingError = 'Es gab gerade ein Problem beim Antworten. Bitte versuche es nochmal.';
+      if (isApiKeyIssue) {
+        userFacingError = 'API-Schlüssel fehlt oder ungültig. Bitte überprüfe die VITE_API_KEY Einstellung in Vercel.';
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        userFacingError = 'Netzwerk-Problem. Bitte prüfe deine Internetverbindung.';
+      }
 
       const errorEntry: TranscriptEntry = {
         id: crypto.randomUUID(),
         speaker: Speaker.AURA,
-        text: 'Es gab gerade ein Problem beim Antworten. Bitte versuche es nochmal.',
+        text: userFacingError,
         timestamp: Date.now(),
       };
 
@@ -2780,80 +2808,80 @@ function App() {
                 T={T}
               />
             )}
-        {/* Modals */}
-        {isProfileOpen && (
-          <ProfileModal
-            isOpen={isProfileOpen}
-            onClose={() => setIsProfileOpen(false)}
-            profile={userProfile}
-            userId={user?.id || ''}
-            onProfileChange={handleProfileChange}
-            onPreviewVoice={handlePreviewVoiceFromProfile}
-            voicePreviewState={voicePreviewState}
-            onLogout={async () => {
-              try {
-                await signOut()
-              } catch (error) {
-                console.error('Fehler beim Abmelden:', error)
-              }
-            }}
-            onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
-            isDarkMode={isDarkMode}
-            onThemeToggle={handleThemeToggle}
-            T={T}
-          />
-        )}
+            {/* Modals */}
+            {isProfileOpen && (
+              <ProfileModal
+                isOpen={isProfileOpen}
+                onClose={() => setIsProfileOpen(false)}
+                profile={userProfile}
+                userId={user?.id || ''}
+                onProfileChange={handleProfileChange}
+                onPreviewVoice={handlePreviewVoiceFromProfile}
+                voicePreviewState={voicePreviewState}
+                onLogout={async () => {
+                  try {
+                    await signOut()
+                  } catch (error) {
+                    console.error('Fehler beim Abmelden:', error)
+                  }
+                }}
+                onOpenSubscriptionModal={() => setIsSubscriptionOpen(true)}
+                isDarkMode={isDarkMode}
+                onThemeToggle={handleThemeToggle}
+                T={T}
+              />
+            )}
 
-        {isGoalsOpen && (
-          <GoalsModal
-            isOpen={isGoalsOpen}
-            onClose={() => setIsGoalsOpen(false)}
-            onSave={handleSaveGoal}
-            onSuggestSmartGoal={handleSuggestSmartGoal}
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            T={T}
-          />
-        )}
+            {isGoalsOpen && (
+              <GoalsModal
+                isOpen={isGoalsOpen}
+                onClose={() => setIsGoalsOpen(false)}
+                onSave={handleSaveGoal}
+                onSuggestSmartGoal={handleSuggestSmartGoal}
+                currentView={currentView}
+                onNavigate={setCurrentView}
+                T={T}
+              />
+            )}
 
-        {isMoodOpen && (
-          <MoodJournalModal
-            isOpen={isMoodOpen}
-            onClose={() => setIsMoodOpen(false)}
-            onSave={handleSaveMood}
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            T={T}
-          />
-        )}
+            {isMoodOpen && (
+              <MoodJournalModal
+                isOpen={isMoodOpen}
+                onClose={() => setIsMoodOpen(false)}
+                onSave={handleSaveMood}
+                currentView={currentView}
+                onNavigate={setCurrentView}
+                T={T}
+              />
+            )}
 
-        {isJournalOpen && (
-          <JournalModal
-            isOpen={isJournalOpen}
-            onClose={() => {
-              setIsJournalOpen(false);
-              setEditingJournalEntry(null);
-            }}
-            onSave={handleSaveJournal}
-            onDelete={handleDeleteJournal}
-            entry={editingJournalEntry}
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            T={T}
-          />
-        )}
+            {isJournalOpen && (
+              <JournalModal
+                isOpen={isJournalOpen}
+                onClose={() => {
+                  setIsJournalOpen(false);
+                  setEditingJournalEntry(null);
+                }}
+                onSave={handleSaveJournal}
+                onDelete={handleDeleteJournal}
+                entry={editingJournalEntry}
+                currentView={currentView}
+                onNavigate={setCurrentView}
+                T={T}
+              />
+            )}
 
-        {isSubscriptionOpen && (
-          <SubscriptionModal
-            isOpen={isSubscriptionOpen}
-            onClose={() => setIsSubscriptionOpen(false)}
-            onUpgrade={handleUpgradeToPremium}
-            subscription={userProfile.subscription}
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            T={T}
-          />
-        )}
+            {isSubscriptionOpen && (
+              <SubscriptionModal
+                isOpen={isSubscriptionOpen}
+                onClose={() => setIsSubscriptionOpen(false)}
+                onUpgrade={handleUpgradeToPremium}
+                subscription={userProfile.subscription}
+                currentView={currentView}
+                onNavigate={setCurrentView}
+                T={T}
+              />
+            )}
             {currentView === 'privacy' && (
               <PrivacyView
                 T={T}
@@ -2918,7 +2946,7 @@ function App() {
                 </h3>
               </div>
               <p className="text-slate-600 dark:text-slate-300 mb-6">
-                Wenn Sie sich in einer Krise befinden oder Gedanken an Selbstverletzung haben, 
+                Wenn Sie sich in einer Krise befinden oder Gedanken an Selbstverletzung haben,
                 wenden Sie sich bitte sofort an professionelle Hilfe.
               </p>
               <div className="space-y-3">
@@ -2984,8 +3012,8 @@ function App() {
         )}
 
         {/* Modern Bottom Navigation */}
-        <BottomNavigation 
-          currentView={currentView} 
+        <BottomNavigation
+          currentView={currentView}
           onNavigate={setCurrentView}
         />
       </AppFrame>
