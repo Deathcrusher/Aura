@@ -240,9 +240,11 @@ export class TextToSpeechService {
   async speak(text: string, lang: string = 'de-DE', voiceName?: string): Promise<void> {
     // Try Gemini TTS first
     try {
-      const key = (import.meta as any).env?.VITE_API_KEY as string | undefined;
-      const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE'];
-      if (key && !invalid.includes(String(key))) {
+      const envObj = (import.meta as any).env || {};
+      const rawKey = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY) as string | undefined;
+      const key = rawKey ? String(rawKey).trim() : '';
+      const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY'];
+      if (key && !invalid.includes(key)) {
         return await this.speakWithGemini(text, lang, voiceName);
       }
     } catch (e) {

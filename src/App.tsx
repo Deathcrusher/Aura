@@ -120,8 +120,23 @@ const DEFAULT_PROFILE: UserProfile = {
 
 const MAX_CHAT_HISTORY_MESSAGES = 12;
 
-const GEMINI_TEXT_MODEL = 'gemini-3-pro-preview';
-const GEMINI_AUDIO_MODEL = 'gemini-2.5-flash-native-audio-preview-12-2025';
+const getEnvString = (key: string): string | null => {
+  try {
+    const value = (import.meta as any).env?.[key];
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  } catch {
+    return null;
+  }
+};
+
+// Allow overriding models via Vite env vars (recommended for production).
+const GEMINI_TEXT_MODEL = getEnvString('VITE_GEMINI_TEXT_MODEL') ?? 'gemini-3-pro-preview';
+const GEMINI_TRANSCRIBE_MODEL =
+  getEnvString('VITE_GEMINI_TRANSCRIBE_MODEL') ?? 'gemini-2.5-flash-native-audio-preview-12-2025';
+const GEMINI_LIVE_MODEL =
+  getEnvString('VITE_GEMINI_LIVE_MODEL') ?? 'gemini-2.5-flash-native-audio-preview-12-2025';
 
 const mergeProfileState = (prev: UserProfile, next: UserProfile): UserProfile => ({
   ...prev,
@@ -141,10 +156,12 @@ function App() {
   const getValidApiKey = () => {
     // Support both VITE_API_KEY and VITE_GEMINI_API_KEY (or defined via vite.config.ts)
     const envObj = (import.meta as any).env || {};
-    const key = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY) as string | undefined;
+    const rawKey = (envObj.VITE_API_KEY || envObj.VITE_GEMINI_API_KEY) as string | undefined;
+    if (!rawKey) return null;
+    const key = String(rawKey).trim();
     if (!key) return null;
     const invalid = ['YOUR_API_KEY', 'YOUR_API_KEY_HERE', 'PLACEHOLDER_API_KEY'];
-    return invalid.includes(String(key)) ? null : key;
+    return invalid.includes(key) ? null : key;
   };
   
   const { user, session, loading: authLoading, signIn, signUp, signInWithGoogle, signOut } = useAuth();
@@ -631,6 +648,54 @@ function App() {
     }
 
     return '';
+  };
+
+  const uniqueModels = (models: Array<string | null | undefined>): string[] => {
+    const result: string[] = [];
+    for (const model of models) {
+      if (!model) continue;
+      const trimmed = model.trim();
+      if (!trimmed) continue;
+      if (!result.includes(trimmed)) result.push(trimmed);
+    }
+    return result;
+  };
+
+  const isThinkingConfigError = (error: unknown): boolean => {
+    const message = String((error as any)?.message ?? error ?? '');
+    return /thinking/i.test(message) || /thinkingConfig/i.test(message) || /thinkingBudget/i.test(message);
+  };
+
+  const generateContentWithFallback = async (requestBase: any, models: string[]): Promise<any> => {
+    if (!genAIRef.current) {
+      throw new Error('Gemini client not initialized');
+    }
+
+    let lastError: unknown;
+
+    for (const model of models) {
+      try {
+        return await genAIRef.current.models.generateContent({ ...requestBase, model });
+      } catch (error) {
+        lastError = error;
+
+        // Common failure mode: model supports text, but rejects thinkingConfig – retry once without it.
+        if (requestBase?.config?.thinkingConfig && isThinkingConfigError(error)) {
+          try {
+            const { thinkingConfig: _thinkingConfig, ...restConfig } = requestBase.config;
+            return await genAIRef.current.models.generateContent({
+              ...requestBase,
+              model,
+              config: restConfig,
+            });
+          } catch (retryError) {
+            lastError = retryError;
+          }
+        }
+      }
+    }
+
+    throw lastError;
   };
 
   // Build comprehensive system instruction with memory, goals, and mood
@@ -1566,7 +1631,7 @@ function App() {
 
           if (genAIRef.current) {
             const response = await genAIRef.current.models.generateContent({
-              model: GEMINI_AUDIO_MODEL,
+              model: GEMINI_TRANSCRIBE_MODEL,
               contents: [{
                 role: 'user',
                 parts: [
@@ -1733,7 +1798,7 @@ function App() {
         sessionPromiseRef.current = ai.live.connect({
           // Use the official live model id from the SDK docs
           // Use the same model id that worked in the previous project for maximum compatibility
-          model: GEMINI_AUDIO_MODEL,
+          model: GEMINI_LIVE_MODEL,
           config: {
             systemInstruction: dynamicSystemInstruction,
             responseModalities: [Modality.AUDIO],
@@ -2484,14 +2549,15 @@ function App() {
       const systemInstruction = getSystemInstruction(userProfile.language || 'de-DE', userProfile);
       const historyContents = transcriptToContents(transcriptWithUser).slice(-MAX_CHAT_HISTORY_MESSAGES);
 
-      const response = await genAIRef.current.models.generateContent({
-        model: GEMINI_TEXT_MODEL,
-        contents: historyContents,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingBudget: 32768 },
+      const response = await generateContentWithFallback(
+        {
+          contents: historyContents,
+          config: {
+            systemInstruction,
+          },
         },
-      });
+        uniqueModels([GEMINI_TEXT_MODEL, 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']),
+      );
 
       let responseText = (await extractTextFromResponse(response)).trim();
 
